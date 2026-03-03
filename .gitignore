@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (too large for git)
+*.gguf
+*.bin
+*.safetensors
+
+# Docker
+docker-compose.override.yml
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log

@@ -1,0 +1,139 @@
+) Arquitectura recomendada: “Jefe + Workers”
+A. Agente jefe (Planner/Orchestrator)
+
+Modelo: Qwen2.5-7B Instruct (local) o Llama 3.1/3.2 8B.
+
+Función: entender el objetivo, hacer el plan, decidir herramientas, crear subtareas y asignarlas.
+
+B. Workers (micro-agentes)
+
+Cada worker puede ser el mismo modelo pero con prompt/herramientas diferentes, o modelos distintos:
+
+Research Worker (leer docs/webs, resumir, extraer datos)
+
+Data Worker (limpieza, tablas, cálculos, series temporales)
+
+RAG Worker (buscar en tu base agritech y citar fuentes)
+
+Action Worker (Web) (navegar y operar en webs)
+
+Writer Worker (generar informes, emails, documentación)
+
+Esto te permite “ser grande” sin un 70B.
+
+2) ¿Que “cree otros agentes” significa qué exactamente?
+
+Hay dos niveles posibles:
+
+Nivel 1 (lo más práctico)
+
+El jefe instancia perfiles (prompts + tools + límites) “al vuelo”.
+
+No crea código nuevo necesariamente.
+
+Solo crea “roles” y pipelines.
+✅ Esto funciona ya, es estable.
+
+Nivel 2 (más avanzado)
+
+El jefe genera y despliega agentes como artefactos (config YAML/JSON, prompts versionados, herramientas).
+
+Puedes guardar “plantillas” de agentes en tu repositorio (OMV).
+
+Luego el jefe los reutiliza o los ajusta.
+✅ También se puede, pero requiere disciplina (control de versiones, tests).
+
+3) “Tareas pequeñas dentro de webs”: lo que sí y lo que no
+
+Sí se puede automatizar webs, pero hay que distinguir:
+
+Opción A (recomendada): Playwright / Browser automation
+
+El agente usa un navegador controlado (headless o visible).
+
+Hace click, rellena formularios, descarga CSV, etc.
+
+Funciona bien con micro-tareas repetibles.
+
+Opción B: APIs (ideal cuando existen)
+
+Mucho más robusto que “clickar”.
+
+Para servicios agrícolas (clima, satélite, mercado, ERP, etc.), APIs > web scraping.
+
+Opción C: “agente en el móvil”
+
+En Android es más caprichoso.
+
+Normalmente se hace desde servidor y tú lo controlas desde el móvil.
+
+Importante: si es para tus propias cuentas/webs, perfecto. Si hablamos de automatización agresiva en sitios de terceros, hay que respetar TOS y evitar scraping abusivo.
+
+4) Cómo lo hacemos con tu stack (Seedy + Ollama + Qdrant)
+
+Tú ya tienes:
+
+Open WebUI
+
+Ollama
+
+Qdrant
+
+acceso remoto por Tailscale
+
+Te propongo una ruta rápida:
+
+Paso 1: modelo local “rápido”
+
+En tu Ollama:
+
+qwen2.5:7b-instruct (o llama 8b)
+y lo usas para:
+
+chat
+
+RAG
+
+herramientas
+
+Paso 2: tu “base de conocimiento agritech”
+
+Mete PDFs, protocolos, veterinaria/porcino/vacuno, fitosanitarios, normativa, manuales, tus notas.
+
+Indexa a Qdrant (Open WebUI ya puede hacerlo).
+
+Paso 3: define “herramientas” del agente
+
+Search/RAG (Qdrant)
+
+Cálculo / Python (si lo integras)
+
+Web actions (Playwright) → lo más potente para “tareas dentro de webs”
+
+Conectores a tu OMV (repositorio de documentos)
+
+Paso 4: cuando toque “cerebro más fuerte”
+
+En Vast.ai levantas:
+
+Qwen2.5-14B Instruct (o coder si hace falta)
+
+lo conectas como endpoint (OpenAI compatible o similar)
+
+el jefe en local puede decidir “para esta tarea llama al grande en cloud”.
+
+5) Qué puede hacer un “agente agritech” de verdad
+
+Ejemplos realistas:
+
+Diagnóstico asistido: síntomas → hipótesis + preguntas + plan de muestreo + tratamiento (con citas a tus docs).
+
+Planificación de raciones (si le das tablas y reglas).
+
+Alertas: clima + IoT + historial → riesgo de estrés térmico / brote.
+
+Generación de “protocolos” para operarios.
+
+Micro-agentes web: descargar precios, partes meteorológicos, informes, actualizar hojas, etc.
+
+
