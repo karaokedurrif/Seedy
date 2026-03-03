@@ -1,0 +1,20 @@
+# Seedy Backend
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+pydantic==2.*
+pydantic-settings==2.*
+httpx==0.28.*
+
+# RAG
+qdrant-client==1.13.*
+
+# Reranker
+sentence-transformers==3.*
+torch>=2.0
+
+# Ingestion
+python-docx==1.*
+PyPDF2==3.*
+
+# Utils
+python-dotenv==1.*

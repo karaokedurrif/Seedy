@@ -32,10 +32,11 @@ nomic-embed-text       274 MB   ← Embeddings alternativo
 ```
 
 ### Fine-tune en Together.ai
-- **Job ID**: `ft-bc10fc32-2235` (Completed, 10m 34s)
+- **Job ID v4**: `ft-o1bf79da-6ofa` (Completed, 8m 7s, 3/3/2026) ← **ACTUAL, dataset v4**
+- **Job ID v3**: `ft-bc10fc32-2235` (Completed, 10m 34s, 3/2/2026) ← dataset v3
 - **Base**: Qwen2.5-7B-Instruct
 - **Tipo**: LoRA
-- **Dataset**: 150 ejemplos SFT en español (IoT, nutrición, genética, normativa, Digital Twins, economía)
+- **Dataset v4**: ~150 ejemplos SFT en español (IoT, nutrición, genética, normativa, Digital Twins, economía)
 - **Adapter LoRA**: ~75 MB descargado
 - **Modelo GGUF local**: `/home/davidia/models/gguf/seedy-q8_0.gguf` (7.6 GB)
 
