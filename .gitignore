@@ -24,6 +24,28 @@ Thumbs.db
 *.gguf
 *.bin
 *.safetensors
+*.pt
+*.onnx
+*.engine
+
+# Large data directories
+conocimientos/
+data/raw/
+hf_datasets/
+vision/runs/
+vision/poultry/
+autobalancer_data/
+
+# YOLO training artifacts (managed by Docker volumes)
+yolo_dataset/
+yolo_models/
+
+# Progress files
+.cda_progress.json
+.v10_progress.json
+
+# Temp files
+tmp*
 
 # Docker
 docker-compose.override.yml

@@ -1,6 +1,8 @@
 """Seedy Backend — Chunker: divide documentos en fragmentos para Qdrant."""
 
+import hashlib
 import re
+from collections import Counter
 
 
 def chunk_text(
@@ -98,5 +100,86 @@ def extract_text(filepath: str) -> str:
     extractor = extractors.get(ext)
     if extractor is None:
         raise ValueError(f"Formato no soportado: .{ext}")
+
+    return extractor(filepath)
+
+
+# ── Chunking markdown por secciones ──────────────────
+
+def chunk_markdown(
+    text: str,
+    max_chunk_size: int = 1500,
+    chunk_overlap: int = 200,
+) -> list[dict]:
+    """
+    Divide un documento Markdown respetando secciones (## headers).
+    Devuelve lista de dicts con: text, section, sub_chunk.
+    Las subsecciones (###) se mantienen dentro de su sección padre.
+    """
+    if not text or not text.strip():
+        return []
+
+    text = text.strip()
+    chunks: list[dict] = []
+
+    # Split on ## headers (level 2), keeping the delimiter
+    parts = re.split(r"(?=^## )", text, flags=re.MULTILINE)
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        # Extract section title from ## header
+        header_match = re.match(r"^##\s+(.+?)(?:\n|$)", part)
+        section = header_match.group(1).strip() if header_match else "Introducción"
+
+        if len(part) <= max_chunk_size:
+            chunks.append({"text": part, "section": section, "sub_chunk": 0})
+        else:
+            # Sub-chunk large sections preserving overlap
+            sub_chunks = chunk_text(part, max_chunk_size, chunk_overlap)
+            for j, sc in enumerate(sub_chunks):
+                chunks.append({"text": sc, "section": section, "sub_chunk": j})
+
+    return chunks
+
+
+# ── Sparse vector para BM25 ──────────────────────────
+
+_STOPWORDS = frozenset({
+    "de", "la", "el", "en", "y", "a", "los", "las", "que", "del", "un", "una",
+    "por", "con", "no", "es", "se", "para", "su", "al", "lo", "como", "más",
+    "o", "pero", "me", "ya", "esto", "le", "si", "entre", "cuando", "muy",
+    "sin", "sobre", "también", "fue", "ser", "son", "tiene", "este", "esta",
+    "the", "and", "is", "in", "to", "of", "for", "on", "it", "this", "that",
+    "with", "are", "from", "or", "an", "be", "at", "by", "not", "was", "but",
+})
+
+
+def compute_sparse_vector(text: str) -> tuple[list[int], list[float]]:
+    """
+    Genera un vector disperso (sparse) para búsqueda BM25-like.
+    Devuelve (indices, values) para qdrant SparseVector.
+    Los índices son hashes determinísticos de cada token único;
+    los valores son frecuencias de término (TF).
+    Qdrant aplica IDF automáticamente si la colección usa Modifier.IDF.
+    """
+    tokens = re.findall(r"\b\w{2,}\b", text.lower())
+    tokens = [t for t in tokens if t not in _STOPWORDS]
+
+    if not tokens:
+        return [], []
+
+    tf = Counter(tokens)
+    indices: list[int] = []
+    values: list[float] = []
+
+    for token, count in sorted(tf.items()):
+        idx = int(hashlib.md5(token.encode()).hexdigest()[:8], 16) % (2**31)
+        indices.append(idx)
+        values.append(float(count))
+
+    return indices, values
 
     return extractor(filepath)

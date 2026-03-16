@@ -1,0 +1,20 @@
+# ─────────────────────────────────────────────────────
+# Seedy Vision — YOLO Training Configuration
+# Para YOLO detect (multi-especie)
+# ─────────────────────────────────────────────────────
+
+# Dataset path (generado por prepare_datasets.py)
+path: ./datasets/unified/detection
+train: images/train
+val: images/val
+test: images/test
+
+# Clases de detección multi-especie
+nc: 6
+names:
+  0: chicken
+  1: pig
+  2: cattle
+  3: chick
+  4: piglet
+  5: calf

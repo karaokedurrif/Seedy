@@ -1,0 +1,66 @@
+{
+  "total_requested": 154,
+  "downloaded": 114,
+  "failed_count": 40,
+  "failed": [
+    "Chapon (animal) (fr)",
+    "Faverolles (race de poule) (fr)",
+    "Poule gâtinaise (fr)",
+    "Poule cou nu du Forez (fr)",
+    "Poule de Bresse-Gauloise (fr)",
+    "Cochin (race de poule) (fr)",
+    "Cachena (race bovine) (fr)",
+    "Gasconne (race bovine) (fr)",
+    "Porc cul noir (fr)",
+    "Porc nustrale (fr)",
+    "Lacaune (race ovine) (fr)",
+    "Race rustique (fr)",
+    "Insémination artificielle (élevage) (fr)",
+    "Avileña-Black Iberian cattle (en)",
+    "Morucha cattle (en)",
+    "Alistana-Sanabresa cattle (en)",
+    "Marchigiana cattle (en)",
+    "Angus cattle (en)",
+    "Estimated breeding value (en)",
+    "Padovana (razza avicola) (it)",
+    "Polverara (razza avicola) (it)",
+    "Robusta Maculata (it)",
+    "Robusta Lionata (it)",
+    "Bionda Piemontese (razza avicola) (it)",
+    "Bianca di Saluzzo (it)",
+    "Cappone di Morozzo (it)",
+    "Livorno (razza avicola) (it)",
+    "Valdarno (razza avicola) (it)",
+    "Ancona (razza avicola) (it)",
+    "Siciliana (razza avicola) (it)",
+    "Avicultura (it)",
+    "Mora romagnola (it)",
+    "Allevamento estensivo (it)",
+    "Razza autoctona (it)",
+    "Mechelner Huhn (de)",
+    "Faverolles (Huhn) (de)",
+    "Pinzgauer Rind (de)",
+    "Charolais (Rind) (de)",
+    "Angus (Rind) (de)",
+    "Bunte Bentheimer Schwein (de)"
+  ],
+  "total_chars": 750920,
+  "by_lang": {
+    "fr": {
+      "count": 31,
+      "total_chars": 296282
+    },
+    "en": {
+      "count": 49,
+      "total_chars": 263582
+    },
+    "it": {
+      "count": 11,
+      "total_chars": 57580
+    },
+    "de": {
+      "count": 23,
+      "total_chars": 133476
+    }
+  }
+}

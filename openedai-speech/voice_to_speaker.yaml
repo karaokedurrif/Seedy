@@ -1,0 +1,32 @@
+tts-1:
+  alloy:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 1  # F (female)
+  echo:
+    model: voices/es_ES-davefx-medium.onnx
+    speaker:  # default (male)
+  fable:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 0  # M (male)
+  nova:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 1  # F (female)
+  onyx:
+    model: voices/es_ES-davefx-medium.onnx
+    speaker:  # default (male)
+  shimmer:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 1  # F (female)
+tts-1-hd:
+  alloy:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 1  # F (female)
+  echo:
+    model: voices/es_ES-davefx-medium.onnx
+    speaker:  # default (male)
+  nova:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 1  # F (female)
+  shimmer:
+    model: voices/es_ES-sharvard-medium.onnx
+    speaker: 1  # F (female)

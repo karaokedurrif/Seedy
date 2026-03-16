@@ -4,11 +4,18 @@ services:
     image: ollama/ollama:latest
     container_name: ollama
     restart: unless-stopped
+    runtime: nvidia
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
       - /home/davidia/models:/models
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OLLAMA_FLASH_ATTENTION=true
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_DEBUG=INFO
     deploy:
       resources:
         reservations:
@@ -17,29 +24,66 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
       - ai_default
 
   # ── Open WebUI (interfaz ganadero) ─────────────────
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: open-webui:0.8.8-local
     container_name: open-webui
     restart: unless-stopped
     ports:
       - "3000:8080"
     volumes:
       - open_webui_data:/app/backend/data
+      # Iconos Seedy personalizados (persistentes)
+      - ./Icons/logo.png:/app/build/static/logo.png:ro
+      - ./Icons/favicon.png:/app/build/static/favicon.png:ro
+      - ./Icons/favicon-dark.png:/app/build/static/favicon-dark.png:ro
+      - ./Icons/favicon.ico:/app/build/static/favicon.ico:ro
+      - ./Icons/favicon-96x96.png:/app/build/static/favicon-96x96.png:ro
+      - ./Icons/apple-touch-icon.png:/app/build/static/apple-touch-icon.png:ro
+      - ./Icons/favicon.png:/app/build/favicon.png:ro
+      # SVG favicon (prioridad en navegadores modernos)
+      - ./Icons/favicon.svg:/app/build/static/favicon.svg:ro
+      # Splash screens (pantalla de carga)
+      - ./Icons/splash.png:/app/build/static/splash.png:ro
+      - ./Icons/splash-dark.png:/app/build/static/splash-dark.png:ro
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_NAME=Seedy
+      # Registro abierto: amigos pueden crear cuenta y usar directamente
+      - ENABLE_SIGNUP=true
+      - DEFAULT_USER_ROLE=user
+      # ── Modelo por defecto y filtro: usuarios solo ven 🌱 Seedy ──
+      - DEFAULT_MODELS=seedy-rag
+      - ENABLE_MODEL_FILTER=true
+      - MODEL_FILTER_LIST=seedy-rag
+      # Nuevos usuarios caen automáticamente en grupo "Usuarios NeoFarm"
+      - DEFAULT_GROUP_ID=be96aa49-f04d-48ba-9d26-fb5b99915c31
+      # SearXNG web search
+      - ENABLE_RAG_WEB_SEARCH=true
+      - RAG_WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>&format=json
+      # ── Seedy Backend como modelo OpenAI (RAG automático) ──
+      - OPENAI_API_BASE_URLS=http://seedy-backend:8000/v1
+      - OPENAI_API_KEYS=sk-seedy-local
     depends_on:
       ollama:
         condition: service_healthy
+      searxng:
+        condition: service_started
+      seedy-backend:
+        condition: service_started
     networks:
-      - ai_default
+      ai_default:
+        aliases:
+          - OpenWebUI
 
   # ── Qdrant (vector store para RAG backend) ─────────
   qdrant:
@@ -52,10 +96,11 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 20s
     networks:
       - ai_default
 
@@ -66,18 +111,92 @@ services:
       dockerfile: Dockerfile
     container_name: seedy-backend
     restart: unless-stopped
+    runtime: nvidia
     ports:
       - "8000:8000"
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - CORS_ORIGINS=https://seedy.neofarm.io,https://api.neofarm.io,https://hub.ovosfera.com,http://localhost:3000,http://10.10.10.1:3000,http://10.10.10.1:8000
+      - API_KEYS=sk-seedy-local,sk-ovosfera-0040464aeee532c89a9248a8f4667c0a
+      - GO2RTC_URL=http://host.docker.internal:1984
+      - OVOSFERA_API_URL=https://hub.ovosfera.com/api/ovosfera
+      - OVOSFERA_FARM_SLUG=palacio
+      - NVIDIA_VISIBLE_DEVICES=all
+      - YOLO_MODEL=yolov8s.pt
+      - YOLO_CONFIDENCE=0.25
+      - YOLO_DEVICE=0
+      - YOLO_DATA_DIR=/app/yolo_dataset
+      - YOLO_MODELS_DIR=/app/yolo_models
     volumes:
       - ./backend:/app
+      - ./genetics:/app/genetics:ro
       - /home/davidia/Documentos/Seedy/conocimientos:/app/knowledge:ro
+      - ./data:/app/data
+      - vision_dataset:/app/vision_dataset
+      - yolo_dataset:/app/yolo_dataset
+      - yolo_models:/app/yolo_models
+      - hf_cache:/root/.cache/huggingface
+      - ./backend/dashboard:/app/dashboard:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       ollama:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+    networks:
+      ai_default:
+        aliases:
+          - fastapi
+
+  # ── go2rtc (RTSP → WebRTC/HLS proxy para cámaras) ─
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    container_name: go2rtc
+    restart: unless-stopped
+    ports:
+      - "1984:1984"   # API + Web UI
+      - "8554:8554"   # RTSP proxy
+      - "8555:8555/tcp"  # WebRTC TCP
+      - "8555:8555/udp"  # WebRTC UDP
+    volumes:
+      - ./go2rtc/go2rtc.yaml:/config/go2rtc.yaml:ro
+    environment:
+      - DAHUA_PASSWORD=${DAHUA_PASSWORD:-admin}
+    network_mode: host  # Necesario para acceder a red 10.10.10.x de cámaras
+
+  # ── Edge TTS Server (voces neuronales Microsoft, español) ────
+  edge-tts:
+    build:
+      context: ./edge-tts-server
+      dockerfile: Dockerfile
+    container_name: edge-tts
+    restart: unless-stopped
+    ports:
+      - "8100:8000"
+    networks:
+      - ai_default
+
+  # ── Cloudflare Tunnel (acceso público seguro) ──────
+  # Tunnel "homeserver" gestionado desde Cloudflare Dashboard
+  # Token: dash.cloudflare.com → Zero Trust → Tunnels → homeserver → Configure → Install connector
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - seedy-backend
+      - open-webui
+      - grafana
     networks:
       - ai_default
 
@@ -90,12 +209,14 @@ services:
       - "8086:8086"
     volumes:
       - influxdb_data:/var/lib/influxdb2
+    env_file:
+      - .env
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=neofarm
-      - DOCKER_INFLUXDB_INIT_PASSWORD=neofarm2026
-      - DOCKER_INFLUXDB_INIT_ORG=neofarm
-      - DOCKER_INFLUXDB_INIT_BUCKET=porcidata
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-neofarm}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-neofarm}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-porcidata}
     networks:
       - ai_default
 
@@ -137,24 +258,98 @@ services:
       - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+    env_file:
+      - .env
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=neofarm2026
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
     depends_on:
       - influxdb
+    networks:
+      - ai_default
+
+  # ── Seedy Ingest (autoingesta diaria) ──────────────
+  seedy-ingest:
+    build:
+      context: ./pipelines/ingest
+      dockerfile: Dockerfile
+    container_name: seedy-ingest
+    restart: "no"
+    user: "${UID:-1000}:${GID:-1000}"
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_URL=http://ollama:11434
+      - DATA_DIR=/app/data
+      - BRIEFS_DIR=/app/briefs
+      - DB_PATH=/app/data/ingest_state.db
+    volumes:
+      - ./pipelines:/app/pipelines:ro
+      - ./data:/app/data
+      - ./briefs:/app/briefs
+    depends_on:
+      ollama:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - ai_default
+
+  # ── SearXNG (buscador web privado) ────────────────
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    networks:
+      - ai_default
+
+  # ── Crawl4AI (web crawler → markdown) ───────────────
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: crawl4ai
+    restart: unless-stopped
+    ports:
+      - "11235:11235"
+    environment:
+      - CRAWL4AI_API_TOKEN=seedy_crawl_2026
+      - MAX_CONCURRENT_TASKS=3
+    deploy:
+      resources:
+        limits:
+          memory: 2g
     networks:
       - ai_default
 
 volumes:
   ollama_data:
   open_webui_data:
+    external: true
+    name: ai_openwebui_data
   qdrant_data:
   influxdb_data:
   mosquitto_data:
   mosquitto_log:
   nodered_data:
   grafana_data:
+  vision_dataset:
+  yolo_dataset:
+  yolo_models:
+  hf_cache:
+  openedai_voices:
 
 networks:
   ai_default:
     name: ai_default
-    driver: bridge
+    external: true

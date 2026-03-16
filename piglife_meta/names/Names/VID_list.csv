@@ -1,0 +1,17 @@
+VID,Vision_condition 
+2001,Vision (general)
+2100,Brightness (highlight)
+2101,Brightness (soft)
+2102,Brightness (Dark)
+2200,Camera mode change
+2201,Natural light (change)
+2202,Artificial light (switch)
+2203,Natural light to artificial light
+2204,Artificial light to natural light 
+2300,Challenge (general)
+2301,Overlapping 
+2302,Backlighting
+2303,Shadow
+2304,Rotation
+2305,Distortions
+2306,Partial

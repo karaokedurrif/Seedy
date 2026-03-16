@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallineros — Cámaras en Directo</title>
+<style>
+  :root {
+    --bg: #0a0e14; --card: #141a24; --border: #1e2a3a;
+    --text: #e6edf3; --muted: #8b949e; --primary: #b07d2b;
+    --ok: #22c55e; --alert: #ef4444; --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height:100vh; }
+
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+  }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header h1 span { color: var(--primary); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .status-dot.ok { background: var(--ok); }
+  .status-dot.off { background: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; position: relative;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .card-title { font-size: 14px; font-weight: 600; }
+  .card-meta { font-size: 11px; color: var(--muted); }
+  .card-badges { display: flex; gap: 6px; }
+  .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 6px;
+    background: rgba(176,125,43,0.15); color: var(--primary); font-weight: 600;
+  }
+  .badge.live { background: rgba(239,68,68,0.15); color: var(--alert); }
+
+  .video-container {
+    position: relative; width: 100%; aspect-ratio: 16/9; background: #000;
+    cursor: pointer; overflow: hidden;
+  }
+  .video-container img, .video-container video {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+  .video-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6); opacity: 0; transition: opacity 0.2s;
+    font-size: 13px; font-weight: 600; color: #fff;
+  }
+  .video-container:hover .video-overlay { opacity: 1; }
+  .video-loading {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    color: var(--muted); font-size: 13px;
+  }
+  .live-badge {
+    position: absolute; top: 8px; left: 8px; background: var(--alert);
+    color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; letter-spacing: 0.5px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.6; } }
+
+  .card-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; font-size: 12px; color: var(--muted);
+  }
+  .card-footer .stats { display: flex; gap: 16px; }
+  .card-footer .stat-value { color: var(--text); font-weight: 600; margin-right: 4px; }
+  .card-footer .actions { display: flex; gap: 8px; }
+  .btn-sm {
+    font-size: 11px; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); cursor: pointer; transition: all 0.15s;
+  }
+  .btn-sm:hover { background: var(--border); color: var(--text); }
+
+  .info-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 24px; font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+  .info-bar a { color: var(--primary); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🐔 Gallineros — <span>Cámaras en Directo</span></h1>
+  <div style="display:flex;align-items:center;gap:16px;font-size:12px;color:var(--muted)">
+    <span><span class="status-dot ok" id="cam-status"></span>Cámaras conectadas</span>
+    <span id="clock"></span>
+  </div>
+</div>
+
+<div class="grid" id="gallineros-grid">
+  <!-- Populated by JS -->
+</div>
+
+<div class="info-bar">
+  <span>🌱 Seedy Vision</span>
+  <span>·</span>
+  <span>Gallinero del Palacio — hub.ovosfera.com</span>
+  <span>·</span>
+  <a href="/ovosfera/gallineros" target="_blank">API JSON</a>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const GO2RTC_WS = 'ws://' + window.location.hostname + ':1984/api/ws';
+
+// Gallinero config
+const GALLINEROS = [
+  { id: 2, stream: 'gallinero_durrif_1', name: 'Gallinero Durrif I', camera: 'Dahua WizSense 4K' },
+  { id: 3, stream: 'gallinero_durrif_2', name: 'Gallinero Durrif II', camera: 'TP-Link VIGI 4K' },
+];
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-ES');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Render gallinero cards
+const grid = document.getElementById('gallineros-grid');
+GALLINEROS.forEach(g => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-header">
+      <div>
+        <div class="card-title">${g.name}</div>
+        <div class="card-meta">${g.camera}</div>
+      </div>
+      <div class="card-badges">
+        <span class="badge live">● LIVE</span>
+        <span class="badge">4K H.265</span>
+      </div>
+    </div>
+    <div class="video-container" id="vc-${g.id}">
+      <div class="video-loading" id="loading-${g.id}">Conectando cámara...</div>
+      <img id="mjpeg-${g.id}" style="display:none" alt="${g.name}">
+      <video id="video-${g.id}" style="display:none" autoplay muted playsinline></video>
+      <div class="live-badge" id="live-${g.id}" style="display:none">LIVE</div>
+      <div class="video-overlay">🔍 Click para pantalla completa</div>
+    </div>
+    <div class="card-footer">
+      <div class="stats">
+        <span><span class="stat-value" id="aves-${g.id}">—</span>aves</span>
+        <span><span class="stat-value" id="cap-${g.id}">—</span>capacidad</span>
+        <span><span class="stat-value" id="m2-${g.id}">—</span>m²</span>
+      </div>
+      <div class="actions">
+        <button class="btn-sm" onclick="snapshot(${g.id})">📸 Foto</button>
+        <button class="btn-sm" onclick="toggleStream(${g.id})">🔄 Cambiar</button>
+      </div>
+    </div>
+  `;
+  grid.appendChild(card);
+
+  // Click for fullscreen
+  document.getElementById(`vc-${g.id}`).addEventListener('click', e => {
+    if (e.target.closest('.btn-sm')) return;
+    const vc = document.getElementById(`vc-${g.id}`);
+    if (vc.requestFullscreen) vc.requestFullscreen();
+  });
+});
+
+// Stream modes per gallinero
+const streamMode = {};
+GALLINEROS.forEach(g => streamMode[g.id] = 'mjpeg');
+
+function startMjpeg(gallineroId) {
+  const g = GALLINEROS.find(x => x.id === gallineroId);
+  if (!g) return;
+  const img = document.getElementById(`mjpeg-${g.id}`);
+  const video = document.getElementById(`video-${g.id}`);
+  const loading = document.getElementById(`loading-${g.id}`);
+  const live = document.getElementById(`live-${g.id}`);
+
+  video.style.display = 'none';
+  img.style.display = 'block';
+  img.src = `${API_BASE}/ovosfera/camera/${g.id}/mjpeg`;
+  img.onload = () => {
+    loading.style.display = 'none';
+    live.style.display = 'block';
+  };
+  img.onerror = () => {
+    // Fallback to snapshots
+    loading.textContent = 'MJPEG no disponible, usando snapshots...';
+    startSnapshots(gallineroId);
+  };
+}
+
+let snapshotIntervals = {};
+function startSnapshots(gallineroId) {
+  const g = GALLINEROS.find(x => x.id === gallineroId);
+  if (!g) return;
+  const img = document.getElementById(`mjpeg-${g.id}`);
+  const loading = document.getElementById(`loading-${g.id}`);
+  const live = document.getElementById(`live-${g.id}`);
+
+  function refresh() {
+    const newImg = new Image();
+    newImg.onload = () => {
+      img.src = newImg.src;
+      img.style.display = 'block';
+      loading.style.display = 'none';
+      live.style.display = 'block';
+    };
+    newImg.src = `${API_BASE}/ovosfera/camera/${g.id}/snapshot?t=${Date.now()}`;
+  }
+  refresh();
+  if (snapshotIntervals[gallineroId]) clearInterval(snapshotIntervals[gallineroId]);
+  snapshotIntervals[gallineroId] = setInterval(refresh, 2000);
+}
+
+function startWebRTC(gallineroId) {
+  const g = GALLINEROS.find(x => x.id === gallineroId);
+  if (!g) return;
+  const video = document.getElementById(`video-${g.id}`);
+  const img = document.getElementById(`mjpeg-${g.id}`);
+  const loading = document.getElementById(`loading-${g.id}`);
+  const live = document.getElementById(`live-${g.id}`);
+
+  img.style.display = 'none';
+  video.style.display = 'block';
+  loading.textContent = 'Estableciendo WebRTC...';
+  loading.style.display = 'block';
+
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+  pc.addTransceiver('video', { direction: 'recvonly' });
+  pc.addTransceiver('audio', { direction: 'recvonly' });
+
+  pc.ontrack = ev => {
+    video.srcObject = ev.streams[0];
+    loading.style.display = 'none';
+    live.style.display = 'block';
+  };
+
+  pc.createOffer().then(offer => {
+    pc.setLocalDescription(offer);
+    return fetch(`${API_BASE}/ovosfera/camera/${g.id}/webrtc`, {
+      method: 'POST',
+      body: offer.sdp,
+      headers: { 'Content-Type': 'application/sdp' },
+    });
+  }).then(r => r.text()).then(sdp => {
+    pc.setRemoteDescription({ type: 'answer', sdp });
+  }).catch(err => {
+    console.warn('WebRTC failed, falling back to MJPEG:', err);
+    startMjpeg(gallineroId);
+  });
+}
+
+function toggleStream(gallineroId) {
+  if (snapshotIntervals[gallineroId]) {
+    clearInterval(snapshotIntervals[gallineroId]);
+    delete snapshotIntervals[gallineroId];
+  }
+  const modes = ['mjpeg', 'webrtc', 'snapshot'];
+  const current = streamMode[gallineroId] || 'mjpeg';
+  const next = modes[(modes.indexOf(current) + 1) % modes.length];
+  streamMode[gallineroId] = next;
+
+  if (next === 'webrtc') startWebRTC(gallineroId);
+  else if (next === 'snapshot') startSnapshots(gallineroId);
+  else startMjpeg(gallineroId);
+}
+
+function snapshot(gallineroId) {
+  window.open(`${API_BASE}/ovosfera/camera/${gallineroId}/snapshot?t=${Date.now()}`, '_blank');
+}
+
+// Fetch gallinero stats from OvoSfera
+async function refreshStats() {
+  try {
+    const resp = await fetch(`${API_BASE}/ovosfera/gallineros`);
+    const data = await resp.json();
+    data.forEach(g => {
+      const avesEl = document.getElementById(`aves-${g.id}`);
+      const capEl = document.getElementById(`cap-${g.id}`);
+      const m2El = document.getElementById(`m2-${g.id}`);
+      if (avesEl) avesEl.textContent = g.aves_count || 0;
+      if (capEl) capEl.textContent = g.capacidad || '—';
+      if (m2El) m2El.textContent = g.m2 || '—';
+    });
+  } catch(e) { console.warn('Stats refresh failed:', e); }
+}
+
+// Init: start MJPEG for all, load stats
+GALLINEROS.forEach(g => startMjpeg(g.id));
+refreshStats();
+setInterval(refreshStats, 30000);
+</script>
+</body>
+</html>

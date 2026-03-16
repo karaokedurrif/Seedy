@@ -1,0 +1,34 @@
+# go2rtc — Proxy RTSP → WebRTC/HLS/MJPEG para cámaras gallineros
+# Granja Los Capones de Palacio — hub.ovosfera.com
+#
+# Gallinero Durrif I  → Dahua WizSense  10.10.10.108  (admin / DAHUA_PASSWORD)
+# Gallinero Durrif II → TP-Link VIGI    10.10.10.10   (admin / 123456, 4K H.265)
+
+streams:
+  # ── Gallinero Durrif I — Dahua WizSense (10.10.10.108) ──
+  gallinero_durrif_1:
+    - "rtsp://admin:1234567a@10.10.10.108:554/cam/realmonitor?channel=1&subtype=0#transport=tcp"
+  gallinero_durrif_1_sub:
+    - "rtsp://admin:1234567a@10.10.10.108:554/cam/realmonitor?channel=1&subtype=1#transport=tcp"
+
+  # ── Gallinero Durrif II — TP-Link VIGI (10.10.10.10) ──
+  # 3840x2160 4K H.265
+  gallinero_durrif_2:
+    - rtsp://admin:123456@10.10.10.10:554/stream1
+  gallinero_durrif_2_sub:
+    - rtsp://admin:123456@10.10.10.10:554/stream2
+
+api:
+  listen: ":1984"
+  origin: "*"
+
+rtsp:
+  listen: ":8554"
+
+webrtc:
+  candidates:
+    - 10.10.10.1:8555         # acceso local LAN cámaras
+    - stun:stun.l.google.com:19302
+
+log:
+  level: info

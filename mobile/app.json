@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "NeoFarm Seedy",
+    "slug": "neofarm-seedy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon-512.png",
+    "scheme": "neofarm",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/seedy.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0A"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon-512.png",
+        "backgroundColor": "#0A0A0A"
+      },
+      "package": "com.neofarm.seedy",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "USB_PERMISSION"
+      ],
+      "intentFilters": [
+        {
+          "action": "android.hardware.usb.action.USB_DEVICE_ATTACHED",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": {
+            "mimeType": "video/*"
+          }
+        }
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "NeoFarm Seedy necesita acceso a la cámara para identificar animales y razas",
+          "microphonePermission": "NeoFarm Seedy necesita el micrófono para notas de voz"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NeoFarm Seedy necesita acceso a la galería para analizar fotos de animales"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "neofarm-seedy"
+      }
+    }
+  }
+}

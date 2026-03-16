@@ -1,0 +1,55 @@
+# Seedy — Fuentes de autoingesta diaria
+# Cada fuente tiene: name, url, type (rss|sitemap|page), reliability (0-60), tags
+# Verificadas 2026-03-04
+
+sources:
+  # ── Fuentes institucionales (alta fiabilidad) ──────
+  - name: "BOE Ganadería"
+    url: "https://www.boe.es/rss/canal.php?c=ganaderia"
+    type: rss
+    reliability: 60
+    tags: [normativa, porcino, vacuno, avicultura]
+
+  # ── Fuentes sectoriales verificadas ────────────────
+  - name: "Agropopular"
+    url: "https://www.agropopular.com/feed/"
+    type: rss
+    reliability: 45
+    tags: [porcino, vacuno, nutricion, normativa, estrategia]
+
+  - name: "AgronewsCastilla"
+    url: "https://www.agronewscastillayleon.com/feed"
+    type: rss
+    reliability: 45
+    tags: [vacuno, porcino, nutricion, normativa, estrategia]
+
+  - name: "Feagas (RFEAGAS)"
+    url: "https://rfeagas.es/feed/"
+    type: rss
+    reliability: 50
+    tags: [genetica, vacuno, avicultura]
+
+  - name: "Porcinews"
+    url: "https://www.porcinews.com/feed/"
+    type: rss
+    reliability: 45
+    tags: [porcino, nutricion, sanidad]
+
+  # ── Fuentes con crawl de página (sin RSS funcional) ─
+  - name: "MAPA Ganadería"
+    url: "https://www.mapa.gob.es/es/ganaderia/temas/default.aspx"
+    type: url
+    reliability: 55
+    tags: [ministerio, ganaderia, normativa, estrategia]
+
+  - name: "3tres3 Porcino"
+    url: "https://www.3tres3.com/noticias-porcinas"
+    type: url
+    reliability: 45
+    tags: [porcino, nutricion, sanidad]
+
+  - name: "AECERIBER Ibérico"
+    url: "https://aeceriber.es/"
+    type: url
+    reliability: 50
+    tags: [porcino, genetica, nutricion]

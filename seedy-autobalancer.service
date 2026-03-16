@@ -1,0 +1,18 @@
+[Unit]
+Description=Seedy AutoBalancer — Knowledge auto-ingestion daemon
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=davidia
+WorkingDirectory=/home/davidia/Documentos/Seedy
+ExecStart=/home/davidia/Documentos/Seedy/.venv/bin/python3 /home/davidia/Documentos/Seedy/seedy_autobalancer.py --daemon --interval 24
+Restart=on-failure
+RestartSec=60
+Environment=OLLAMA_BASE_URL=http://localhost:11434
+Environment=QDRANT_URL=http://localhost:6333
+Environment=SEARXNG_URL=http://localhost:8888
+
+[Install]
+WantedBy=multi-user.target

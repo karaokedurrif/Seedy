@@ -25,8 +25,8 @@ from services.rag import (
     get_qdrant, ensure_collections, FOLDER_TO_COLLECTION, ALL_COLLECTIONS,
     close as close_qdrant,
 )
-from ingestion.chunker import chunk_text, extract_text
-from qdrant_client.models import PointStruct
+from ingestion.chunker import chunk_text, chunk_markdown, extract_text, compute_sparse_vector
+from qdrant_client.models import PointStruct, SparseVector
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,13 +50,21 @@ def discover_files(knowledge_dir: str, target_collection: str | None = None) -> 
             continue
 
         files = []
-        for f in folder_path.iterdir():
-            if f.is_file() and f.suffix.lower() in {".md", ".pdf", ".docx", ".csv", ".txt"}:
+        VALID_EXTS = {".md", ".pdf", ".docx", ".csv", ".txt"}
+        for f in folder_path.rglob("*"):
+            if f.is_file() and f.suffix.lower() in VALID_EXTS:
                 files.append(f)
 
         if files:
-            collection_files[collection_name] = sorted(files)
-            logger.info(f"  {collection_name}: {len(files)} archivos")
+            if collection_name in collection_files:
+                collection_files[collection_name].extend(files)
+            else:
+                collection_files[collection_name] = list(files)
+            logger.info(f"  {collection_name}: {len(files)} archivos (de {folder_name})")
+
+    # Ordenar tras agrupar
+    for cname in collection_files:
+        collection_files[cname] = sorted(set(collection_files[cname]))
 
     return collection_files
 
@@ -85,33 +93,56 @@ async def ingest_collection(
             logger.warning(f"  {filepath.name} está vacío, saltando")
             continue
 
-        chunks = chunk_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        logger.info(f"  → {len(chunks)} chunks")
+        # Chunking según formato: markdown-aware o genérico
+        if filepath.suffix.lower() == ".md":
+            chunk_dicts = chunk_markdown(
+                text, max_chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            )
+        else:
+            raw_chunks = chunk_text(
+                text, chunk_size=chunk_size, chunk_overlap=chunk_overlap
+            )
+            chunk_dicts = [
+                {"text": c, "section": "", "sub_chunk": i}
+                for i, c in enumerate(raw_chunks)
+            ]
+
+        logger.info(f"  → {len(chunk_dicts)} chunks")
 
         # Procesar en batches para embeddings
-        for batch_start in range(0, len(chunks), batch_size):
-            batch_chunks = chunks[batch_start:batch_start + batch_size]
+        for batch_start in range(0, len(chunk_dicts), batch_size):
+            batch = chunk_dicts[batch_start : batch_start + batch_size]
+            batch_texts = [c["text"] for c in batch]
 
             try:
-                embeddings = await embed_texts(batch_chunks)
+                embeddings = await embed_texts(batch_texts)
             except Exception as e:
                 logger.error(f"  Error generando embeddings: {e}")
                 continue
 
             points = []
-            for i, (chunk, emb) in enumerate(zip(batch_chunks, embeddings)):
+            for i, (chunk_dict, emb) in enumerate(zip(batch, embeddings)):
                 chunk_idx = batch_start + i
                 # ID determinístico basado en archivo + chunk index
                 point_id = str(uuid5(NAMESPACE_URL, f"{filepath.name}:{chunk_idx}"))
 
+                # Vector denso + sparse BM25
+                vector_data: dict = {"dense": emb}
+                sparse_idx, sparse_val = compute_sparse_vector(chunk_dict["text"])
+                if sparse_idx:
+                    vector_data["bm25"] = SparseVector(
+                        indices=sparse_idx, values=sparse_val
+                    )
+
                 points.append(
                     PointStruct(
                         id=point_id,
-                        vector=emb,
+                        vector=vector_data,
                         payload={
-                            "text": chunk,
+                            "text": chunk_dict["text"],
                             "source_file": filepath.name,
                             "chunk_index": chunk_idx,
+                            "section": chunk_dict.get("section", ""),
                             "collection": collection_name,
                             "document_type": filepath.suffix.lower().lstrip("."),
                         },

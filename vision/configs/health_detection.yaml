@@ -1,0 +1,21 @@
+# ─────────────────────────────────────────────────────
+# Seedy Vision — YOLO Training: Health / Lesion Detection
+# Detección de problemas sanitarios visibles
+# ─────────────────────────────────────────────────────
+
+path: ./datasets/unified/health
+train: images/train
+val: images/val
+test: images/test
+
+nc: 9
+names:
+  0: lameness         # cojera
+  1: wound            # herida
+  2: skin_lesion      # lesión cutánea
+  3: tail_bite        # mordedura cola
+  4: ear_necrosis     # necrosis oreja
+  5: hernia           # hernia
+  6: prolapse         # prolapso
+  7: respiratory_distress  # dificultad respiratoria
+  8: diarrhea         # diarrea

@@ -1,0 +1,54 @@
+# regex pairs to clean the text before speaking (Spanish / Seedy)
+# Strip markdown headers (# ## ### etc.)
+- - '^#{1,6}\s+'
+  - ''
+# Strip bold/italic markers
+- - '\*{1,3}'
+  - ''
+# Strip underscores used as bold/italic
+- - '_{1,3}([^_]+)_{1,3}'
+  - '\1'
+# Strip bullet points at start of lines
+- - '^\s*[-•]\s+'
+  - ''
+# Strip numbered lists markers
+- - '^\s*\d+\.\s+'
+  - ''
+# Strip code backticks
+- - '`{1,3}'
+  - ''
+# Strip blockquotes
+- - '^\s*>\s+'
+  - ''
+# Strip horizontal rules (--- or ***)
+- - '^[\-\*_]{3,}\s*$'
+  - ''
+# Strip link markdown [text](url) → text
+- - '\[([^\]]+)\]\([^\)]+\)'
+  - '\1'
+# Strip remaining special chars that TTS reads
+- - '[\*=~]+'
+  - ' '
+# Clean HTML entities
+- - '&amp;'
+  - '&'
+- - '&lt;'
+  - '<'
+- - '&gt;'
+  - '>'
+- - '&quot;'
+  - '"'
+- - '&#x27;'
+  - "'"
+- - '&copy;'
+  - '©'
+- - '&reg;'
+  - '®'
+- - '&nbsp;'
+  - ' '
+# Remove trailing period on single sentences
+- - ([^.])\.$
+  - \1
+# Clean up multiple spaces
+- - '\s{2,}'
+  - ' '

@@ -1,0 +1,12 @@
+{
+  "job_id": "ft-1f0c7e89-525d",
+  "file_id": "file-286b14a2-0be2-464c-bde1-9aab93b44842",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "n_epochs": 4,
+  "learning_rate": 2e-05,
+  "batch_size": 8,
+  "suffix": "seedy-v6",
+  "dataset": "seedy_dataset_sft_v6.jsonl",
+  "dataset_lines": 302,
+  "status": "pending"
+}

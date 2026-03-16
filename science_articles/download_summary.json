@@ -1,0 +1,127 @@
+{
+  "total_articles": 546,
+  "total_abstracts_chars": 839710,
+  "by_topic": {
+    "avicultura_capones": 23,
+    "avicultura_engorde": 18,
+    "avicultura_razas": 21,
+    "avicultura_capones_calidad": 17,
+    "avicultura_ponedoras": 19,
+    "avicultura_bienestar": 17,
+    "avicultura_nutricion": 13,
+    "porcino_iberico": 17,
+    "porcino_nutricion": 15,
+    "porcino_genetica": 14,
+    "porcino_bienestar": 17,
+    "porcino_calidad": 19,
+    "porcino_reproduccion": 14,
+    "porcino_iot": 22,
+    "porcino_sanidad": 20,
+    "porcino_microbioma": 11,
+    "vacuno_extensivo": 15,
+    "vacuno_genetica": 16,
+    "vacuno_calidad": 17,
+    "vacuno_lechero": 10,
+    "vacuno_iot": 13,
+    "vacuno_cria": 14,
+    "vacuno_medioambiente": 14,
+    "nutricion_formulacion": 11,
+    "nutricion_eficiencia": 5,
+    "nutricion_micotoxinas": 13,
+    "nutricion_aminoacidos": 5,
+    "nutricion_suplementacion": 7,
+    "genetica_genomica": 10,
+    "genetica_cruzamiento": 20,
+    "genetica_consanguinidad": 16,
+    "iot_digital_twin": 19,
+    "iot_sensores": 18,
+    "iot_vision": 13,
+    "iot_analytics": 7,
+    "iot_rfid": 8,
+    "normativa_bienestar": 10,
+    "normativa_sostenibilidad": 8
+  },
+  "avg_citations": 323.95054945054943,
+  "top_journals": [
+    [
+      "IEEE Access",
+      24
+    ],
+    [
+      "PLoS ONE",
+      22
+    ],
+    [
+      "Sustainability",
+      18
+    ],
+    [
+      "Frontiers in Sustainable Food Systems",
+      12
+    ],
+    [
+      "Scientific Reports",
+      12
+    ],
+    [
+      "Annals of Animal Science",
+      11
+    ],
+    [
+      "Journal of Dairy Science",
+      11
+    ],
+    [
+      "Frontiers in Veterinary Science",
+      10
+    ],
+    [
+      "Asian-Australasian Journal of Animal Sciences",
+      9
+    ],
+    [
+      "EFSA Journal",
+      9
+    ],
+    [
+      "Sensors",
+      9
+    ],
+    [
+      "Animals",
+      8
+    ],
+    [
+      "Frontiers in Genetics",
+      8
+    ],
+    [
+      "Agriculture",
+      8
+    ],
+    [
+      "Nature Communications",
+      8
+    ],
+    [
+      "Agronomy",
+      7
+    ],
+    [
+      "Foods",
+      7
+    ],
+    [
+      "Proceedings of the National Academy of Sciences",
+      7
+    ],
+    [
+      "PLoS Genetics",
+      7
+    ],
+    [
+      "Applied Sciences",
+      7
+    ]
+  ]
+}

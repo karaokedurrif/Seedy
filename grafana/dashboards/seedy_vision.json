@@ -1,0 +1,504 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Seedy Vision — Monitoreo de cámaras de visión artificial para NeoFarm",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "📊 Resumen General",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "mappings": [
+            { "options": { "0": { "text": "OFFLINE" } }, "type": "value" },
+            { "options": { "1": { "text": "ONLINE" } }, "type": "value" }
+          ]
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "textMode": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "title": "Vision Pipeline",
+      "type": "stat",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -5m) |> filter(fn: (r) => r._measurement == \"vision_heartbeat\") |> filter(fn: (r) => r._field == \"status\") |> last()",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["sum"] }
+      },
+      "title": "Total Detecciones (1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> filter(fn: (r) => r._field == \"n_detections\") |> sum()",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 50 }
+            ]
+          },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["mean"] }
+      },
+      "title": "Latencia Inferencia",
+      "type": "stat",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> filter(fn: (r) => r._field == \"inference_ms\") |> mean()",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["sum"] }
+      },
+      "title": "🚨 Alertas (1h)",
+      "type": "stat",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"behaviour_alerts\") |> filter(fn: (r) => r._field == \"confidence\") |> count()",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kg"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["mean"] }
+      },
+      "title": "Peso Medio Estimado",
+      "type": "stat",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"weight_estimates\") |> filter(fn: (r) => r._field == \"weight_kg\") |> mean()",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "🐄 Conteo de Animales",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "pointSize": 5,
+            "lineWidth": 2,
+            "stacking": { "mode": "none" }
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "pig" }, "properties": [{ "id": "color", "value": { "fixedColor": "#FF6B6B", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "cattle" }, "properties": [{ "id": "color", "value": { "fixedColor": "#4ECDC4", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "chicken" }, "properties": [{ "id": "color", "value": { "fixedColor": "#FFE66D", "mode": "fixed" } }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 6 },
+      "id": 10,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max", "last"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "title": "Animales Detectados por Especie",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"species_counts\") |> filter(fn: (r) => r._field == \"count\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> group(columns: [\"species\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
+      "id": 11,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["sum"] }
+      },
+      "title": "Distribución por Especie",
+      "type": "piechart",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"species_counts\") |> filter(fn: (r) => r._field == \"count\") |> sum() |> group(columns: [\"species\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 102,
+      "title": "⚖️ Estimación de Peso",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "pointSize": 3,
+            "lineWidth": 2
+          },
+          "unit": "kg"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "id": 20,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "min", "max", "lastNotNull"] },
+        "tooltip": { "mode": "multi" }
+      },
+      "title": "Peso Estimado por Especie (tendencia)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"weight_estimates\") |> filter(fn: (r) => r._field == \"weight_kg\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> group(columns: [\"species\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "points",
+            "pointSize": 8,
+            "fillOpacity": 50
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "id": 21,
+      "title": "Confianza Estimación de Peso",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"weight_estimates\") |> filter(fn: (r) => r._field == \"confidence\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "id": 103,
+      "title": "🧠 Comportamiento & Alertas",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 30,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right" },
+        "tooltip": { "mode": "multi" }
+      },
+      "title": "Alertas de Comportamiento",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"behaviour_alerts\") |> filter(fn: (r) => r._field == \"confidence\") |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false) |> group(columns: [\"behaviour\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 },
+      "id": 31,
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["sum"] },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "title": "Distribución Comportamientos",
+      "type": "piechart",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"behaviour_alerts\") |> filter(fn: (r) => r._field == \"confidence\") |> count() |> group(columns: [\"behaviour\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 24 },
+      "id": 32,
+      "options": {
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["sum"] },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "title": "Alertas por Severidad",
+      "type": "piechart",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"behaviour_alerts\") |> filter(fn: (r) => r._field == \"confidence\") |> count() |> group(columns: [\"severity\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+      "id": 33,
+      "options": {
+        "showHeader": true,
+        "sortBy": [{ "displayName": "timestamp", "desc": true }]
+      },
+      "title": "Últimas Alertas",
+      "type": "table",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"behaviour_alerts\") |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true) |> limit(n: 50)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
+      "id": 104,
+      "title": "⚡ Rendimiento Inferencia",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "lineWidth": 2
+          },
+          "unit": "ms",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 41 },
+      "id": 40,
+      "title": "Latencia de Inferencia por Cámara",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> filter(fn: (r) => r._field == \"inference_ms\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> group(columns: [\"camera_id\"])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 2
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 41 },
+      "id": 41,
+      "title": "Detecciones por Frame (throughput)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "query": "from(bucket: \"seedy_iot\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> filter(fn: (r) => r._field == \"n_detections\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> group(columns: [\"camera_id\"])",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["seedy", "vision", "neofarm", "iot"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+        "definition": "from(bucket: \"seedy_iot\") |> range(start: -7d) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> keep(columns: [\"camera_id\"]) |> distinct(column: \"camera_id\")",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Cámara",
+        "multi": true,
+        "name": "camera_id",
+        "options": [],
+        "query": "from(bucket: \"seedy_iot\") |> range(start: -7d) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> keep(columns: [\"camera_id\"]) |> distinct(column: \"camera_id\")",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": { "selected": false, "text": "All", "value": "$__all" },
+        "datasource": { "type": "influxdb", "uid": "influxdb_seedy" },
+        "definition": "from(bucket: \"seedy_iot\") |> range(start: -7d) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> keep(columns: [\"farm_id\"]) |> distinct(column: \"farm_id\")",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Granja",
+        "multi": false,
+        "name": "farm_id",
+        "options": [],
+        "query": "from(bucket: \"seedy_iot\") |> range(start: -7d) |> filter(fn: (r) => r._measurement == \"animal_detections\") |> keep(columns: [\"farm_id\"]) |> distinct(column: \"farm_id\")",
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"]
+  },
+  "timezone": "Europe/Madrid",
+  "title": "Seedy Vision — Monitoreo Animal",
+  "uid": "seedy-vision-dashboard",
+  "version": 1
+}

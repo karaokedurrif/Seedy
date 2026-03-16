@@ -1,0 +1,19 @@
+AID,Animal_description 
+4001,General (moderate spacing&same age)
+4100,Spacing (less than 5% ground visible)
+4101,Spacing (around 40% ground visible)
+4102,Spacing (greater than 75% ground visible)
+4200,Mixed of parity 
+4201,Mixed genetics
+4202,Mixed health status
+4300,Inactive
+4301,Active
+4302,Aggressive
+4303,Enter/leave
+4304,Environmental stresses
+4305,Weaning
+4306,Transportation
+4307,Castration
+4308,Dehorning
+4309,Abusive handling
+4310,Before farrowing

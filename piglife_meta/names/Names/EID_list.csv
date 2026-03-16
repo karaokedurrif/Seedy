@@ -1,0 +1,15 @@
+EID,Environment_condition 
+3001,Individual housing
+3002,Group housing 
+3003,Mix housing 
+3100,Natural light (day)
+3101,Artificial light (on)
+3102,No illumination
+3103,Reflection
+3200,Textures
+3201,Low contrast background 
+3300,Obstacle
+3301,Stain
+3400,No physical boundaries
+3401,With point of interests
+3402,With region of interests

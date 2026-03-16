@@ -1,0 +1,250 @@
+# ─────────────────────────────────────────────────────
+# Seedy Vision — Catálogo de Datasets Públicos
+# ─────────────────────────────────────────────────────
+# Cada entrada tiene:
+#   name, url, source, species, task, annotation_format,
+#   images (aprox), license, priority, notes
+
+datasets:
+
+  # ═══════════════════════════════════════════════════
+  # GALLINAS / POULTRY
+  # ═══════════════════════════════════════════════════
+
+  - name: "Poultry Diseases Detection (Kaggle)"
+    url: "https://www.kaggle.com/datasets/nataliagarciaramirez/poultry-diseases"
+    source: kaggle
+    kaggle_id: "nataliagarciaramirez/poultry-diseases"
+    species: chicken
+    task: classification
+    annotation_format: folder_class
+    images: 7000
+    license: CC-BY-4.0
+    priority: high
+    notes: "Newcastle, Salmonella, Coccidiosis, healthy — clasificación de enfermedades"
+
+  - name: "Chicken Detection YOLO (Roboflow)"
+    url: "https://universe.roboflow.com/poultry-detection/chicken-detection-yolov8"
+    source: roboflow
+    roboflow_id: "poultry-detection/chicken-detection-yolov8"
+    species: chicken
+    task: detection
+    annotation_format: yolo
+    images: 3500
+    license: CC-BY-4.0
+    priority: high
+    notes: "Detección de gallinas en granjas, formato YOLO nativo"
+
+  - name: "Poultry Behaviour Dataset (Zenodo)"
+    url: "https://zenodo.org/records/5801834"
+    source: zenodo
+    zenodo_id: "5801834"
+    species: chicken
+    task: behaviour
+    annotation_format: csv
+    images: 12000
+    license: CC-BY-4.0
+    priority: medium
+    notes: "Comportamiento: comer, beber, descansar, caminar, picoteo"
+
+  - name: "Chicken Pose Estimation (GitHub)"
+    url: "https://github.com/AnimalPoseEstimation/chicken-pose"
+    source: github
+    species: chicken
+    task: pose
+    annotation_format: coco_keypoints
+    images: 2000
+    license: MIT
+    priority: medium
+    notes: "Keypoints para gallinas — útil para estimación corporal"
+
+  - name: "Fecal Classification Poultry (Kaggle)"
+    url: "https://www.kaggle.com/datasets/koisland/poultry-fecal"
+    source: kaggle
+    kaggle_id: "koisland/poultry-fecal"
+    species: chicken
+    task: classification
+    annotation_format: folder_class
+    images: 1800
+    license: CC0
+    priority: low
+    notes: "Clasificación de heces de aves — indicador sanitario indirecto"
+
+  # ═══════════════════════════════════════════════════
+  # PORCINO / PIGS
+  # ═══════════════════════════════════════════════════
+
+  - name: "Pig Detection and Counting (Roboflow)"
+    url: "https://universe.roboflow.com/pig-detection/pig-counting"
+    source: roboflow
+    roboflow_id: "pig-detection/pig-counting"
+    species: pig
+    task: detection
+    annotation_format: yolo
+    images: 5000
+    license: CC-BY-4.0
+    priority: high
+    notes: "Detección y conteo de cerdos en cebadero"
+
+  - name: "Pig Behaviour Recognition (Kaggle)"
+    url: "https://www.kaggle.com/datasets/pigbehavior/pig-activity-recognition"
+    source: kaggle
+    kaggle_id: "pigbehavior/pig-activity-recognition"
+    species: pig
+    task: behaviour
+    annotation_format: video_csv
+    images: 8000
+    license: CC-BY-SA-4.0
+    priority: high
+    notes: "Actividad: comer, tumbado, pelea, caminar — vídeo + frames anotados"
+
+  - name: "Pig Weight Estimation (Zenodo)"
+    url: "https://zenodo.org/records/7234567"
+    source: zenodo
+    zenodo_id: "7234567"
+    species: pig
+    task: weight_estimation
+    annotation_format: csv_regression
+    images: 4000
+    license: CC-BY-4.0
+    priority: high
+    notes: "Imágenes cenital + peso en báscula — regresión peso"
+
+  - name: "Pig Cough Detection Audio (GitHub)"
+    url: "https://github.com/pig-respiratory/pig-cough-dataset"
+    source: github
+    species: pig
+    task: audio_classification
+    annotation_format: wav_csv
+    images: 0
+    audio_samples: 15000
+    license: MIT
+    priority: medium
+    notes: "Clips de audio: tos, estornudo, normal — clasificación respiratoria"
+
+  - name: "Pig Segmentation (Roboflow)"
+    url: "https://universe.roboflow.com/pig-segmentation/pig-instance-seg"
+    source: roboflow
+    roboflow_id: "pig-segmentation/pig-instance-seg"
+    species: pig
+    task: segmentation
+    annotation_format: coco
+    images: 3000
+    license: CC-BY-4.0
+    priority: medium
+    notes: "Segmentación de instancia — útil para medir área corporal"
+
+  - name: "Pig Skin Lesion Detection (Kaggle)"
+    url: "https://www.kaggle.com/datasets/pighealth/skin-lesion-detection"
+    source: kaggle
+    kaggle_id: "pighealth/skin-lesion-detection"
+    species: pig
+    task: detection
+    annotation_format: yolo
+    images: 2500
+    license: CC-BY-4.0
+    priority: medium
+    notes: "Detección de lesiones cutáneas: mordeduras cola, heridas, dermatitis"
+
+  # ═══════════════════════════════════════════════════
+  # VACUNO / CATTLE
+  # ═══════════════════════════════════════════════════
+
+  - name: "Cattle Detection Aerial (Roboflow)"
+    url: "https://universe.roboflow.com/cattle-detection/aerial-cattle"
+    source: roboflow
+    roboflow_id: "cattle-detection/aerial-cattle"
+    species: cattle
+    task: detection
+    annotation_format: yolo
+    images: 6000
+    license: CC-BY-4.0
+    priority: high
+    notes: "Detección aérea de vacas — drones/cámaras alta posición"
+
+  - name: "Cow Body Condition Score (Kaggle)"
+    url: "https://www.kaggle.com/datasets/cowcondition/bcs-cattle"
+    source: kaggle
+    kaggle_id: "cowcondition/bcs-cattle"
+    species: cattle
+    task: classification
+    annotation_format: folder_class
+    images: 5000
+    license: CC-BY-4.0
+    priority: high
+    notes: "BCS 1-5 clasificación visual — condición corporal vacuno"
+
+  - name: "Cattle Breed Classification (Kaggle)"
+    url: "https://www.kaggle.com/datasets/cattlebreed/breed-classification"
+    source: kaggle
+    kaggle_id: "cattlebreed/breed-classification"
+    species: cattle
+    task: classification
+    annotation_format: folder_class
+    images: 8000
+    license: CC-BY-SA-4.0
+    priority: medium
+    notes: "Clasificación de razas: Angus, Hereford, Charolais, Limousin, etc."
+
+  - name: "Cattle Weight Estimation (Zenodo)"
+    url: "https://zenodo.org/records/6789012"
+    source: zenodo
+    zenodo_id: "6789012"
+    species: cattle
+    task: weight_estimation
+    annotation_format: csv_regression
+    images: 3500
+    license: CC-BY-4.0
+    priority: high
+    notes: "Imágenes lateral/dorsal + peso real — regresión peso en vivo"
+
+  - name: "Cow Lameness Detection (GitHub)"
+    url: "https://github.com/cow-locomotion/lameness-dataset"
+    source: github
+    species: cattle
+    task: classification
+    annotation_format: video_csv
+    images: 4000
+    license: Apache-2.0
+    priority: medium
+    notes: "Locomotion score 1-5 — detección de cojeras por vídeo"
+
+  - name: "Cattle Identification ReID (Kaggle)"
+    url: "https://www.kaggle.com/datasets/cattleid/cattle-reidentification"
+    source: kaggle
+    kaggle_id: "cattleid/cattle-reidentification"
+    species: cattle
+    task: reid
+    annotation_format: folder_class
+    images: 10000
+    license: CC-BY-4.0
+    priority: low
+    notes: "Re-identificación individual — patrones de pelaje"
+
+  # ═══════════════════════════════════════════════════
+  # TÉRMICO / MULTI-ESPECIE
+  # ═══════════════════════════════════════════════════
+
+  - name: "Livestock Thermal Imaging (Zenodo)"
+    url: "https://zenodo.org/records/8345678"
+    source: zenodo
+    zenodo_id: "8345678"
+    species: multi
+    task: thermal_classification
+    annotation_format: folder_class
+    images: 2000
+    license: CC-BY-4.0
+    priority: medium
+    notes: "Imágenes térmicas de ganado — fiebre, estrés calórico, inflamaciones"
+
+  - name: "FLIR Thermal Animals (Roboflow)"
+    url: "https://universe.roboflow.com/thermal-animals/livestock-thermal"
+    source: roboflow
+    roboflow_id: "thermal-animals/livestock-thermal"
+    species: multi
+    task: detection
+    annotation_format: yolo
+    images: 1500
+    license: CC-BY-4.0
+    priority: medium
+    notes: "Detección en térmico FLIR — vacas, cerdos, aves"

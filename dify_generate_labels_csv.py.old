@@ -1,0 +1,159 @@
+import os
+import re
+import csv
+import unicodedata
+import requests
+from typing import Dict, List, Tuple
+
+DIFY_BASE_URL = os.getenv("DIFY_BASE_URL", "http://localhost:3002/v1").rstrip("/")
+DIFY_API_KEY = os.getenv("DIFY_API_KEY", "").strip()
+DATASET_ID = os.getenv("DIFY_DATASET_ID", "").strip()
+OUT_CSV = os.getenv("OUT_CSV", "labels.csv")
+
+if not DIFY_API_KEY or not DATASET_ID:
+    raise SystemExit(
+        "Faltan variables: DIFY_API_KEY y/o DIFY_DATASET_ID.\n"
+        "Ejemplo:\n"
+        "  export DIFY_BASE_URL='http://localhost:3002/v1'\n"
+        "  export DIFY_API_KEY='dataset-XXXX'\n"
+        "  export DIFY_DATASET_ID='TU_DATASET_UUID'\n"
+    )
+
+HEADERS = {"Authorization": f"Bearer {DIFY_API_KEY}"}
+
+# -----------------------------
+# Normalización Unicode (quita acentos, minúsculas)
+# -----------------------------
+def norm(s: str) -> str:
+    s = s.lower()
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return s
+
+# -----------------------------
+# Heurísticas mejoradas
+# -----------------------------
+SPECIES_RULES = [
+    ("ESPECIE:AVICULTURA", r"\b(poultry|chicken|hen|rooster|broiler|layer|gallina|gallo|pollo|avicultura|capo?n|capao)\b"),
+    ("ESPECIE:PORCINO",    r"\b(porcino|cerdo|lechon|pig|swine|porcine|hog|sow)\b"),
+    ("ESPECIE:BOVINO",     r"\b(vacuno|bovino|vaca|toro|novilla|ternera|cattle|bovine|cow|bull|bos taurus)\b"),
+]
+
+TOPIC_RULES = [
+    ("TEMA:RAZAS",         r"\b(dad-?is|breed|breeds|raza|razas)\b"),
+    ("TEMA:GENETICA",      r"\b(qtldb|ensembl|gwas|genetica|genetic|genomics|qtl|snp)\b"),
+    ("TEMA:NORMATIVA",     r"\b(directive|regulation|woah|oie|eur-lex|normativa|reglamento|ley)\b"),
+    ("TEMA:NUTRICION",     r"\b(nutricion|nutrition|feed|diet|pienso|racion)\b"),
+    ("TEMA:BIOSEGURIDAD",  r"\b(biosecurity|bioseguridad)\b"),
+    ("TEMA:BIENESTAR",     r"\b(welfare|bienestar)\b"),
+    ("TEMA:IOT",           r"\b(iot|monitoring|sensor|sensing|livestock monitoring)\b"),
+    ("TEMA:RAG",           r"\b(rag)\b"),
+    ("TEMA:PIPELINE",      r"\b(pipeline)\b"),
+    ("TEMA:ARQUITECTURA",  r"\b(arquitectura)\b"),
+    ("TEMA:ROADMAP",       r"\b(roadmap)\b"),
+    ("TEMA:MANEJO",        r"\b(management|husbandry|rearing|crianza|manejo|handling)\b"),
+    ("TEMA:SANIDAD",       r"\b(health|disease|vet|veterinar|pathogen|sanidad|enfermedad)\b"),
+    ("TEMA:PRODUCCION",    r"\b(production|productivity|yield|produccion)\b"),
+]
+
+SUBTYPE_RULES = [
+    ("SUB:CAPONES",    r"\b(capones|capon|capo?n|capao|caponization|castrat)\b"),
+    ("SUB:INTENSIVO",  r"\b(intensivo|intensive)\b"),
+    ("SUB:EXTENSIVO",  r"\b(extensivo|extensive|pasture|pastoreo)\b"),
+]
+
+SOURCE_RULES = [
+    ("FUENTE:FAO",         r"\b(fao|dad-?is)\b"),
+    ("FUENTE:HARVARD",     r"\b(harvard)\b"),
+    ("FUENTE:CIENTIFICO",  r"(1-s2\.0-|\bmdpi\b|\banimals-|\bmanuscript\b|\bdoi\b|\bjournal\b|\barticle\b)"),
+    ("FUENTE:GUIA_TECNICA", r"\b(manual|guide|handbook|guia|protocol|protocolo)\b"),
+]
+
+LANG_RULES = [
+    ("IDIOMA:ES", r"\b(espanol|castellano)\b"),
+    ("IDIOMA:EN", r"\b(english)\b"),
+    ("IDIOMA:PT", r"\b(portuguese|portugues|produtos)\b"),
+]
+
+
+def http_get(path: str, params=None):
+    url = f"{DIFY_BASE_URL}{path}"
+    r = requests.get(url, headers=HEADERS, params=params, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def list_all_documents(dataset_id: str) -> List[str]:
+    names = []
+    page, limit = 1, 100
+    while True:
+        data = http_get(f"/datasets/{dataset_id}/documents", params={"page": page, "limit": limit})
+        docs = data.get("data", [])
+        for d in docs:
+            n = d.get("name")
+            if n:
+                names.append(n)
+        if not data.get("has_more", False):
+            break
+        page += 1
+    return names
+
+
+def match_rules(text: str, rules: List[Tuple[str, str]]) -> List[str]:
+    t = norm(text)
+    out = []
+    for tag, pattern in rules:
+        if re.search(pattern, t, flags=re.I):
+            out.append(tag)
+    return out
+
+
+def infer_tags(doc_name: str) -> List[str]:
+    tags = []
+
+    tags += match_rules(doc_name, SPECIES_RULES)
+    tags += match_rules(doc_name, TOPIC_RULES)
+    tags += match_rules(doc_name, SUBTYPE_RULES)
+    tags += match_rules(doc_name, SOURCE_RULES)
+    tags += match_rules(doc_name, LANG_RULES)
+
+    # Reglas extra: si detecta capón y no detectó especie -> avicultura
+    if any(t == "SUB:CAPONES" for t in tags) and not any(t.startswith("ESPECIE:") for t in tags):
+        tags.append("ESPECIE:AVICULTURA")
+
+    # Default idioma → ES (la mayoría de docs NeoFarm son en español)
+    if not any(t.startswith("IDIOMA:") for t in tags):
+        tags.append("IDIOMA:ES")
+
+    # Default fuente → WEB solo si no se detectó otra
+    if not any(t.startswith("FUENTE:") for t in tags):
+        tags.append("FUENTE:WEB")
+
+    # Dedup manteniendo orden
+    seen = set()
+    dedup = []
+    for t in tags:
+        if t not in seen:
+            dedup.append(t)
+            seen.add(t)
+
+    return dedup
+
+
+def main():
+    doc_names = list_all_documents(DATASET_ID)
+    print(f"Docs encontrados: {len(doc_names)}")
+
+    with open(OUT_CSV, "w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["doc_name", "tags"])
+        for name in doc_names:
+            tags = infer_tags(name)
+            w.writerow([name, ";".join(tags)])
+
+    print(f"✅ Generado: {OUT_CSV}")
+    print("Siguiente paso: ejecutar dify_apply_labels.py para aplicar metadata en lote.")
+
+
+if __name__ == "__main__":
+    main()

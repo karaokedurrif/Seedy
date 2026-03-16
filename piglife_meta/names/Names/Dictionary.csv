@@ -1,0 +1,76 @@
+ID,Category
+1000,PreWean
+1010,Nursery
+1020,Growth
+1030,Finish
+1040,Estrus
+1050,Gestation
+1060,Farrow
+1101,RGB(general)
+1110,RGB(front)
+1111,RGB(center)
+1112,RGB(rear)
+1113,RGB(side)
+1120,RGB(ceiling)
+1121,RGB(side wall)
+1130,RGB(ground)
+1131,RGB(animal level)
+1132,RGB(top)
+1201,IR(general)
+1210,IR(front)
+1211,IR(center)
+1212,IR(rear)
+1213,IR(side)
+1220,IR(ceiling)
+1221,IR(side wall)
+1230,IR(ground)
+1231,IR(animal level)
+1232,IR(top)
+2001,Vision (general)
+2100,Brightness (highlight)
+2101,Brightness (soft)
+2102,Brightness (Dark)
+2200,Camera mode change
+2201,Natural light (change)
+2202,Artificial light (switch)
+2203,Natural light to artificial light
+2204,Artificial light to natural light
+2300,Challenge (general)
+2301,Overlapping
+2302,Backlighting
+2303,Shadow
+2304,Rotation
+2305,Distortions
+2306,Partial
+3001,Individual housing
+3002,Group housing
+3003,Mix housing
+3100,Natural light (day)
+3101,Artificial light (on)
+3102,No illumination
+3103,Reflection
+3200,Textures
+3201,Low contrast background
+3300,Obstacle
+3301,Stain
+3400,No physical boundaries
+3401,With point of interests
+3402,With region of interests
+4001,General (moderate spacing&same age)
+4100,Spacing (less than 5% ground visible)
+4101,Spacing (around 40% ground visible)
+4102,Spacing (greater than 75% ground visible)
+4200,Mixed of parity
+4201,Mixed genetics
+4202,Mixed health status
+4300,Inactive
+4301,Active
+4302,Aggressive
+4303,Enter/leave
+4304,Environmental stresses
+4305,Weaning
+4306,Transportation
+4307,Castration
+4308,Dehorning
+4309,Abusive handling
+4310,Before farrowing

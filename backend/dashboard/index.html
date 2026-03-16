@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gallineros — Granja Los Capones de Palacio</title>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --surface: #131920;
+      --card: #1a2332;
+      --border: #2a3a4d;
+      --accent: #4ade80;
+      --accent2: #22d3ee;
+      --text: #e8edf5;
+      --muted: #7a8ba0;
+      --danger: #f87171;
+      --gold: #fbbf24;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1a2332 0%, #0f1923 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header-logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), #059669);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header h1 span { color: var(--accent); }
+    .header-right {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .status-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(74, 222, 128, 0.1);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      color: var(--accent);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .clock { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+    /* ── Grid principal ── */
+    .main { padding: 24px 32px; }
+
+    .cameras-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 1100px) {
+      .cameras-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card cámara ── */
+    .cam-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .cam-card:hover { border-color: var(--accent); }
+    .cam-title {
+      padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .cam-title h2 { font-size: 16px; font-weight: 600; }
+    .cam-title .cam-id { color: var(--muted); font-size: 12px; }
+    .cam-model {
+      font-size: 11px;
+      color: var(--accent2);
+      background: rgba(34, 211, 238, 0.1);
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+    .cam-live-badge {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(248, 113, 113, 0.15);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      color: var(--danger);
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .cam-live-badge .red-dot {
+      width: 6px; height: 6px;
+      background: var(--danger);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    /* ── Video container ── */
+    .cam-video {
+      position: relative;
+      background: #000;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cam-video video, .cam-video img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+    }
+    .cam-video .overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      padding: 12px 16px 10px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+    }
+    .overlay-stats {
+      display: flex; gap: 16px;
+      font-size: 12px; color: rgba(255,255,255,0.8);
+    }
+    .overlay-stats span { display: flex; align-items: center; gap: 4px; }
+    .cam-offline {
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+    }
+    .cam-offline svg { margin-bottom: 8px; opacity: 0.4; }
+
+    /* ── Panel aves ── */
+    .cam-birds {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .cam-birds h3 {
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+    }
+    .bird-list {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .bird-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px 5px 5px;
+      font-size: 12px;
+      transition: all 0.2s;
+      cursor: default;
+    }
+    .bird-chip:hover {
+      border-color: var(--accent);
+      background: rgba(74, 222, 128, 0.06);
+    }
+    .bird-thumb {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: var(--border);
+    }
+    .bird-thumb.placeholder {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .bird-breed { font-weight: 600; color: var(--text); }
+    .bird-id { color: var(--muted); font-size: 11px; }
+    .bird-ia { color: var(--gold); font-size: 11px; font-weight: 600; }
+
+    /* ── Sección resumen ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .stat-card .value.green { color: var(--accent); }
+    .stat-card .value.cyan { color: var(--accent2); }
+    .stat-card .value.gold { color: var(--gold); }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 20px;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">🌱</div>
+    <h1><span>Seedy</span> Vision — Gallineros</h1>
+    <div class="header-right">
+      <div class="status-badge"><div class="status-dot"></div> IA Vision Activa</div>
+      <div class="clock" id="clock"></div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Cámaras en directo -->
+    <div class="cameras-grid">
+
+      <!-- Gallinero Durrif I -->
+      <div class="cam-card" id="cam1-card">
+        <div class="cam-title">
+          <div>
+            <h2>🏠 Gallinero Durrif I</h2>
+            <span class="cam-id">cam_durrif_1 — 192.168.1.108</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="cam-model">Dahua WizSense</span>
+            <span class="cam-live-badge"><span class="red-dot"></span> EN VIVO</span>
+          </div>
+        </div>
+        <div class="cam-video" id="cam1-video">
+          <div class="cam-offline" id="cam1-offline">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15.5 12a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0z"/><path d="M2 12c2.5-5 6.5-8 10-8s7.5 3 10 8c-2.5 5-6.5 8-10 8s-7.5-3-10-8z"/></svg>
+            <div>Conectando a Dahua WizSense...</div>
+            <div style="font-size:12px; margin-top:4px;">Configura la contraseña en <a href="http://192.168.1.108" target="_blank" style="color:var(--accent2)">192.168.1.108</a></div>
+          </div>
+          <div class="overlay" style="display:none" id="cam1-overlay">
+            <div class="overlay-stats">
+              <span>🐔 <span id="cam1-count">0</span> aves</span>
+              <span>⚡ <span id="cam1-fps">0</span> fps</span>
+            </div>
+          </div>
+        </div>
+        <div class="cam-birds">
+          <h3>Aves identificadas — IA Vision</h3>
+          <div class="bird-list" id="cam1-birds">
+            <div style="color:var(--muted); font-size:12px;">Esperando detecciones...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gallinero Durrif II -->
+      <div class="cam-card" id="cam2-card">
+        <div class="cam-title">
+          <div>
+            <h2>🏠 Gallinero Durrif II</h2>
+            <span class="cam-id">cam_durrif_2 — 192.168.1.10</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span class="cam-model">TP-Link VIGI 4K</span>
+            <span class="cam-live-badge"><span class="red-dot"></span> EN VIVO</span>
+          </div>
+        </div>
+        <div class="cam-video" id="cam2-video">
+          <div class="cam-offline" id="cam2-offline" style="display:none">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15.5 12a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0z"/><path d="M2 12c2.5-5 6.5-8 10-8s7.5 3 10 8c-2.5 5-6.5 8-10 8s-7.5-3-10-8z"/></svg>
+            <div>Conectando a VIGI 4K...</div>
+          </div>
+          <div class="overlay" id="cam2-overlay">
+            <div class="overlay-stats">
+              <span>🐔 <span id="cam2-count">0</span> aves</span>
+              <span>⚡ <span id="cam2-fps">0</span> fps</span>
+            </div>
+          </div>
+        </div>
+        <div class="cam-birds">
+          <h3>Aves identificadas — IA Vision</h3>
+          <div class="bird-list" id="cam2-birds">
+            <div style="color:var(--muted); font-size:12px;">Esperando detecciones...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="summary-grid">
+      <div class="stat-card">
+        <div class="label">Total aves registradas</div>
+        <div class="value green" id="stat-total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Aves en Durrif I</div>
+        <div class="value cyan" id="stat-g1">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Aves en Durrif II</div>
+        <div class="value cyan" id="stat-g2">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Razas detectadas</div>
+        <div class="value gold" id="stat-breeds">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Granja Los Capones de Palacio — <a href="https://hub.ovosfera.com/farm/palacio/" target="_blank">hub.ovosfera.com</a>
+    · Seedy IA Vision &copy; NeoFarm 2026
+  </div>
+
+<script>
+// ── Config ──
+const GO2RTC_URL = window.location.hostname === 'localhost'
+  ? 'http://192.168.1.100:1984'
+  : `${window.location.protocol}//${window.location.hostname}:1984`;
+const API_URL = window.location.port === '8000'
+  ? ''
+  : `${window.location.protocol}//${window.location.hostname}:8000`;
+
+const STREAMS = {
+  cam1: { stream: 'gallinero_durrif_1', gallinero: 'gallinero_durrif_1' },
+  cam2: { stream: 'gallinero_durrif_2', gallinero: 'gallinero_durrif_2' },
+};
+
+// ── Reloj ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleString('es-ES', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Iniciar streams vía go2rtc MSE/WebSocket ──
+function initStream(camId, streamName) {
+  const container = document.getElementById(`${camId}-video`);
+  const offline = document.getElementById(`${camId}-offline`);
+  const overlay = document.getElementById(`${camId}-overlay`);
+
+  // Usar MSE stream de go2rtc (mejor compatibilidad que WebRTC)
+  const wsUrl = `${GO2RTC_URL.replace('http', 'ws')}/api/ws?src=${streamName}`;
+
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.objectFit = 'contain';
+
+  // Intentar conexión MSE
+  let ws, mediaSource, sourceBuffer;
+  let queue = [];
+  let connected = false;
+
+  function connect() {
+    try {
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+    } catch(e) {
+      // Fallback a snapshot mode
+      showSnapshot(camId, streamName);
+      return;
+    }
+
+    ws.onopen = () => {
+      connected = true;
+      if (offline) offline.style.display = 'none';
+      if (overlay) overlay.style.display = '';
+
+      // Ask for MSE codec
+      ws.send(JSON.stringify({ type: 'mse' }));
+    };
+
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === 'string') {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'mse') {
+          // Init MediaSource
+          mediaSource = new MediaSource();
+          video.src = URL.createObjectURL(mediaSource);
+          mediaSource.addEventListener('sourceopen', () => {
+            sourceBuffer = mediaSource.addSourceBuffer(msg.value);
+            sourceBuffer.mode = 'segments';
+            sourceBuffer.addEventListener('updateend', () => {
+              if (queue.length > 0 && !sourceBuffer.updating) {
+                sourceBuffer.appendBuffer(queue.shift());
+              }
+            });
+          });
+          container.insertBefore(video, container.firstChild);
+        }
+      } else if (ev.data instanceof ArrayBuffer) {
+        if (sourceBuffer && !sourceBuffer.updating) {
+          try { sourceBuffer.appendBuffer(ev.data); } catch(e) { /* buffer full */ }
+        } else {
+          // Keep only last 10 chunks in queue
+          if (queue.length > 10) queue.shift();
+          queue.push(ev.data);
+        }
+      }
+    };
+
+    ws.onclose = () => {
+      connected = false;
+      // Retry in 5s
+      setTimeout(connect, 5000);
+    };
+
+    ws.onerror = () => {
+      ws.close();
+      // Fallback: snapshot mode
+      showSnapshot(camId, streamName);
+    };
+  }
+
+  connect();
+}
+
+function showSnapshot(camId, streamName) {
+  const container = document.getElementById(`${camId}-video`);
+  const offline = document.getElementById(`${camId}-offline`);
+  const overlay = document.getElementById(`${camId}-overlay`);
+
+  // Fallback: MJPEG snapshot refresh
+  const img = document.createElement('img');
+  img.style.width = '100%';
+  img.style.height = '100%';
+  img.style.objectFit = 'contain';
+
+  function refresh() {
+    img.src = `${GO2RTC_URL}/api/frame.jpeg?src=${streamName}&t=${Date.now()}`;
+  }
+
+  img.onload = () => {
+    if (offline) offline.style.display = 'none';
+    if (overlay) overlay.style.display = '';
+  };
+  img.onerror = () => {
+    if (offline) offline.style.display = '';
+    if (overlay) overlay.style.display = 'none';
+  };
+
+  container.insertBefore(img, container.firstChild);
+  refresh();
+  setInterval(refresh, 2000); // Refresh every 2s
+}
+
+// Iniciar ambas cámaras
+Object.entries(STREAMS).forEach(([camId, cfg]) => {
+  initStream(camId, cfg.stream);
+});
+
+// ── Cargar aves registradas ──
+async function loadBirds() {
+  try {
+    const res = await fetch(`${API_URL}/birds/`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const birds = data.birds || [];
+
+    // Stats
+    document.getElementById('stat-total').textContent = birds.length;
+    const g1 = birds.filter(b => b.gallinero === 'gallinero_durrif_1').length;
+    const g2 = birds.filter(b => b.gallinero === 'gallinero_durrif_2').length;
+    document.getElementById('stat-g1').textContent = g1;
+    document.getElementById('stat-g2').textContent = g2;
+
+    const breeds = new Set(birds.map(b => b.breed));
+    document.getElementById('stat-breeds').textContent = breeds.size;
+
+    // Bird chips por gallinero
+    renderBirdList('cam1-birds', birds.filter(b => b.gallinero === 'gallinero_durrif_1'));
+    renderBirdList('cam2-birds', birds.filter(b => b.gallinero === 'gallinero_durrif_2'));
+  } catch(e) {
+    console.log('Birds API not reachable', e);
+  }
+}
+
+function renderBirdList(containerId, birds) {
+  const el = document.getElementById(containerId);
+  if (!birds.length) {
+    el.innerHTML = '<div style="color:var(--muted); font-size:12px;">Esperando detecciones...</div>';
+    return;
+  }
+  el.innerHTML = birds.map(b => `
+    <div class="bird-chip" title="${b.bird_id} — ${b.breed} #${b.ia_vision_number}&#10;Confianza: ${(b.confidence*100).toFixed(0)}%&#10;Última vez: ${new Date(b.last_seen).toLocaleString('es-ES')}">
+      ${b.photo_b64
+        ? `<img class="bird-thumb" src="data:image/jpeg;base64,${b.photo_b64}" alt="${b.breed}">`
+        : `<div class="bird-thumb placeholder">🐔</div>`
+      }
+      <div>
+        <div class="bird-breed">${b.breed}</div>
+        <div class="bird-id">${b.bird_id}</div>
+        <div class="bird-ia">IA #${b.ia_vision_number}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Cargar cada 10s
+loadBirds();
+setInterval(loadBirds, 10000);
+</script>
+</body>
+</html>

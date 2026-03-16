@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────
+# Seedy Vision — YOLO Training: Thermal Detection
+# Detección en imágenes térmicas (FLIR)
+# ─────────────────────────────────────────────────────
+
+path: ./datasets/unified/thermal
+train: images/train
+val: images/val
+test: images/test
+
+nc: 6
+names:
+  0: chicken
+  1: pig
+  2: cattle
+  3: chick
+  4: piglet
+  5: calf
+
+# Nota: Para anomalías térmicas (fiebre, inflamación),
+# se usa un segundo head o post-processing con umbral
+# de temperatura relativa.

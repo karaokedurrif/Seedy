@@ -1,0 +1,195 @@
+import os
+import csv
+import time
+import requests
+from typing import Dict, List
+
+# ----------------------------
+# Config por variables de entorno
+# ----------------------------
+DIFY_BASE_URL = os.getenv("DIFY_BASE_URL", "http://localhost:3002/v1").rstrip("/")
+DIFY_API_KEY = os.getenv("DIFY_API_KEY", "").strip()
+DATASET_ID = os.getenv("DIFY_DATASET_ID", "").strip()
+CSV_PATH = os.getenv("LABELS_CSV", "labels.csv")
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "25"))
+SLEEP_BETWEEN_BATCHES = float(os.getenv("SLEEP_BETWEEN_BATCHES", "0.2"))
+
+if not DIFY_API_KEY or not DATASET_ID:
+    raise SystemExit(
+        "Faltan variables: DIFY_API_KEY y/o DIFY_DATASET_ID.\n"
+        "Ejemplo:\n"
+        "  export DIFY_BASE_URL='http://localhost:3002/v1'\n"
+        "  export DIFY_API_KEY='dataset-XXXX'\n"
+        "  export DIFY_DATASET_ID='TU_DATASET_UUID'\n"
+    )
+
+HEADERS = {
+    "Authorization": f"Bearer {DIFY_API_KEY}",
+    "Content-Type": "application/json",
+}
+
+# ----------------------------
+# Mapeo de prefijos de tag -> campo metadata en Dify
+# ----------------------------
+PREFIX_TO_FIELD = {
+    "ESPECIE": "especie",
+    "TEMA": "tema",
+    "SUB": "subtipo",
+    "FUENTE": "fuente",
+    "IDIOMA": "idioma",
+}
+DEFAULT_FIELD = "etiquetas_libres"
+
+
+def http_get(path: str, params=None):
+    r = requests.get(f"{DIFY_BASE_URL}{path}", headers=HEADERS, params=params, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def http_post(path: str, payload: dict):
+    r = requests.post(f"{DIFY_BASE_URL}{path}", headers=HEADERS, json=payload, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def list_all_documents() -> Dict[str, str]:
+    """Devuelve dict: {document_name: document_id}"""
+    name_to_id = {}
+    page, limit = 1, 100
+    while True:
+        data = http_get(f"/datasets/{DATASET_ID}/documents", params={"page": page, "limit": limit})
+        for d in data.get("data", []):
+            if d.get("name") and d.get("id"):
+                name_to_id[d["name"]] = d["id"]
+        if not data.get("has_more", False):
+            break
+        page += 1
+    return name_to_id
+
+
+def get_metadata_fields() -> Dict[str, str]:
+    """Devuelve dict {field_name: field_id}"""
+    data = http_get(f"/datasets/{DATASET_ID}/metadata")
+    fields = {}
+    for m in data.get("doc_metadata", []):
+        if m.get("name") and m.get("id"):
+            fields[m["name"]] = m["id"]
+    return fields
+
+
+def ensure_field(fields: Dict[str, str], field_name: str) -> str:
+    """Crea el campo metadata si no existe. Devuelve metadata_id."""
+    if field_name in fields:
+        return fields[field_name]
+    created = http_post(
+        f"/datasets/{DATASET_ID}/metadata",
+        {"type": "string", "name": field_name},
+    )
+    mid = created.get("id")
+    if not mid:
+        raise RuntimeError(f"No pude crear metadata field '{field_name}': {created}")
+    fields[field_name] = mid
+    print(f"[OK] Campo metadata creado: {field_name} -> {mid}")
+    return mid
+
+
+def parse_tags(tags_str: str) -> Dict[str, List[str]]:
+    """
+    Convierte "ESPECIE:AVICULTURA;TEMA:RAZAS;foo" en:
+    {"especie": ["AVICULTURA"], "tema": ["RAZAS"], "etiquetas_libres": ["foo"]}
+    """
+    out: Dict[str, List[str]] = {}
+    if not tags_str:
+        return out
+    parts = [p.strip() for p in tags_str.split(";") if p.strip()]
+    for p in parts:
+        if ":" in p:
+            prefix, value = p.split(":", 1)
+            field = PREFIX_TO_FIELD.get(prefix.strip().upper(), DEFAULT_FIELD)
+            out.setdefault(field, []).append(value.strip())
+        else:
+            out.setdefault(DEFAULT_FIELD, []).append(p)
+    for k in list(out.keys()):
+        out[k] = sorted(set(out[k]))
+    return out
+
+
+def chunk(lst, n):
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
+
+
+def main():
+    print(f"Base URL: {DIFY_BASE_URL}")
+    print(f"Dataset:  {DATASET_ID}")
+    print(f"CSV:      {CSV_PATH}")
+
+    # 1) lista documentos
+    name_to_id = list_all_documents()
+    print(f"[OK] Documentos en dataset: {len(name_to_id)}")
+
+    # 2) campos metadata existentes
+    fields = get_metadata_fields()
+
+    # 3) leemos el CSV y detectamos campos necesarios
+    rows = []
+    needed = set()
+    with open(CSV_PATH, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            dn = (r.get("doc_name") or "").strip()
+            tg = (r.get("tags") or "").strip()
+            if not dn:
+                continue
+            rows.append((dn, tg))
+            for field in parse_tags(tg).keys():
+                needed.add(field)
+
+    # 4) crear campos faltantes
+    for field in sorted(needed):
+        ensure_field(fields, field)
+
+    # 5) construir operaciones
+    ops = []
+    missing = []
+    for doc_name, tags in rows:
+        doc_id = name_to_id.get(doc_name)
+        if not doc_id:
+            missing.append(doc_name)
+            continue
+        parsed = parse_tags(tags)
+        metadata_list = []
+        for field_name, values in parsed.items():
+            metadata_list.append({
+                "id": fields[field_name],
+                "name": field_name,
+                "value": "|".join(values),
+            })
+        if metadata_list:
+            ops.append({"document_id": doc_id, "metadata_list": metadata_list})
+
+    if missing:
+        print(f"\n[WARN] {len(missing)} doc_name no encontrados en Dify:")
+        for m in missing[:20]:
+            print(f"  - {m}")
+        if len(missing) > 20:
+            print(f"  ... y {len(missing) - 20} más")
+        print()
+
+    print(f"[OK] Operaciones a aplicar: {len(ops)}")
+
+    # 6) enviar en batches
+    applied = 0
+    for batch in chunk(ops, BATCH_SIZE):
+        http_post(f"/datasets/{DATASET_ID}/documents/metadata", {"operation_data": batch})
+        applied += len(batch)
+        print(f"[OK] Batch aplicado. Total: {applied}")
+        time.sleep(SLEEP_BETWEEN_BATCHES)
+
+    print("\n✅ Listo. Metadata aplicada.")
+    print("Ahora en Dify podrás filtrar/buscar por especie/tema/subtipo/fuente.")
+
+
+if __name__ == "__main__":
+    main()

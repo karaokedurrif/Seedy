@@ -1,0 +1,1155 @@
+#!/usr/bin/env python3
+"""
+╔══════════════════════════════════════════════════════════════════╗
+║  Seedy — Búsqueda de Personas del Sector Ganadero en España     ║
+║  OSINT profesional: nombre, email, teléfono, DNI, documentos    ║
+║  oficiales (BOE), webs, RRSS, publicaciones científicas.        ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Uso:
+    python scripts/busqueda_personas_sector_ganadero.py "Juan+Pérez+García"
+    python scripts/busqueda_personas_sector_ganadero.py "Juan+Ricote+Blanco" --dni 49687179A
+    python scripts/busqueda_personas_sector_ganadero.py --email juan@mapa.gob.es
+    python scripts/busqueda_personas_sector_ganadero.py --telefono 612345678
+    python scripts/busqueda_personas_sector_ganadero.py "Pedro+Martínez" --export resultados.csv
+    python scripts/busqueda_personas_sector_ganadero.py "Ana+Ruiz" --solo-fuentes boe,rrss,scholar
+
+Fuentes: Web, BOE (directo), RRSS, Scholar/ORCID/OpenAlex/Dialnet,
+         Institucional ganadero, Directorios, Email, Teléfono, DNI.
+
+Motores SearXNG usados: qwant, yahoo, yandex, mojeek (Bing/Google/DDG rotos).
+"""
+
+import argparse
+import asyncio
+import csv
+import hashlib
+import json
+import logging
+import math
+import os
+import re
+import sys
+import time
+import unicodedata
+import urllib.parse
+from dataclasses import dataclass, field, asdict
+from pathlib import Path
+from typing import Optional
+
+import httpx
+
+# ── Config ──────────────────────────────────────────────────────────────
+SEARXNG_URL = os.getenv("SEARXNG_URL", "http://localhost:8888")
+CRAWL4AI_URL = os.getenv("CRAWL4AI_URL", "http://localhost:11235")
+TIMEOUT = 25
+
+# Engines that ACTUALLY return results. Bing → Chinese noise,
+# Google/DDG/Brave/Startpage → blocked/broken.
+WORKING_ENGINES = "qwant,yahoo,yandex,mojeek"
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+log = logging.getLogger("person_search")
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "es-ES,es;q=0.9",
+}
+
+
+# ── Data model ──────────────────────────────────────────────────────────
+@dataclass
+class PersonResult:
+    title: str
+    url: str
+    source: str
+    category: str
+    snippet: str = ""
+    date: str = ""
+    relevance: float = 0.0
+    extra: dict = field(default_factory=dict)
+
+    @property
+    def dedup_key(self) -> str:
+        u = re.sub(r"https?://(www\.)?", "", self.url.lower().rstrip("/"))
+        return hashlib.md5(u.encode()).hexdigest()
+
+
+# ── Helpers ─────────────────────────────────────────────────────────────
+def _trim(text: str, maxlen: int = 250) -> str:
+    text = re.sub(r"\s+", " ", (text or "")).strip()
+    return text[:maxlen] + "…" if len(text) > maxlen else text
+
+
+def _strip_accents(s: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+_BLOCKED_DOMAINS = {
+    "baidu.com", "zhidao.baidu.com", "zhihu.com", "tieba.baidu.com",
+    "bilibili.com", "douyin.com", "weibo.com", "weixin.qq.com",
+    "bankier.pl", "onet.pl", "wp.pl",
+}
+
+
+def _is_noise(url: str, title: str, snippet: str) -> bool:
+    """Filter out noise: CJK, blocked domains, garbled proxy URLs."""
+    url_lower = url.lower()
+    for bd in _BLOCKED_DOMAINS:
+        if bd in url_lower:
+            return True
+    # Yandex proxy garbled URLs (random short TLDs with gibberish)
+    if re.match(r"https?://[a-z]{2,8}\.(wf|kz|ki|gq|ml|tk|cf|ga|ws|nu)/", url_lower):
+        text = f"{title} {snippet}"
+        # Check if text is mostly consonant gibberish (Yandex proxy)
+        words = re.findall(r"[a-z]{3,}", text.lower())
+        if words:
+            vowel_ratio = sum(
+                sum(1 for c in w if c in "aeiou") / len(w) for w in words
+            ) / len(words)
+            if vowel_ratio < 0.25:
+                return True
+    text = f"{title} {snippet}"
+    if not text.strip():
+        return False
+    cjk = sum(
+        1 for c in text
+        if "\u4e00" <= c <= "\u9fff" or "\u3040" <= c <= "\u30ff" or "\uac00" <= c <= "\ud7af"
+    )
+    return cjk > len(text) * 0.15
+
+# Domains where numbers match product IDs, not DNI documents
+_DNI_FALSE_POSITIVE_DOMAINS = {
+    "shi.com", "vecteezy.com", "motoruf.es", "amazon.", "ebay.",
+    "aliexpress.com", "walmart.com", "siu.edu.ar", "casadellibro.com",
+}
+
+
+def _is_false_dni_match(url: str) -> bool:
+    """Check if URL is a commercial site where numbers are product IDs, not DNIs."""
+    url_lower = url.lower()
+    for d in _DNI_FALSE_POSITIVE_DOMAINS:
+        if d in url_lower:
+            return True
+    return False
+
+
+def _name_from_plus(name_plus: str) -> dict:
+    parts = [p.strip() for p in name_plus.replace("+", " ").split() if p.strip()]
+    full = " ".join(parts)
+    return {
+        "parts": parts,
+        "full": full,
+        "quoted": f'"{full}"',
+        "first": parts[0] if parts else "",
+        "last": " ".join(parts[1:]) if len(parts) > 1 else "",
+        "slug": "-".join(p.lower() for p in parts),
+        "dotted": ".".join(p.lower() for p in parts),
+    }
+
+
+def _dni_variants(dni: str) -> list[str]:
+    if not dni:
+        return []
+    dni = dni.upper().strip().replace(".", "").replace("-", "").replace(" ", "")
+    variants = [dni]
+    m = re.match(r"^(\d+)([A-Z])?$", dni)
+    if m:
+        digits, letter = m.group(1), m.group(2) or ""
+        if len(digits) >= 7:
+            dotted = ""
+            for i, c in enumerate(reversed(digits)):
+                if i > 0 and i % 3 == 0:
+                    dotted = "." + dotted
+                dotted = c + dotted
+            variants.append(f"{dotted}-{letter}" if letter else dotted)
+            variants.append(f"{dotted}{letter}" if letter else dotted)
+        variants.append(f"{digits}-{letter}" if letter else digits)
+        variants.append(digits)
+    return list(set(v for v in variants if v))
+
+
+# ── SearXNG (working engines only) ────────────────────────────────────
+async def _searxng(
+    client: httpx.AsyncClient,
+    query: str,
+    pages: int = 2,
+    max_results: int = 30,
+    lang: str = "es",
+    category: str = "general",
+    engines: str = "",
+) -> list[dict]:
+    results = []
+    eng = engines or WORKING_ENGINES
+    for page in range(1, pages + 1):
+        try:
+            r = await client.get(
+                f"{SEARXNG_URL}/search",
+                params={
+                    "q": query, "format": "json", "pageno": page,
+                    "language": lang, "categories": category,
+                    "engines": eng,
+                },
+                timeout=TIMEOUT,
+            )
+            r.raise_for_status()
+            data = r.json()
+            results.extend(data.get("results", []))
+            if len(results) >= max_results:
+                break
+        except Exception as e:
+            log.debug(f"  SearXNG error (p{page}): {e}")
+            break
+    results = [
+        r for r in results
+        if not _is_noise(r.get("url", ""), r.get("title", ""), r.get("content", ""))
+    ]
+    return results[:max_results]
+
+
+# ── Crawl4AI helper ────────────────────────────────────────────────────
+async def _crawl_page(client: httpx.AsyncClient, url: str) -> str:
+    try:
+        payload = {"urls": [url], "priority": 5, "bypass_cache": True}
+        r = await client.post(f"{CRAWL4AI_URL}/crawl", json=payload, timeout=60)
+        d = r.json()
+        res = d.get("results", [{}])
+        if isinstance(res, list) and res:
+            return res[0].get("html", "") if isinstance(res[0], dict) else ""
+        return d.get("result", {}).get("html", "") if isinstance(d.get("result"), dict) else ""
+    except Exception as e:
+        log.debug(f"  Crawl4AI error: {e}")
+        return ""
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  SEARCH PROVIDERS
+# ══════════════════════════════════════════════════════════════════════
+
+# ── 1. Web general ──────────────────────────────────────────────────
+async def search_web_general(
+    client: httpx.AsyncClient, name: dict, pages: int, max_r: int,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+
+    raw = await _searxng(client, name["quoted"], pages, max_r)
+    for r in raw:
+        results.append(PersonResult(
+            title=_trim(r.get("title", ""), 120),
+            url=r.get("url", ""),
+            source=r.get("engine", "web"),
+            category="web",
+            snippet=_trim(r.get("content", "")),
+            date=r.get("publishedDate", ""),
+        ))
+
+    if len(results) < 5:
+        raw2 = await _searxng(
+            client, f'{name["quoted"]} ganaderia OR veterinario OR agropecuario', 1, max_r,
+        )
+        for r in raw2:
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 120),
+                url=r.get("url", ""),
+                source=r.get("engine", "web"),
+                category="web",
+                snippet=_trim(r.get("content", "")),
+                date=r.get("publishedDate", ""),
+            ))
+
+    return results[:max_r]
+
+
+# ── 2. BOE & Diarios oficiales ─────────────────────────────────────
+async def _search_boe_direct(
+    client: httpx.AsyncClient, search_text: str, max_r: int = 20,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+    try:
+        params = {
+            "campo[0]": "TXT",
+            "dato[0]": search_text,
+            "operador[0]": "and",
+            "page_hits": str(max_r),
+            "sort_field[0]": "fpu",
+            "sort_order[0]": "desc",
+        }
+        r = await client.get(
+            "https://www.boe.es/buscar/boe.php",
+            params=params, headers=_HEADERS, timeout=TIMEOUT,
+        )
+        if r.status_code != 200:
+            log.debug(f"  BOE status {r.status_code}")
+            return []
+
+        html = r.text
+        count_match = re.search(r"(\d+)\s+resultado", html)
+        total = int(count_match.group(1)) if count_match else 0
+        log.debug(f"  BOE '{search_text}': {total} resultados")
+
+        items = re.findall(
+            r'<div class="resultado-busqueda">(.*?)</div>\s*(?:<div|$)',
+            html, re.DOTALL,
+        )
+        if not items:
+            doc_links = re.findall(
+                r'href="(/diario_boe/txt\.php\?id=(BOE-[A-Z]-\d{4}-\d+))"', html,
+            )
+            for href, doc_id in doc_links[:max_r]:
+                results.append(PersonResult(
+                    title=f"[BOE] {doc_id}",
+                    url=f"https://www.boe.es{href}",
+                    source="boe_directo",
+                    category="documento_oficial",
+                    snippet=f"Documento BOE: {search_text}",
+                ))
+
+        for item in items[:max_r]:
+            title_match = re.search(r'<a[^>]+href="([^"]+)"[^>]*>([^<]+)', item)
+            if title_match:
+                href, title = title_match.group(1), title_match.group(2)
+                url = href if href.startswith("http") else f"https://www.boe.es{href}"
+                snippet_match = re.search(r'<p class="texto[^"]*">([^<]+)', item)
+                snippet = snippet_match.group(1) if snippet_match else ""
+                date_match = re.search(r'(\d{2}/\d{2}/\d{4})', item)
+                date = date_match.group(1) if date_match else ""
+                results.append(PersonResult(
+                    title=f"[BOE] {_trim(title, 120)}",
+                    url=url,
+                    source="boe_directo",
+                    category="documento_oficial",
+                    snippet=_trim(snippet),
+                    date=date,
+                ))
+    except Exception as e:
+        log.debug(f"  BOE direct error: {e}")
+    return results
+
+
+async def _search_boe_crawl(
+    client: httpx.AsyncClient, search_text: str, max_r: int = 20,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+    try:
+        encoded = urllib.parse.quote(search_text)
+        url = f"https://www.boe.es/buscar/boe.php?campo%5B0%5D=TXT&dato%5B0%5D={encoded}&page_hits=20"
+        html = await _crawl_page(client, url)
+        if not html:
+            return []
+
+        doc_links = re.findall(
+            r'href="(/diario_boe/txt\.php\?id=(BOE-[A-Z]-\d{4}-\d+))"', html,
+        )
+        for href, doc_id in doc_links[:max_r]:
+            idx = html.find(doc_id)
+            snippet = ""
+            if idx > 0:
+                block = html[max(0, idx - 200):idx + 300]
+                text = re.sub(r"<[^>]+>", " ", block)
+                text = re.sub(r"\s+", " ", text).strip()
+                snippet = _trim(text, 200)
+            results.append(PersonResult(
+                title=f"[BOE] {doc_id}",
+                url=f"https://www.boe.es{href}",
+                source="boe_crawl",
+                category="documento_oficial",
+                snippet=snippet or f"Documento BOE: {search_text}",
+            ))
+    except Exception as e:
+        log.debug(f"  BOE crawl error: {e}")
+    return results
+
+
+async def search_boe(
+    client: httpx.AsyncClient, name: dict, dni: str,
+    pages: int, max_r: int,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+
+    # Direct BOE scraping
+    boe_direct = await _search_boe_direct(client, name["full"], max_r)
+    results.extend(boe_direct)
+
+    # Crawl4AI BOE fallback
+    boe_crawl = await _search_boe_crawl(client, name["full"], max_r)
+    results.extend(boe_crawl)
+
+    if dni:
+        for variant in _dni_variants(dni)[:3]:
+            r1 = await _search_boe_direct(client, variant, max_r)
+            results.extend(r1)
+            r2 = await _search_boe_crawl(client, variant, max_r)
+            results.extend(r2)
+
+    # SearXNG -> BOE (some engines index boe.es)
+    boe_queries = [f'{name["quoted"]} site:boe.es']
+    if dni:
+        boe_queries.append(f'"{dni}" site:boe.es')
+    for q in boe_queries:
+        raw = await _searxng(client, q, pages, max_r)
+        for r in raw:
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 150),
+                url=r.get("url", ""),
+                source="boe_searxng",
+                category="documento_oficial",
+                snippet=_trim(r.get("content", "")),
+                date=r.get("publishedDate", ""),
+            ))
+
+    # Diarios autonomicos via SearXNG
+    autonomic = [
+        ("BOJA", "juntadeandalucia.es"), ("DOCM", "docm.jccm.es"),
+        ("DOG", "xunta.gal"), ("DOGC", "dogc.gencat.cat"),
+        ("DOGV", "dogv.gva.es"), ("BOPV", "euskadi.eus"),
+        ("BOA", "boa.aragon.es"), ("BOCM", "bocm.es"),
+        ("BORM", "borm.es"), ("BOCYL", "bocyl.jcyl.es"),
+    ]
+    for diario, site in autonomic:
+        q = f'{name["quoted"]} site:{site}'
+        raw = await _searxng(client, q, 1, 5)
+        for r in raw:
+            results.append(PersonResult(
+                title=f"[{diario}] {_trim(r.get('title', ''), 120)}",
+                url=r.get("url", ""),
+                source=diario.lower(),
+                category="documento_oficial",
+                snippet=_trim(r.get("content", "")),
+                date=r.get("publishedDate", ""),
+            ))
+
+    return results[:max_r]
+
+
+# ── 3. RRSS ─────────────────────────────────────────────────────────
+async def search_rrss(
+    client: httpx.AsyncClient, name: dict, email: str,
+    pages: int, max_r: int,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+
+    social = {
+        "linkedin": ("LinkedIn", "linkedin.com/in/"),
+        "twitter": ("Twitter/X", "twitter.com OR x.com"),
+        "facebook": ("Facebook", "facebook.com"),
+        "instagram": ("Instagram", "instagram.com"),
+        "youtube": ("YouTube", "youtube.com"),
+        "tiktok": ("TikTok", "tiktok.com"),
+        "pinterest": ("Pinterest", "pinterest.com OR pinterest.es"),
+    }
+
+    for platform, (label, site_filter) in social.items():
+        q = f'{name["quoted"]} site:{site_filter}'
+        raw = await _searxng(client, q, 1, 5)
+        for r in raw:
+            results.append(PersonResult(
+                title=f"[{label}] {_trim(r.get('title', ''), 100)}",
+                url=r.get("url", ""),
+                source=platform,
+                category="rrss",
+                snippet=_trim(r.get("content", "")),
+            ))
+
+    # Social profiles from general search
+    raw_general = await _searxng(client, name["quoted"], 1, 10)
+    _social_domains = {
+        "facebook.com": "facebook", "linkedin.com": "linkedin",
+        "twitter.com": "twitter", "x.com": "twitter",
+        "instagram.com": "instagram", "pinterest.": "pinterest",
+        "youtube.com": "youtube", "tiktok.com": "tiktok",
+    }
+    for r in raw_general:
+        url = r.get("url", "").lower()
+        for domain, platform in _social_domains.items():
+            if domain in url:
+                results.append(PersonResult(
+                    title=f"[{platform.title()}] {_trim(r.get('title', ''), 100)}",
+                    url=r.get("url", ""),
+                    source=platform,
+                    category="rrss",
+                    snippet=_trim(r.get("content", "")),
+                ))
+                break
+
+    if email:
+        q = f'"{email}" site:linkedin.com OR site:twitter.com OR site:researchgate.net OR site:facebook.com'
+        raw_email = await _searxng(client, q, 1, 5)
+        for r in raw_email:
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 120),
+                url=r.get("url", ""),
+                source="email_social",
+                category="rrss",
+                snippet=_trim(r.get("content", "")),
+            ))
+
+    return results[:max_r]
+
+
+# ── 4. Academico ────────────────────────────────────────────────────
+async def search_academico(
+    client: httpx.AsyncClient, name: dict, email: str,
+    pages: int, max_r: int,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+
+    # SearXNG science + scholar sites
+    scholar_qs = [
+        f'author:{name["quoted"]}',
+        f'{name["quoted"]} site:scholar.google.com OR site:dialnet.unirioja.es OR site:researchgate.net',
+    ]
+    for sq in scholar_qs:
+        raw = await _searxng(client, sq, 1, max_r // 2 + 1, category="science")
+        for r in raw:
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 150),
+                url=r.get("url", ""),
+                source=r.get("engine", "scholar"),
+                category="academico",
+                snippet=_trim(r.get("content", "")),
+                date=r.get("publishedDate", ""),
+            ))
+
+    # ResearchGate
+    q_rg = f'{name["quoted"]} site:researchgate.net'
+    raw_rg = await _searxng(client, q_rg, 1, 5)
+    for r in raw_rg:
+        results.append(PersonResult(
+            title=f"[ResearchGate] {_trim(r.get('title', ''), 100)}",
+            url=r.get("url", ""), source="researchgate",
+            category="academico", snippet=_trim(r.get("content", "")),
+        ))
+
+    # ORCID API
+    try:
+        r = await client.get(
+            "https://pub.orcid.org/v3.0/search/",
+            params={"q": name["full"], "rows": 5},
+            headers={"Accept": "application/json"}, timeout=TIMEOUT,
+        )
+        if r.status_code == 200:
+            for entry in r.json().get("result", []):
+                oid = entry.get("orcid-identifier", {}).get("path", "")
+                if oid:
+                    results.append(PersonResult(
+                        title=f"[ORCID] {oid}",
+                        url=f"https://orcid.org/{oid}",
+                        source="orcid", category="academico",
+                        snippet=f"Perfil ORCID: {name['full']}",
+                        extra={"orcid_id": oid},
+                    ))
+    except Exception as e:
+        log.debug(f"  ORCID: {e}")
+
+    # Dialnet
+    raw_dial = await _searxng(client, f'{name["quoted"]} site:dialnet.unirioja.es', 1, 5)
+    for r in raw_dial:
+        results.append(PersonResult(
+            title=f"[Dialnet] {_trim(r.get('title', ''), 100)}",
+            url=r.get("url", ""), source="dialnet",
+            category="academico", snippet=_trim(r.get("content", "")),
+        ))
+
+    # CSIC Digital
+    raw_csic = await _searxng(client, f'{name["quoted"]} site:digital.csic.es', 1, 5)
+    for r in raw_csic:
+        results.append(PersonResult(
+            title=f"[CSIC] {_trim(r.get('title', ''), 100)}",
+            url=r.get("url", ""), source="csic",
+            category="academico", snippet=_trim(r.get("content", "")),
+        ))
+
+    # OpenAlex authors API
+    try:
+        r = await client.get(
+            "https://api.openalex.org/authors",
+            params={"search": name["full"], "per_page": 5,
+                    "mailto": "mkddg@hotmail.com"},
+            timeout=TIMEOUT,
+        )
+        if r.status_code == 200:
+            for author in r.json().get("results", []):
+                display = author.get("display_name", "")
+                oa_id = author.get("id", "").split("/")[-1]
+                works = author.get("works_count", 0)
+                cited = author.get("cited_by_count", 0)
+                topics = ", ".join(
+                    t.get("display_name", "")
+                    for t in (author.get("topics", []) or [])[:5]
+                )
+                results.append(PersonResult(
+                    title=f"[OpenAlex] {display}",
+                    url=f"https://openalex.org/authors/{oa_id}",
+                    source="openalex", category="academico",
+                    snippet=f"{works} publicaciones, {cited} citas. Temas: {topics[:150]}",
+                    extra={"works_count": works, "cited_by_count": cited},
+                ))
+    except Exception as e:
+        log.debug(f"  OpenAlex: {e}")
+
+    return results[:max_r]
+
+
+# ── 5. Institucional ganadero ───────────────────────────────────────
+async def search_institucional(
+    client: httpx.AsyncClient, name: dict,
+    pages: int, max_r: int,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+    sites = {
+        "MAPA": "mapa.gob.es", "INIA/CSIC": "inia.csic.es",
+        "COAG": "coag.org", "ASAJA": "asaja.com", "UPA": "upa.es",
+        "Interovic": "interovic.es", "ANPROGAPOR": "anprogapor.es",
+        "ASEPRHU": "aseprhu.es", "INTERPORC": "interporc.com",
+        "Col.Vet.": "colvet.es OR consejogeneralcolegiosveterinarios.es",
+        "FEAGAS": "feagas.com", "InfoCarne": "infocarne.com",
+    }
+    for label, site in sites.items():
+        q = f'{name["quoted"]} site:{site}'
+        raw = await _searxng(client, q, 1, 3)
+        for r in raw:
+            results.append(PersonResult(
+                title=f"[{label}] {_trim(r.get('title', ''), 100)}",
+                url=r.get("url", ""),
+                source=label.lower().replace(" ", "_"),
+                category="institucional",
+                snippet=_trim(r.get("content", "")),
+            ))
+    return results[:max_r]
+
+
+# ── 6. Directorios empresariales ────────────────────────────────────
+async def search_directorios(
+    client: httpx.AsyncClient, name: dict, dni: str,
+    pages: int, max_r: int,
+) -> list[PersonResult]:
+    results: list[PersonResult] = []
+    dirs = {
+        "Infoempresa": "infoempresa.com", "eInforma": "einforma.com",
+        "Axesor": "axesor.es", "Empresia": "empresia.es",
+        "LibreBOR": "librebor.me",
+    }
+    for label, site in dirs.items():
+        q = f'{name["quoted"]} site:{site}'
+        raw = await _searxng(client, q, 1, 3)
+        for r in raw:
+            results.append(PersonResult(
+                title=f"[{label}] {_trim(r.get('title', ''), 100)}",
+                url=r.get("url", ""),
+                source=label.lower(),
+                category="directorio",
+                snippet=_trim(r.get("content", "")),
+            ))
+    if dni:
+        for v in _dni_variants(dni)[:2]:
+            q_dni = f'"{v}" registro mercantil OR administrador OR apoderado'
+            raw_dni = await _searxng(client, q_dni, 1, 5)
+            for r in raw_dni:
+                results.append(PersonResult(
+                    title=_trim(r.get("title", ""), 120),
+                    url=r.get("url", ""),
+                    source="registro_dni",
+                    category="directorio",
+                    snippet=_trim(r.get("content", "")),
+                ))
+    return results[:max_r]
+
+
+# ── 7. Email ────────────────────────────────────────────────────────
+async def search_by_email(
+    client: httpx.AsyncClient, email: str, max_r: int,
+) -> list[PersonResult]:
+    if not email:
+        return []
+    results: list[PersonResult] = []
+
+    raw = await _searxng(client, f'"{email}"', 2, max_r)
+    for r in raw:
+        results.append(PersonResult(
+            title=_trim(r.get("title", ""), 120),
+            url=r.get("url", ""),
+            source="email_web", category="email",
+            snippet=_trim(r.get("content", "")),
+        ))
+
+    # Gravatar
+    try:
+        email_hash = hashlib.md5(email.strip().lower().encode()).hexdigest()
+        r = await client.get(f"https://www.gravatar.com/{email_hash}.json", timeout=10)
+        if r.status_code == 200:
+            for entry in r.json().get("entry", []):
+                display = entry.get("displayName", "")
+                about = entry.get("aboutMe", "")
+                urls = [u.get("value", "") for u in entry.get("urls", [])]
+                results.append(PersonResult(
+                    title=f"[Gravatar] {display}",
+                    url=f"https://gravatar.com/{email_hash}",
+                    source="gravatar", category="email",
+                    snippet=f"{about}. Links: {', '.join(urls[:3])}",
+                    extra={"gravatar_urls": urls},
+                ))
+    except Exception:
+        pass
+
+    # ORCID by email
+    try:
+        r = await client.get(
+            "https://pub.orcid.org/v3.0/search/",
+            params={"q": f"email:{email}", "rows": 3},
+            headers={"Accept": "application/json"}, timeout=TIMEOUT,
+        )
+        if r.status_code == 200:
+            for entry in r.json().get("result", []):
+                oid = entry.get("orcid-identifier", {}).get("path", "")
+                if oid:
+                    results.append(PersonResult(
+                        title=f"[ORCID email] {oid}",
+                        url=f"https://orcid.org/{oid}",
+                        source="orcid_email", category="academico",
+                        snippet=f"ORCID vinculado a {email}",
+                    ))
+    except Exception:
+        pass
+
+    return results[:max_r]
+
+
+# ── 8. Telefono ─────────────────────────────────────────────────────
+async def search_by_phone(
+    client: httpx.AsyncClient, phone: str, max_r: int,
+) -> list[PersonResult]:
+    if not phone:
+        return []
+    results: list[PersonResult] = []
+
+    phone_clean = re.sub(r"[^\d+]", "", phone)
+    digits = phone_clean.lstrip("+")
+    if digits.startswith("34"):
+        digits = digits[2:]
+
+    variants = {digits, f"+34{digits}"}
+    if len(digits) == 9:
+        variants.add(f"+34 {digits[:3]} {digits[3:6]} {digits[6:]}")
+        variants.add(f"{digits[:3]} {digits[3:6]} {digits[6:]}")
+
+    for v in list(variants)[:3]:
+        raw = await _searxng(client, f'"{v}"', 1, 5)
+        for r in raw:
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 120),
+                url=r.get("url", ""),
+                source="telefono_web", category="telefono",
+                snippet=_trim(r.get("content", "")),
+            ))
+
+    phone_dirs = {
+        "PaginasBlancas": "paginasblancas.es",
+        "Infobel": "infobel.com/es", "11888": "11888.es",
+    }
+    for label, site in phone_dirs.items():
+        raw = await _searxng(client, f'"{digits}" site:{site}', 1, 3)
+        for r in raw:
+            results.append(PersonResult(
+                title=f"[{label}] {_trim(r.get('title', ''), 100)}",
+                url=r.get("url", ""),
+                source=label.lower(),
+                category="telefono",
+                snippet=_trim(r.get("content", "")),
+            ))
+
+    return results[:max_r]
+
+
+# ── 9. DNI ──────────────────────────────────────────────────────────
+async def search_by_dni(
+    client: httpx.AsyncClient, dni: str, max_r: int,
+) -> list[PersonResult]:
+    if not dni:
+        return []
+    results: list[PersonResult] = []
+    variants = _dni_variants(dni)
+
+    for v in variants[:3]:
+        r1 = await _search_boe_direct(client, v, max_r)
+        results.extend(r1)
+        r2 = await _search_boe_crawl(client, v, max_r)
+        results.extend(r2)
+
+    for v in variants[:2]:
+        q = f'"{v}" subvencion OR ayuda OR resolucion OR nombramiento OR adjudicacion'
+        raw = await _searxng(client, q, 1, max_r)
+        for r in raw:
+            if _is_false_dni_match(r.get("url", "")):
+                continue
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 150),
+                url=r.get("url", ""),
+                source="dni_web", category="documento_oficial",
+                snippet=_trim(r.get("content", "")),
+            ))
+
+    for v in variants[:2]:
+        q = f'"{v}" site:librebor.me OR site:einforma.com OR site:axesor.es'
+        raw = await _searxng(client, q, 1, 5)
+        for r in raw:
+            results.append(PersonResult(
+                title=_trim(r.get("title", ""), 120),
+                url=r.get("url", ""),
+                source="registro_mercantil", category="directorio",
+                snippet=_trim(r.get("content", "")),
+            ))
+
+    return results[:max_r]
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  ORCHESTRATOR
+# ══════════════════════════════════════════════════════════════════════
+
+SOURCES_ALL = {
+    "web", "boe", "rrss", "scholar", "institucional", "directorios",
+    "email", "telefono", "dni",
+}
+
+
+async def buscar_persona(
+    name_plus: str = "", email: str = "", phone: str = "", dni: str = "",
+    pages: int = 2, max_per_source: int = 30,
+    sources: set[str] | None = None,
+) -> tuple[list[PersonResult], dict[str, int]]:
+    if sources is None:
+        sources = SOURCES_ALL
+    name = _name_from_plus(name_plus) if name_plus else None
+    all_results: list[PersonResult] = []
+    source_counts: dict[str, int] = {}
+
+    if not name and not email and not phone and not dni:
+        log.error("Proporciona al menos: nombre, email, telefono o DNI")
+        return [], {}
+
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+        tasks: dict[str, asyncio.Task] = {}
+
+        if name:
+            if "web" in sources:
+                tasks["Web general"] = asyncio.create_task(
+                    search_web_general(client, name, pages, max_per_source))
+            if "boe" in sources:
+                tasks["BOE & Diarios oficiales"] = asyncio.create_task(
+                    search_boe(client, name, dni, pages, max_per_source))
+            if "rrss" in sources:
+                tasks["RRSS"] = asyncio.create_task(
+                    search_rrss(client, name, email, pages, max_per_source))
+            if "scholar" in sources:
+                tasks["Academico"] = asyncio.create_task(
+                    search_academico(client, name, email, pages, max_per_source))
+            if "institucional" in sources:
+                tasks["Institucional"] = asyncio.create_task(
+                    search_institucional(client, name, pages, max_per_source))
+            if "directorios" in sources:
+                tasks["Directorios"] = asyncio.create_task(
+                    search_directorios(client, name, dni, pages, max_per_source))
+
+        if email and "email" in sources:
+            tasks["Email"] = asyncio.create_task(
+                search_by_email(client, email, max_per_source))
+        if phone and "telefono" in sources:
+            tasks["Telefono"] = asyncio.create_task(
+                search_by_phone(client, phone, max_per_source))
+        if dni and "dni" in sources:
+            tasks["DNI"] = asyncio.create_task(
+                search_by_dni(client, dni, max_per_source))
+
+        for label, task in tasks.items():
+            try:
+                res = await task
+                log.info(f"  {label:<35s} ->  {len(res):>3} resultados")
+                source_counts[label] = len(res)
+                all_results.extend(res)
+            except Exception as e:
+                log.warning(f"  {label:<35s} ->  Error: {e}")
+                source_counts[label] = 0
+
+    return all_results, source_counts
+
+
+# ── Dedup & ranking ────────────────────────────────────────────────────
+def _result_mentions_person(
+    r: PersonResult, name: dict | None, email: str, dni: str, phone: str,
+) -> bool:
+    """Filtro MUY permisivo: solo descarta si NO aparece NINGUNA parte del nombre.
+    Para nombres de 4+ partes basta con 1 parte; para 2-3 partes basta con 1.
+    Resultados de fuentes directas (BOE, ORCID, directorios) pasan siempre."""
+    if not name:
+        return True
+    # Fuentes fiables que ya buscaron por nombre exacto -> siempre pasan
+    trusted = {"boe_directo", "boe_crawl", "boe_searxng", "orcid", "orcid_email",
+               "openalex", "gravatar", "registro_mercantil", "registro_dni",
+               "email_web", "telefono_web"}
+    if r.source in trusted:
+        return True
+    # Categorias oficiales siempre pasan
+    if r.category == "documento_oficial":
+        return True
+
+    text = _strip_accents(f"{r.title} {r.snippet} {r.url}").lower()
+    parts = [_strip_accents(p).lower() for p in name["parts"]]
+
+    # Email/DNI/phone match -> siempre pasa
+    if email and email.lower() in text:
+        return True
+    if dni:
+        for v in _dni_variants(dni):
+            if v.lower() in text:
+                return True
+    if phone:
+        digits = re.sub(r"\D", "", phone)
+        if digits and digits in re.sub(r"\D", "", text):
+            return True
+
+    # Contar cuantas partes del nombre aparecen en el texto
+    matches = sum(1 for p in parts if p in text)
+
+    # Basta con que aparezca AL MENOS 1 parte del nombre
+    # (el ranking ya se encarga de puntuar mejor los que tienen mas coincidencias)
+    return matches >= 1
+
+
+def deduplicate(results: list[PersonResult]) -> list[PersonResult]:
+    seen: dict[str, PersonResult] = {}
+    for r in results:
+        key = r.dedup_key
+        if key not in seen or r.relevance > seen[key].relevance:
+            seen[key] = r
+    return list(seen.values())
+
+
+def rank_results(
+    results: list[PersonResult], name: dict | None, email: str, dni: str,
+) -> list[PersonResult]:
+    cat_boost = {
+        "documento_oficial": 2.0, "academico": 1.8, "institucional": 1.5,
+        "rrss": 1.3, "directorio": 1.2, "email": 1.4,
+        "telefono": 1.0, "web": 0.9,
+    }
+    for r in results:
+        score = 1.0
+        boost = cat_boost.get(r.category, 1.0)
+        if name:
+            text = _strip_accents(f"{r.title} {r.snippet}").lower()
+            parts = [_strip_accents(p).lower() for p in name["parts"]]
+            score += sum(1 for p in parts if p in text) / max(len(parts), 1) * 2
+        if email and email.lower() in f"{r.title} {r.snippet} {r.url}".lower():
+            score += 2
+        if dni:
+            upper_text = f"{r.title} {r.snippet}".upper()
+            for v in _dni_variants(dni):
+                if v.upper() in upper_text:
+                    score += 3
+                    break
+        if "boe" in r.source or r.category == "documento_oficial":
+            boost *= 1.3
+        cited = r.extra.get("cited_by_count", 0)
+        if cited:
+            boost *= 1 + math.log10(max(cited, 1)) * 0.1
+        r.relevance = score * boost
+    results.sort(key=lambda r: r.relevance, reverse=True)
+    return results
+
+
+# ── Output ──────────────────────────────────────────────────────────────
+
+CAT_EMOJI = {
+    "documento_oficial": "D", "rrss": "S", "academico": "A",
+    "institucional": "I", "directorio": "E", "email": "M",
+    "telefono": "T", "web": "W",
+}
+CAT_LABEL = {
+    "documento_oficial": "Documentos Oficiales (BOE, diarios autonomicos)",
+    "rrss": "Redes Sociales",
+    "academico": "Publicaciones & Perfiles Academicos",
+    "institucional": "Webs Institucionales Ganaderas",
+    "directorio": "Directorios Empresariales & Registros",
+    "email": "Resultados por Email",
+    "telefono": "Resultados por Telefono",
+    "web": "Web General",
+}
+
+
+def format_terminal(
+    results: list[PersonResult], source_counts: dict[str, int],
+    name_plus: str, email: str, phone: str, dni: str,
+) -> str:
+    lines = [""]
+    lines.append("=" * 66)
+    target = name_plus.replace("+", " ") if name_plus else email or phone or dni
+    lines.append(f"  PERSONA: {target}")
+    extras = []
+    if email:
+        extras.append(f"Email: {email}")
+    if phone:
+        extras.append(f"Tel: {phone}")
+    if dni:
+        extras.append(f"DNI: {dni}")
+    if extras:
+        lines.append(f"  {' | '.join(extras)}")
+    lines.append("=" * 66)
+    for src, count in source_counts.items():
+        status = f"{count:>3} resultados" if count > 0 else "  sin resultado"
+        lines.append(f"  {src:<35s} {status:>28s}")
+    lines.append("-" * 66)
+    lines.append(f"  TOTAL (deduplicado): {len(results)}")
+    lines.append("=" * 66)
+
+    groups: dict[str, list[PersonResult]] = {}
+    for r in results:
+        groups.setdefault(r.category, []).append(r)
+
+    for cat in ["documento_oficial", "academico", "institucional",
+                "rrss", "directorio", "email", "telefono", "web"]:
+        group = groups.get(cat, [])
+        if not group:
+            continue
+        tag = CAT_EMOJI.get(cat, "?")
+        label = CAT_LABEL.get(cat, cat)
+        lines.append(f"\n{'=' * 66}")
+        lines.append(f"  [{tag}] {label} ({len(group)} resultados)")
+        lines.append(f"{'=' * 66}")
+        for i, r in enumerate(group, 1):
+            date_str = f" ({r.date})" if r.date else ""
+            lines.append(f"\n  {i:>3}. {r.title[:80]}{date_str}")
+            lines.append(f"       URL: {r.url[:95]}")
+            if r.snippet:
+                lines.append(f"       -> {r.snippet[:160]}")
+            if r.source not in r.title.lower():
+                lines.append(f"       Fuente: {r.source}")
+            if r.extra.get("works_count"):
+                lines.append(f"       {r.extra['works_count']} publicaciones, {r.extra.get('cited_by_count', 0)} citas")
+            if r.extra.get("gravatar_urls"):
+                for gu in r.extra["gravatar_urls"][:3]:
+                    lines.append(f"       Link: {gu[:90]}")
+
+    lines.append(f"\n{'=' * 66}")
+    lines.append(f"  Busqueda completada: {len(results)} resultados unicos")
+    lines.append(f"{'=' * 66}\n")
+    return "\n".join(lines)
+
+
+def export_csv(results: list[PersonResult], filepath: str):
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["rank", "category", "title", "url", "source", "snippet", "relevance", "date"])
+        for i, r in enumerate(results, 1):
+            w.writerow([i, r.category, r.title, r.url, r.source,
+                        r.snippet, f"{r.relevance:.2f}", r.date])
+    log.info(f"  Exportado a {filepath} ({len(results)} filas)")
+
+
+def export_json(results: list[PersonResult], filepath: str):
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump([asdict(r) for r in results], f, ensure_ascii=False, indent=2)
+    log.info(f"  Exportado a {filepath} ({len(results)} entradas)")
+
+
+# ── CLI ─────────────────────────────────────────────────────────────────
+
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="Seedy - Busqueda de Personas del Sector Ganadero",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Ejemplos:
+  %(prog)s "Juan+Perez+Garcia"
+  %(prog)s "Maria+Lopez" --email mlopez@inia.es
+  %(prog)s --dni 12345678A
+  %(prog)s --telefono 612345678
+  %(prog)s "Pedro+Martinez" --export resultados.csv
+  %(prog)s "Ana+Ruiz" --solo-fuentes boe,rrss,scholar
+        """,
+    )
+    p.add_argument("nombre", nargs="?", default="", help="Nombre: 'Juan+Perez+Garcia'")
+    p.add_argument("--email", default="")
+    p.add_argument("--telefono", default="")
+    p.add_argument("--dni", default="")
+    p.add_argument("--max", "-m", type=int, default=30, dest="max_per_source")
+    p.add_argument("--pages", "-p", type=int, default=2)
+    p.add_argument("--export", "-e", default="")
+    p.add_argument("--solo-fuentes", "-s", default="",
+                   help=f"Solo: {','.join(sorted(SOURCES_ALL))}")
+    p.add_argument("--verbose", "-v", action="store_true")
+    return p.parse_args()
+
+
+async def main():
+    args = parse_args()
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    if not args.nombre and not args.email and not args.telefono and not args.dni:
+        log.error("Proporciona al menos: nombre, --email, --telefono o --dni")
+        sys.exit(1)
+
+    sources = None
+    if args.solo_fuentes:
+        alias = {
+            "web": "web", "boe": "boe", "oficial": "boe",
+            "rrss": "rrss", "social": "rrss", "redes": "rrss",
+            "scholar": "scholar", "academico": "scholar", "ciencia": "scholar",
+            "institucional": "institucional", "inst": "institucional",
+            "directorios": "directorios", "empresas": "directorios",
+            "email": "email", "telefono": "telefono", "dni": "dni",
+        }
+        sources = {alias.get(s.strip().lower(), s.strip().lower())
+                   for s in args.solo_fuentes.split(",")}
+
+    name = _name_from_plus(args.nombre) if args.nombre else None
+    target = args.nombre.replace("+", " ") if args.nombre else args.email or args.telefono or args.dni
+
+    log.info(f"\nBuscando persona: \"{target}\"")
+    if args.email:   log.info(f"   Email: {args.email}")
+    if args.telefono: log.info(f"   Telefono: {args.telefono}")
+    if args.dni:     log.info(f"   DNI: {args.dni}")
+    log.info(f"   Max/fuente: {args.max_per_source} | Paginas: {args.pages}")
+    log.info(f"   Motores SearXNG: {WORKING_ENGINES}")
+    if sources:
+        log.info(f"   Fuentes: {', '.join(sorted(sources))}")
+    log.info("")
+
+    t0 = time.time()
+    all_results, source_counts = await buscar_persona(
+        name_plus=args.nombre, email=args.email,
+        phone=args.telefono, dni=args.dni,
+        pages=args.pages, max_per_source=args.max_per_source,
+        sources=sources,
+    )
+
+    unique = deduplicate(all_results)
+    filtered = [
+        r for r in unique
+        if _result_mentions_person(r, name, args.email, args.dni, args.telefono)
+    ]
+    dropped = len(unique) - len(filtered)
+    if dropped:
+        log.info(f"  Filtrados {dropped} resultados no relevantes")
+    ranked = rank_results(filtered, name, args.email, args.dni)
+    elapsed = time.time() - t0
+
+    print(format_terminal(ranked, source_counts,
+                          args.nombre, args.email, args.telefono, args.dni))
+    log.info(f"  Tiempo total: {elapsed:.1f}s")
+
+    if args.export:
+        if args.export.endswith(".json"):
+            export_json(ranked, args.export)
+        else:
+            export_csv(ranked, args.export)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

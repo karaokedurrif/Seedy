@@ -1,0 +1,15 @@
+{
+  "job_id": "ft-a7fcd228-5c12",
+  "file_id": "file-80ddc20c-1133-48c5-ad16-a566864791e2",
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "n_epochs": 3,
+  "learning_rate": 2e-05,
+  "batch_size": 8,
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "suffix": "seedy-v16",
+  "dataset": "seedy_dataset_sft_v16.jsonl",
+  "dataset_lines": 4681,
+  "status": "completed",
+  "output_name": null
+}

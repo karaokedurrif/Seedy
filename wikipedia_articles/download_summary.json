@@ -1,0 +1,112 @@
+{
+  "total_requested": 219,
+  "downloaded": 157,
+  "failed_count": 62,
+  "failed": [
+    "Pollo de engorde (es)",
+    "Gallina ponedora (es)",
+    "Cría de pollos (es)",
+    "Gallina de Malinas (es)",
+    "Cochinchina (gallina) (es)",
+    "Plymouth Rock (gallina) (es)",
+    "Sussex (gallina) (es)",
+    "Wyandotte (gallina) (es)",
+    "Jersey Giant (es)",
+    "Cornish (gallina) (es)",
+    "Prat leonada (es)",
+    "Empordanesa (es)",
+    "Gallina vasca (es)",
+    "Gallina murciana (es)",
+    "Incubadora (avicultura) (es)",
+    "Montanera (es)",
+    "Pietrain (es)",
+    "Landrace (cerdo) (es)",
+    "Hampshire (cerdo) (es)",
+    "Berkshire (cerdo) (es)",
+    "Cerdo celta (es)",
+    "Cerdo chato murciano (es)",
+    "Inseminación artificial porcina (es)",
+    "Cebo (ganadería) (es)",
+    "Avileña-Negra Ibérica (es)",
+    "Alistana-Sanabresa (es)",
+    "Sayaguesa (es)",
+    "Berrenda (es)",
+    "Negra andaluza (bovina) (es)",
+    "Limusina (raza bovina) (es)",
+    "Angus (bovino) (es)",
+    "Frisona (bovina) (es)",
+    "Fleckvieh (es)",
+    "Blonde d'Aquitaine (es)",
+    "Piamontesa (raza bovina) (es)",
+    "Cebadero (es)",
+    "Feed lot (es)",
+    "Rasa aragonesa (es)",
+    "Churra (oveja) (es)",
+    "Manchega (oveja) (es)",
+    "Segureña (es)",
+    "Silo (almacén) (es)",
+    "Maíz (es)",
+    "Torta de soja (es)",
+    "Ración (alimentación) (es)",
+    "Conversión alimenticia (es)",
+    "Valor genético (es)",
+    "BLUP (es)",
+    "Gemelo digital (es)",
+    "LPWAN (es)",
+    "NB-IoT (es)",
+    "PAC (Unión Europea) (es)",
+    "Trazabilidad alimentaria (es)",
+    "Bienestar animal en la Unión Europea (es)",
+    "Reglamento (CE) n.º 1099/2009 (es)",
+    "Layer chicken (en)",
+    "Jersey Giant chicken (en)",
+    "Retinta cattle (en)",
+    "Avileña-Black Iberian cattle (en)",
+    "Angus cattle (en)",
+    "Digital twin (en)",
+    "Estimated breeding value (en)"
+  ],
+  "total_chars": 1902942,
+  "categories": {
+    "avicultura": {
+      "count": 15,
+      "total_chars": 91577
+    },
+    "porcino": {
+      "count": 18,
+      "total_chars": 153379
+    },
+    "vacuno": {
+      "count": 25,
+      "total_chars": 412762
+    },
+    "ovino_caprino": {
+      "count": 13,
+      "total_chars": 195356
+    },
+    "nutricion": {
+      "count": 24,
+      "total_chars": 317570
+    },
+    "genetica": {
+      "count": 12,
+      "total_chars": 76911
+    },
+    "sanidad": {
+      "count": 15,
+      "total_chars": 207142
+    },
+    "tecnologia": {
+      "count": 11,
+      "total_chars": 311576
+    },
+    "normativa": {
+      "count": 4,
+      "total_chars": 46892
+    },
+    "en_breeds": {
+      "count": 20,
+      "total_chars": 89777
+    }
+  }
+}

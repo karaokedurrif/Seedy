@@ -59,7 +59,11 @@ echo "📚 Indexando conocimientos en Qdrant..."
 docker exec seedy-backend python -m ingestion.ingest --knowledge-dir /app/knowledge
 echo "✅ Indexación completa"
 
-# 7. Tests de diagnóstico
+# 7. Aplicar branding PWA (iconos Seedy)
+echo "🎨 Aplicando branding PWA..."
+bash "$(dirname "$0")/scripts/apply-pwa-branding.sh" || echo "⚠️  Branding no aplicado"
+
+# 8. Tests de diagnóstico
 echo ""
 echo "🧪 Ejecutando tests..."
 docker exec seedy-backend python -m tests.test_rag || true

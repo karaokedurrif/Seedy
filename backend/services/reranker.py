@@ -10,6 +10,14 @@ logger = logging.getLogger(__name__)
 _model: CrossEncoder | None = None
 
 
+def warmup():
+    """Precarga el modelo reranker (llamar en startup para evitar cold-start)."""
+    model = _get_model()
+    # Warm run: una predicción dummy para que cargue pesos en GPU/CPU
+    model.predict([("test", "test")])
+    logger.info("Reranker warm-up completo")
+
+
 def _get_model() -> CrossEncoder:
     """Carga el modelo de reranking (lazy, singleton)."""
     global _model
@@ -23,7 +31,9 @@ def _get_model() -> CrossEncoder:
 def rerank(query: str, results: list[dict], top_n: int | None = None) -> list[dict]:
     """
     Re-ordena los resultados RAG usando el cross-encoder.
-    Devuelve los top_n mejores.
+    Aplica diversificación (max 2 chunks por documento) para evitar
+    que un solo PDF domine todo el contexto del LLM.
+    Devuelve los top_n mejores diversificados.
     """
     settings = get_settings()
     n = top_n or settings.rag_rerank_top_n
@@ -44,6 +54,23 @@ def rerank(query: str, results: list[dict], top_n: int | None = None) -> list[di
     for r, score in zip(results, scores):
         r["rerank_score"] = float(score)
 
-    # Ordenar por rerank_score y devolver top_n
+    # Ordenar por rerank_score
     results.sort(key=lambda x: x["rerank_score"], reverse=True)
-    return results[:n]
+
+    # Diversificación: max 2 chunks por source_file
+    # Evita que 5 chunks del mismo PDF dominen el contexto
+    seen: dict[str, int] = {}
+    diverse: list[dict] = []
+    for r in results:
+        src = r.get("file", "")
+        seen[src] = seen.get(src, 0) + 1
+        if seen[src] <= 2:
+            diverse.append(r)
+        if len(diverse) >= n:
+            break
+
+    skipped = len(results[:n]) - len(diverse) if len(diverse) < n else 0
+    if skipped:
+        logger.info(f"[Rerank] Diversificación: {skipped} chunks redundantes sustituidos")
+
+    return diverse

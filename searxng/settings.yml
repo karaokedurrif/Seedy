@@ -1,0 +1,74 @@
+# SearXNG — Configuración para Seedy / NeoFarm
+use_default_settings: true
+
+general:
+  instance_name: "Seedy Search"
+  debug: false
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  default_lang: "es"
+  formats:
+    - html
+    - json
+  suspended_times:
+    SearxEngineAccessDenied: 60
+    SearxEngineTooManyRequests: 60
+    SearxEngineCaptcha: 120
+
+server:
+  secret_key: "682b012f645760638e5943b6a677116d101f87a3627aedf9e8fdf976cb055b32"
+  bind_address: "0.0.0.0"
+  port: 8080
+  limiter: false
+  image_proxy: true
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+
+ui:
+  default_theme: simple
+  default_locale: es
+
+engines:
+  # Boosted: academic/agri sources
+  - name: google scholar
+    weight: 3.0
+    disabled: false
+  - name: pubmed
+    weight: 2.5
+    disabled: false
+  - name: semantic scholar
+    weight: 2.0
+    disabled: false
+  - name: openalex
+    weight: 2.5
+    disabled: false
+  # Normal web
+  - name: google
+    weight: 1.5
+    disabled: false
+  - name: brave
+    weight: 1.5
+    disabled: false
+  - name: duckduckgo
+    weight: 1.0
+    disabled: false
+  - name: wikipedia
+    weight: 1.0
+    disabled: false
+  # DISABLED: too much noise for agritech queries
+  - name: arxiv
+    disabled: true
+  - name: bing
+    disabled: true
+  - name: qwant
+    disabled: true
+  - name: yahoo
+    disabled: true
+  - name: mojeek
+    disabled: true
+  - name: yandex
+    disabled: true
