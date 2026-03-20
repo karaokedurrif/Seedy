@@ -19,6 +19,7 @@ from config import get_settings
 from routers import chat, health, vision, genetics, openai_compat, ingest, birds
 from routers import vision_identify
 from routers import ovosfera_bridge
+from routers import survey
 from services import embeddings, rag
 from services import gemini_vision
 from services.reranker import warmup as reranker_warmup
@@ -99,7 +100,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     """
 
     OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models"}
-    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/")
+    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/")
 
     async def dispatch(self, request: Request, call_next):
         if not _valid_keys:
@@ -157,6 +158,7 @@ app.include_router(ingest.router)
 app.include_router(birds.router)
 app.include_router(vision_identify.router)
 app.include_router(ovosfera_bridge.router)
+app.include_router(survey.router)
 
 # ── Dashboard gallineros (HTML estático) ──
 from fastapi.staticfiles import StaticFiles

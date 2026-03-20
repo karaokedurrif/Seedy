@@ -1,0 +1,52 @@
+{
+  "_doc": "Layout aproximado de cada gallinero — dimensiones en metros, coordenadas relativas (0,0)=esquina SW. Actualizar con mediciones reales y fotos del móvil.",
+  "gallinero_durrif_1": {
+    "name": "Gallinero Durrif I",
+    "dims": {"largo": 6.0, "ancho": 4.0, "alto": 2.5},
+    "orientacion_norte": 0,
+    "camera": {
+      "modelo": "Dahua WizSense DH-IPC-HFW2841T-ZS",
+      "posicion": [3.0, 3.8, 2.3],
+      "apunta_hacia": [3.0, 0.0, 1.0],
+      "fov_h": 110,
+      "fov_v": 60,
+      "resolucion": [3840, 2160]
+    },
+    "zonas": [
+      {"id": "ponederos",  "tipo": "nido",      "rect": [0.0, 3.0, 1.5, 1.0], "notas": "Cajones nido pared norte"},
+      {"id": "perchas",    "tipo": "descanso",   "rect": [2.0, 2.5, 3.0, 1.0], "notas": "Perchas transversales"},
+      {"id": "comedero",   "tipo": "comedero",   "rect": [4.5, 0.5, 1.0, 1.0], "notas": "Comedero tolva"},
+      {"id": "bebedero",   "tipo": "bebedero",   "rect": [0.5, 0.5, 0.5, 0.5], "notas": "Bebedero automático"},
+      {"id": "puerta",     "tipo": "puerta",     "rect": [2.5, 0.0, 1.0, 0.1], "notas": "Puerta acceso sur"},
+      {"id": "patio",      "tipo": "exterior",   "rect": [0.0, -3.0, 6.0, 3.0], "notas": "Patio vallado exterior"}
+    ],
+    "valla_compartida": {
+      "con": "gallinero_durrif_2",
+      "segmento": [[6.0, 0.0], [6.0, 4.0]],
+      "nota": "A veces 1-2 aves saltan de un lado al otro"
+    },
+    "_placeholder": true
+  },
+  "gallinero_durrif_2": {
+    "name": "Gallinero Durrif II",
+    "dims": {"largo": 6.0, "ancho": 4.0, "alto": 2.5},
+    "orientacion_norte": 0,
+    "camera": {
+      "modelo": "TP-Link VIGI C340",
+      "posicion": [3.0, 3.8, 2.3],
+      "apunta_hacia": [3.0, 0.0, 1.0],
+      "fov_h": 100,
+      "fov_v": 56,
+      "resolucion": [3840, 2160]
+    },
+    "zonas": [
+      {"id": "ponederos",  "tipo": "nido",      "rect": [0.0, 3.0, 1.5, 1.0], "notas": "Cajones nido"},
+      {"id": "perchas",    "tipo": "descanso",   "rect": [2.0, 2.5, 3.0, 1.0], "notas": "Perchas"},
+      {"id": "comedero",   "tipo": "comedero",   "rect": [4.5, 0.5, 1.0, 1.0], "notas": "Comedero"},
+      {"id": "bebedero",   "tipo": "bebedero",   "rect": [0.5, 0.5, 0.5, 0.5], "notas": "Bebedero"},
+      {"id": "puerta",     "tipo": "puerta",     "rect": [2.5, 0.0, 1.0, 0.1], "notas": "Puerta sur"},
+      {"id": "patio",      "tipo": "exterior",   "rect": [0.0, -3.0, 6.0, 3.0], "notas": "Patio vallado exterior"}
+    ],
+    "_placeholder": true
+  }
+}

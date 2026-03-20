@@ -1,9 +1,11 @@
 {
   "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Ajustar con los números reales de cada gallinero.",
+  "_nota_distribucion": "G2 tiene 11 aves FIJAS. El resto están en G1. A veces 1-2 aves saltan la valla de G1 a G2 y vuelven. La IA debe tolerar detecciones 'visitantes' sin romper cuotas.",
   "gallinero_durrif_1": {
     "name": "Gallinero Durrif I",
     "ovosfera_id": 2,
     "zona": "Cría",
+    "permite_visitantes_de": "gallinero_durrif_2",
     "aves": [
       {"raza": "Sussex",           "color": "blanco",         "sexo": "female", "cantidad": 5, "notas": "Blancas con collar negro (armiñado)"},
       {"raza": "Brahma",           "color": "armiñado",       "sexo": "female", "cantidad": 2, "notas": "Grandes, patas emplumadas, armiñado oscuro"},
@@ -16,6 +18,8 @@
     "name": "Gallinero Durrif II",
     "ovosfera_id": 3,
     "zona": "Cría",
+    "aves_fijas": 11,
+    "_nota": "11 aves fijas. A veces recibe 1-2 visitantes de G1 que saltan la valla.",
     "aves": [
       {"raza": "Bresse",           "color": "blanco",         "sexo": "female", "cantidad": 3, "notas": "Blancas, patas azules"},
       {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Bresse, patas azules"},
