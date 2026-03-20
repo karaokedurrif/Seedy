@@ -214,3 +214,15 @@ async def delete_bird(bird_id: str):
         raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
     _save_registry()
     return {"status": "ok", "deleted": bird_id}
+
+
+@router.post("/reset")
+async def reset_registry():
+    """Resetea el registro completo de aves (para reempezar con censo limpio)."""
+    global _registry, _next_seq
+    count = len(_registry)
+    _registry = []
+    _next_seq = 1
+    _save_registry()
+    logger.info(f"🗑️ Bird registry reset: {count} records cleared")
+    return {"status": "reset", "cleared": count}

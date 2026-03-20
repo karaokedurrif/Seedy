@@ -1,0 +1,35 @@
+{
+  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Ajustar con los números reales de cada gallinero.",
+  "gallinero_durrif_1": {
+    "name": "Gallinero Durrif I",
+    "ovosfera_id": 2,
+    "zona": "Cría",
+    "aves": [
+      {"raza": "Sussex",           "color": "blanco",         "sexo": "female", "cantidad": 5, "notas": "Blancas con collar negro (armiñado)"},
+      {"raza": "Brahma",           "color": "armiñado",       "sexo": "female", "cantidad": 2, "notas": "Grandes, patas emplumadas, armiñado oscuro"},
+      {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Bresse, patas azules, cresta roja grande"},
+      {"raza": "Isa Brown",        "color": "leonado",        "sexo": "female", "cantidad": 0, "notas": "NO hay Isa Brown — ajustar si es incorrecto"},
+      {"raza": "Leghorn",          "color": "blanco",         "sexo": "male",   "cantidad": 0, "notas": "NO hay gallo Leghorn — ajustar si es incorrecto"}
+    ]
+  },
+  "gallinero_durrif_2": {
+    "name": "Gallinero Durrif II",
+    "ovosfera_id": 3,
+    "zona": "Cría",
+    "aves": [
+      {"raza": "Bresse",           "color": "blanco",         "sexo": "female", "cantidad": 3, "notas": "Blancas, patas azules"},
+      {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Bresse, patas azules"},
+      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "female", "cantidad": 3, "notas": "Negras con reflejos cobrizos en cuello"},
+      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "male",   "cantidad": 1, "notas": "Gallo Marans, negro cobrizo"},
+      {"raza": "Castellana Negra", "color": "negro",          "sexo": "female", "cantidad": 2, "notas": "Totalmente negras, cara blanca, orejillas blancas"},
+      {"raza": "Pita Pinta",       "color": "negro barrado",  "sexo": "female", "cantidad": 2, "notas": "Barrado blanco y negro irregular (pinta)"},
+      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "female", "cantidad": 2, "notas": "Cuerpo leonado/dorado, cuello y cola negros"},
+      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Vorwerk, dorado con collar negro"},
+      {"raza": "Araucana",         "color": "azul",           "sexo": "female", "cantidad": 2, "notas": "Sin cola (rumpless), plumaje azul/gris, huevos azules"},
+      {"raza": "Orpington",        "color": "leonado",        "sexo": "female", "cantidad": 2, "notas": "Grandes, leonado/buff, muy redondas"},
+      {"raza": "Andaluza Azul",    "color": "azul",           "sexo": "female", "cantidad": 2, "notas": "Gris azulado uniforme, cresta grande"},
+      {"raza": "Plymouth Rock",    "color": "barrado",        "sexo": "female", "cantidad": 2, "notas": "Barrado blanco y negro regular"},
+      {"raza": "Sussex",           "color": "blanco",         "sexo": "female", "cantidad": 2, "notas": "Blancas con collar negro"}
+    ]
+  }
+}

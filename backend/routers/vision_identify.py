@@ -150,14 +150,35 @@ def _detect_with_yolo(frame_bytes: bytes) -> dict | None:
         return None
 
 
-async def _identify_breeds_gemini(frame_bytes: bytes) -> dict | None:
-    """Envía frame a Gemini Vision para identificación de raza."""
+async def _identify_breeds_gemini(frame_bytes: bytes, gallinero_id: str = "") -> dict | None:
+    """Envía frame a Gemini Vision para identificación de raza.
+
+    Si hay censo de cabaña, inyecta contexto con las razas esperadas
+    y el estado de asignación actual.
+    """
     from services.gemini_vision import analyze_image
+
+    # ── Construir prompt con contexto del censo ──
+    prompt = BIRD_ID_PROMPT
+    if gallinero_id:
+        try:
+            from services.flock_census import build_gemini_context
+            import httpx
+            # Obtener aves ya registradas en este gallinero
+            async with httpx.AsyncClient(timeout=3.0, base_url="http://localhost:8000") as c:
+                resp = await c.get("/birds/", params={"gallinero": gallinero_id})
+                registered = resp.json().get("birds", []) if resp.status_code == 200 else []
+            context = build_gemini_context(gallinero_id, registered)
+            if context:
+                prompt = context + "\n\n" + BIRD_ID_PROMPT
+        except Exception as e:
+            logger.debug(f"Census context build failed: {e}")
+
     try:
         b64 = base64.b64encode(frame_bytes).decode()
         result = await analyze_image(
             image_b64=b64,
-            question=BIRD_ID_PROMPT,
+            question=prompt,
             mime_type="image/jpeg",
             save_for_training=True,
         )
@@ -175,7 +196,7 @@ async def _identify_breeds_gemini(frame_bytes: bytes) -> dict | None:
     return None
 
 
-async def _analyze_frame(frame_bytes: bytes) -> dict | None:
+async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "") -> dict | None:
     """Análisis híbrido: YOLO (detección rápida) + Gemini (raza, solo si necesario)."""
     # 1) YOLO: detección local (~50ms)
     yolo_result = _detect_with_yolo(frame_bytes)
@@ -199,7 +220,7 @@ async def _analyze_frame(frame_bytes: bytes) -> dict | None:
 
     # 3) Gemini: solo si YOLO detectó aves (necesitamos raza/color/sexo)
     if yolo_count > 0:
-        gemini_result = await _identify_breeds_gemini(frame_bytes)
+        gemini_result = await _identify_breeds_gemini(frame_bytes, gallinero_id)
         if gemini_result:
             # Enriquecer con datos YOLO (bboxes más precisos)
             _merge_yolo_gemini(yolo_result, gemini_result)
@@ -342,30 +363,124 @@ async def _sync_vision_id_to_ovosfera(vision_id: str, breed: str, gallinero_stre
         logger.debug(f"OvoSfera sync failed: {e}")
 
 
-async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_bytes: bytes | None):
-    """Registra aves nuevas comparando cuántas ve Gemini vs cuántas tenemos.
+def _normalize_to_census(gallinero_id: str, breed: str, color: str, sex: str) -> tuple[str, str, str]:
+    """Normaliza breed/color/sex al censo de la cabaña.
 
-    Si Gemini ve 3 Sussex blanco pero solo tenemos 1 registrada,
-    registra 2 más (sussexbl2, sussexbl3). Si ya tenemos 3, solo actualiza sighting.
+    Si Gemini dice "Marrans negro cobrizo" pero el censo dice "Marans negro cobrizo",
+    lo corrige. Usa fuzzy matching simple (Levenshtein no necesario para razas cortas).
+    """
+    try:
+        from services.flock_census import get_expected_breeds
+    except ImportError:
+        return breed, color, sex
+
+    entries = get_expected_breeds(gallinero_id)
+    if not entries:
+        return breed, color, sex
+
+    breed_low = breed.lower().strip()
+    color_low = color.lower().strip()
+
+    # Exact match first
+    for e in entries:
+        if e["raza"].lower() == breed_low and e["color"].lower() == color_low:
+            return e["raza"], e["color"], sex
+
+    # Breed match only (color may differ slightly)
+    for e in entries:
+        if e["raza"].lower() == breed_low:
+            # Check if colors are similar (one contains the other)
+            ec = e["color"].lower()
+            if ec in color_low or color_low in ec:
+                return e["raza"], e["color"], sex
+
+    # Fuzzy breed match: Gemini typos like "Marrans" → "Marans"
+    for e in entries:
+        census_breed = e["raza"].lower()
+        # Simple: if >=80% chars match in sequence
+        if _fuzzy_match(breed_low, census_breed):
+            ec = e["color"].lower()
+            if ec in color_low or color_low in ec or not color_low:
+                return e["raza"], e["color"], sex
+
+    return breed, color, sex
+
+
+def _fuzzy_match(a: str, b: str) -> bool:
+    """Simple fuzzy match: True if strings differ by at most 2 chars."""
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 2:
+        return False
+    # Count differing chars at each position (longer vs shorter)
+    short, long = (a, b) if len(a) <= len(b) else (b, a)
+    diffs = sum(1 for i, c in enumerate(short) if i < len(long) and c != long[i])
+    diffs += len(long) - len(short)
+    return diffs <= 2
+
+
+def _crop_bird_photo(frame_bytes: bytes, bbox_norm: list[float], padding: float = 0.05) -> str | None:
+    """Recorta la zona del ave del frame y devuelve JPEG base64.
+
+    Args:
+        bbox_norm: [x1, y1, x2, y2] normalizadas 0-1
+        padding: margen extra alrededor del bbox (5%)
+    """
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(frame_bytes))
+        W, H = img.size
+        x1, y1, x2, y2 = bbox_norm
+        # Añadir padding
+        pw = (x2 - x1) * padding
+        ph = (y2 - y1) * padding
+        left = max(0, int((x1 - pw) * W))
+        top = max(0, int((y1 - ph) * H))
+        right = min(W, int((x2 + pw) * W))
+        bottom = min(H, int((y2 + ph) * H))
+
+        crop = img.crop((left, top, right, bottom))
+        # Resize to max 512px wide keeping aspect
+        if crop.width > 512:
+            ratio = 512 / crop.width
+            crop = crop.resize((512, int(crop.height * ratio)), Image.LANCZOS)
+
+        buf = io.BytesIO()
+        crop.save(buf, format="JPEG", quality=85)
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception as e:
+        logger.debug(f"Crop failed: {e}")
+        return None
+
+
+def _make_thumbnail(frame_bytes: bytes, size: int = 256) -> str | None:
+    """Genera thumbnail del frame completo como fallback."""
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(frame_bytes))
+        img.thumbnail((size, size))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=75)
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return None
+
+
+async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_bytes: bytes | None):
+    """Registra aves nuevas respetando el censo de la cabaña.
+
+    Flujo:
+    1. Normalizar breed/color al censo si coincide (evitar "Marrans" vs "Marans")
+    2. Respetar cuotas: si el censo dice 5 Sussex blancas, nunca registrar más de 5
+    3. Crop individual de cada ave (usando bbox de Gemini/YOLO)
+    4. Sincronizar con OvoSfera
     """
     import httpx
     from collections import Counter
 
-    # Generar thumbnail una sola vez
-    photo_b64 = None
-    if frame_bytes:
-        try:
-            from PIL import Image
-            img = Image.open(io.BytesIO(frame_bytes))
-            img.thumbnail((128, 128))
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=60)
-            photo_b64 = base64.b64encode(buf.getvalue()).decode()
-        except Exception:
-            pass
-
     # Contar cuántas aves de cada (breed, color, sex) ha detectado Gemini
     seen_counts: Counter[tuple[str, str, str]] = Counter()
+    bird_bboxes: dict[tuple[str, str, str], list] = {}  # acumular bboxes por grupo
     for bird in detected:
         breed = bird.get("breed", "Desconocida")
         color = bird.get("color", "")
@@ -373,11 +488,21 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
         confidence = bird.get("confidence", 0.0)
         if breed == "Desconocida" or confidence < 0.4:
             continue
-        seen_counts[(breed, color, sex)] += 1
+        # Normalizar breed/color al censo
+        breed, color, sex = _normalize_to_census(gallinero, breed, color, sex)
+        key = (breed, color, sex)
+        seen_counts[key] += 1
+        if key not in bird_bboxes:
+            bird_bboxes[key] = []
+        bird_bboxes[key].append(bird.get("bbox", []))
 
     try:
         async with httpx.AsyncClient(timeout=5.0, base_url="http://localhost:8000") as client:
             for (breed, color, sex), seen_n in seen_counts.items():
+                # Cuota del censo (0 = ilimitado / no en censo)
+                from services.flock_census import get_quota
+                quota = get_quota(gallinero, breed, color, sex)
+
                 # ¿Cuántas de esta (breed+color) ya tenemos en este gallinero?
                 resp = await client.get("/birds/", params={
                     "gallinero": gallinero, "breed": breed, "color": color,
@@ -392,32 +517,45 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
                         params={"confidence": 0.5},
                     )
 
-                # Registrar las nuevas (diferencia)
+                # Cuántas nuevas registrar — respetando cuota
                 new_count = max(0, seen_n - have_n)
-                for _ in range(new_count):
+                if quota > 0:
+                    new_count = min(new_count, max(0, quota - have_n))
+
+                bboxes = bird_bboxes.get((breed, color, sex), [])
+                for i in range(new_count):
+                    # Crop individual si tenemos bbox
+                    crop_b64 = None
+                    bbox_idx = have_n + i  # index into the group's bboxes
+                    if frame_bytes and bbox_idx < len(bboxes) and len(bboxes[bbox_idx]) == 4:
+                        crop_b64 = _crop_bird_photo(frame_bytes, bboxes[bbox_idx])
+
+                    # Fallback: thumbnail del frame completo
+                    if not crop_b64 and frame_bytes:
+                        crop_b64 = _make_thumbnail(frame_bytes)
+
                     reg_resp = await client.post("/birds/register", json={
                         "breed": breed,
                         "color": color,
                         "sex": sex,
                         "gallinero": gallinero,
                         "confidence": 0.7,
-                        "photo_b64": photo_b64,
+                        "photo_b64": crop_b64,
                     })
                     if reg_resp.status_code == 200:
                         reg_data = reg_resp.json()
                         vision_id = reg_data.get("ai_vision_id", "")
                         logger.info(
-                            f"New bird registered: {breed} {color} → {vision_id} "
-                            f"in {gallinero}"
+                            f"🐔 New bird: {breed} {color} → {vision_id} "
+                            f"in {gallinero} ({have_n + i + 1}/{quota or '∞'})"
                         )
-                        # Sincronizar con OvoSfera (vision_id + gallinero)
                         if vision_id:
                             await _sync_vision_id_to_ovosfera(vision_id, breed, gallinero)
 
                 if new_count == 0 and existing:
                     logger.debug(
                         f"Sighting update: {breed} {color} ×{seen_n} "
-                        f"(already have {have_n}) in {gallinero}"
+                        f"(have {have_n}/{quota or '∞'}) in {gallinero}"
                     )
     except Exception as e:
         logger.warning(f"Bird register/update failed: {e}")
@@ -452,7 +590,7 @@ async def _identification_loop():
 
             if is_full_cycle:
                 # Ciclo completo: YOLO + Gemini (identificación de raza)
-                analysis = await _analyze_frame(frame)
+                analysis = await _analyze_frame(frame, gallinero_id)
             else:
                 # Ciclo rápido: solo YOLO (conteo + training data)
                 yolo_result = _detect_with_yolo(frame)
@@ -702,6 +840,39 @@ async def snapshot_annotated(gallinero_id: str):
 
 # ── Endpoints YOLO específicos ──
 
+@router.post("/full/{gallinero_id}")
+async def full_analysis(gallinero_id: str):
+    """Ciclo completo bajo demanda: YOLO + Gemini + registro + foto crop.
+
+    Usa el censo de cabaña para guiar la identificación de razas.
+    """
+    if gallinero_id not in CAMERAS:
+        raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
+
+    cam = CAMERAS[gallinero_id]
+    frame = await _capture_frame(cam["stream"])
+    if not frame:
+        raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
+
+    analysis = await _analyze_frame(frame, gallinero_id)
+    if not analysis:
+        raise HTTPException(503, "No se pudo analizar el frame")
+
+    _enrich_with_tracking(gallinero_id, frame)
+
+    # Registrar aves detectadas
+    detected = analysis.get("birds", [])
+    await _register_or_update_birds(detected, gallinero_id, frame)
+
+    return {
+        "gallinero": gallinero_id,
+        "camera": cam["name"],
+        "analysis": analysis,
+        "registered_count": len([b for b in detected if b.get("confidence", 0) >= 0.4 and b.get("breed") != "Desconocida"]),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.post("/yolo/{gallinero_id}")
 async def yolo_detect(gallinero_id: str):
     """Detección rápida YOLO-only (sin Gemini). Conteo + bboxes en <100ms."""
@@ -890,3 +1061,42 @@ async def get_pest_history(gallinero_id: str, limit: int = 50):
         "gallinero": gallinero_id,
         "history": mgr.get_history(gallinero_id, limit),
     }
+
+
+# ── Endpoints de censo de cabaña ──
+
+@router.get("/census/{gallinero_id}")
+async def get_census(gallinero_id: str):
+    """Censo esperado de la cabaña en un gallinero."""
+    from services.flock_census import get_census as _get
+    entries = _get(gallinero_id)
+    if not entries:
+        raise HTTPException(404, f"No census data for {gallinero_id}")
+    return {"gallinero": gallinero_id, "census": entries}
+
+
+@router.get("/census/{gallinero_id}/status")
+async def get_census_status(gallinero_id: str):
+    """Estado de asignación: cuántas aves identificadas vs esperadas."""
+    import httpx
+    from services.flock_census import get_assignment_status
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0, base_url="http://localhost:8000") as c:
+            resp = await c.get("/birds/", params={"gallinero": gallinero_id})
+            registered = resp.json().get("birds", []) if resp.status_code == 200 else []
+    except Exception:
+        registered = []
+
+    return {
+        "gallinero": gallinero_id,
+        **get_assignment_status(gallinero_id, registered),
+    }
+
+
+@router.post("/census/reload")
+async def reload_census():
+    """Recarga el censo desde disco (tras editar flock_census.json)."""
+    from services.flock_census import reload
+    reload()
+    return {"status": "reloaded"}
