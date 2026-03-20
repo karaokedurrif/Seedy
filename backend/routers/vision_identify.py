@@ -717,6 +717,9 @@ async def yolo_detect(gallinero_id: str):
     if not result:
         raise HTTPException(503, "YOLO no disponible")
 
+    # Alimentar tracker, pest alerts y health con cada detección
+    _enrich_with_tracking(gallinero_id, frame)
+
     return {
         "gallinero": gallinero_id,
         "camera": cam["name"],
@@ -788,6 +791,13 @@ async def yolo_reload():
 
 # ── Endpoints de tracking ──
 
+@router.get("/tracking/all/summary")
+async def get_all_tracking_summaries():
+    """Resumen de tracking de todos los gallineros."""
+    from services.bird_tracker import get_all_summaries
+    return get_all_summaries()
+
+
 @router.get("/tracking/{gallinero_id}")
 async def get_tracking(gallinero_id: str):
     """Tracks activos y posiciones actuales en un gallinero."""
@@ -811,13 +821,6 @@ async def get_tracking_anomalies(gallinero_id: str):
     }
 
 
-@router.get("/tracking/all/summary")
-async def get_all_tracking_summaries():
-    """Resumen de tracking de todos los gallineros."""
-    from services.bird_tracker import get_all_summaries
-    return get_all_summaries()
-
-
 @router.put("/tracking/{gallinero_id}/zones")
 async def set_tracking_zones(gallinero_id: str, zones: dict):
     """Configura las zonas de un gallinero (coordenadas normalizadas)."""
@@ -836,6 +839,18 @@ async def reset_tracking(gallinero_id: str):
 
 
 # ── Endpoints de salud ──
+
+@router.get("/health/growth/{track_id}")
+async def get_bird_growth(track_id: int):
+    """Curva de crecimiento de un ave específica."""
+    from services.health_analyzer import get_growth_tracker
+    growth = get_growth_tracker()
+    return {
+        "track_id": track_id,
+        "curve": growth.get_growth_curve(track_id),
+        "rate": growth.get_growth_rate(track_id),
+    }
+
 
 @router.get("/health/{gallinero_id}")
 async def get_flock_health(gallinero_id: str):
@@ -857,19 +872,14 @@ async def get_growth_data(gallinero_id: str):
     }
 
 
-@router.get("/health/growth/{track_id}")
-async def get_bird_growth(track_id: int):
-    """Curva de crecimiento de un ave específica."""
-    from services.health_analyzer import get_growth_tracker
-    growth = get_growth_tracker()
-    return {
-        "track_id": track_id,
-        "curve": growth.get_growth_curve(track_id),
-        "rate": growth.get_growth_rate(track_id),
-    }
-
-
 # ── Endpoints de plagas ──
+
+@router.get("/pests/stats")
+async def get_pest_stats():
+    """Estadísticas globales de plagas."""
+    from services.pest_alert import get_pest_manager
+    return get_pest_manager().get_stats()
+
 
 @router.get("/pests/{gallinero_id}")
 async def get_pest_history(gallinero_id: str, limit: int = 50):
@@ -880,10 +890,3 @@ async def get_pest_history(gallinero_id: str, limit: int = 50):
         "gallinero": gallinero_id,
         "history": mgr.get_history(gallinero_id, limit),
     }
-
-
-@router.get("/pests/stats")
-async def get_pest_stats():
-    """Estadísticas globales de plagas."""
-    from services.pest_alert import get_pest_manager
-    return get_pest_manager().get_stats()

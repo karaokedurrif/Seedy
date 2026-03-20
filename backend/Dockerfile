@@ -4,13 +4,13 @@ WORKDIR /app
 
 # System deps (incluye libgl para OpenCV/YOLO)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl build-essential libgl1-mesa-glx libglib2.0-0 \
+    curl build-essential libgl1 libglib2.0-0 \
     fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
 # Python deps
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout=120 -r requirements.txt
 
 # App code
 COPY . .
