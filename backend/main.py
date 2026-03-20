@@ -162,12 +162,24 @@ app.include_router(survey.router)
 
 # ── Dashboard gallineros (HTML estático) ──
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 import pathlib
 
 _DASHBOARD_DIR = pathlib.Path("/app/dashboard")
 if _DASHBOARD_DIR.exists():
     app.mount("/dashboard", StaticFiles(directory=str(_DASHBOARD_DIR), html=True), name="dashboard")
+
+
+# No-cache para .js del dashboard (evita cache de Cloudflare CDN)
+@app.middleware("http")
+async def dashboard_no_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/dashboard/") and request.url.path.endswith(".js"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["CDN-Cache-Control"] = "no-store"
+        response.headers["Cloudflare-CDN-Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.get("/")

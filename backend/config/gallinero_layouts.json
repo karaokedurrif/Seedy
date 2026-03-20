@@ -1,53 +1,99 @@
 {
-  "_doc": "Layout aproximado de cada gallinero — dimensiones en metros, coordenadas relativas (0,0)=esquina SW. Actualizar con mediciones reales y fotos del móvil.",
+  "_doc": "Layout real de la finca — mediciones del plano 2D de David (20-mar-2026). Coordenadas en metros, (0,0) = esquina SO del perímetro.",
+  "_perimetro_total": "~30m ancho. Forma irregular: perímetro azul del plano.",
+  "perimetro": {
+    "puntos": [[0,0],[0,14],[3.5,14],[3.5,8.5],[8.5,8.5],[8.5,14],[25,14],[25,8],[30,8],[30,0],[25,0],[25,6],[15,0]],
+    "nota": "Contorno azul del plano. Valla con malla de gallinero."
+  },
+  "sauna": {
+    "name": "Sauna (edificio madera)",
+    "rect": [0, 8, 3.5, 6],
+    "alto": 2.8,
+    "nota": "Edificio de madera grande al NO. Cámara G1 montada en su fachada este."
+  },
   "gallinero_durrif_1": {
     "name": "Gallinero Durrif I",
-    "dims": {"largo": 6.0, "ancho": 4.0, "alto": 2.5},
-    "orientacion_norte": 0,
-    "camera": {
-      "modelo": "Dahua WizSense DH-IPC-HFW2841T-ZS",
-      "status": "offline — desmontada 2026-03-20",
-      "posicion": [3.0, 3.8, 2.3],
-      "apunta_hacia": [3.0, 0.0, 1.0],
-      "fov_h": 110,
-      "fov_v": 60,
-      "resolucion": [3840, 2160]
-    },
-    "zonas": [
-      {"id": "ponederos",  "tipo": "nido",      "rect": [0.0, 3.0, 1.5, 1.0], "notas": "Cajones nido pared norte"},
-      {"id": "perchas",    "tipo": "descanso",   "rect": [2.0, 2.5, 3.0, 1.0], "notas": "Perchas transversales"},
-      {"id": "comedero",   "tipo": "comedero",   "rect": [4.5, 0.5, 1.0, 1.0], "notas": "Comedero tolva"},
-      {"id": "bebedero",   "tipo": "bebedero",   "rect": [0.5, 0.5, 0.5, 0.5], "notas": "Bebedero automático"},
-      {"id": "puerta",     "tipo": "puerta",     "rect": [2.5, 0.0, 1.0, 0.1], "notas": "Puerta acceso sur"},
-      {"id": "patio",      "tipo": "exterior",   "rect": [0.0, -3.0, 6.0, 3.0], "notas": "Patio vallado exterior"}
-    ],
-    "valla_compartida": {
-      "con": "gallinero_durrif_2",
-      "segmento": [[6.0, 0.0], [6.0, 4.0]],
-      "nota": "A veces 1-2 aves saltan de un lado al otro"
-    },
-    "_placeholder": true
-  },
-  "gallinero_durrif_2": {
-    "name": "Gallinero Durrif II",
-    "dims": {"largo": 6.0, "ancho": 4.0, "alto": 2.5},
+    "zona": "Cría",
+    "descripcion": "Zona amplia con pasillo largo, dos casetas pequeñas, composteros y patio exterior. Forma trapezoidal/irregular.",
+    "area_total_m2": 95,
     "orientacion_norte": 0,
     "camera": {
       "modelo": "TP-Link VIGI C340",
-      "posicion": [3.0, 3.8, 2.3],
-      "apunta_hacia": [3.0, 0.0, 1.0],
+      "ip": "10.10.10.11",
+      "posicion_global": [3.5, 11, 2.5],
+      "apunta_hacia": [15, 5, 0.5],
       "fov_h": 100,
       "fov_v": 56,
-      "resolucion": [3840, 2160]
+      "resolucion": [3840, 2160],
+      "montaje": "Fachada este de la sauna, esquina superior"
+    },
+    "casetas": [
+      {
+        "id": "caseta_sauna",
+        "nombre": "Caseta esquina sauna",
+        "rect": [3.5, 13, 1.0, 1.0],
+        "alto": 0.8,
+        "tipo": "nido",
+        "notas": "Caseta pequeña pegada a la esquina NE de la sauna. 1x1m."
+      },
+      {
+        "id": "caseta_central",
+        "nombre": "Caseta junto a G2",
+        "rect": [23.5, 7.5, 1.5, 0.7],
+        "alto": 0.8,
+        "tipo": "nido",
+        "notas": "Caseta 1.5x0.7m junto al parque de G2."
+      }
+    ],
+    "zonas": [
+      {"id": "pasillo",     "tipo": "paso",       "polygon": [[3.5,8.5],[8.5,8.5],[8.5,14],[3.5,14]], "notas": "Pasillo largo de 5m x 5.5m entre sauna y zona abierta"},
+      {"id": "patio_g1",    "tipo": "exterior",   "polygon": [[8.5,8.5],[25,8],[25,6],[15,0],[0,0],[0,8],[3.5,8],[3.5,8.5]], "notas": "Patio grande exterior, suelo de tierra, bancales"},
+      {"id": "composteros", "tipo": "compostero",  "rect": [12, 10, 4, 2], "notas": "Zona composteros centro-norte"},
+      {"id": "comedero_g1", "tipo": "comedero",    "rect": [10, 3, 1, 1], "notas": "Comedero tolva metálico (visible en foto 2)"},
+      {"id": "bebedero_g1", "tipo": "bebedero",    "rect": [13, 2, 0.5, 0.5], "notas": "Bebedero"},
+      {"id": "arboles",     "tipo": "sombra",      "circles": [[5,12,1.5],[10,11,2.0]], "notas": "2 árboles grandes (cerezo en flor + otro)"}
+    ],
+    "valla_compartida": {
+      "con": "gallinero_durrif_2",
+      "segmento": [[25,6],[25,14]],
+      "nota": "Malla gallinero. A veces 1-2 aves saltan."
+    }
+  },
+  "gallinero_durrif_2": {
+    "name": "Gallinero Durrif II",
+    "zona": "Cría",
+    "descripcion": "Caseta elevada 1.5x2m con tejado grande 4x3m. Parque vallado de 2.5x5m. Las aves descansan debajo de la caseta.",
+    "area_total_m2": 15.5,
+    "orientacion_norte": 0,
+    "camera": {
+      "modelo": "TP-Link VIGI C340",
+      "ip": "10.10.10.10",
+      "posicion_global": [27.5, 13.5, 2.5],
+      "apunta_hacia": [27.5, 8, 0.5],
+      "fov_h": 100,
+      "fov_v": 56,
+      "resolucion": [3840, 2160],
+      "montaje": "Poste/pared norte del parque G2, apuntando al sur"
+    },
+    "caseta": {
+      "id": "caseta_g2",
+      "nombre": "Gallinero II (caseta elevada)",
+      "rect": [25.5, 12, 1.5, 2],
+      "alto": 1.8,
+      "alto_base": 0.5,
+      "tipo": "nido+descanso",
+      "notas": "Caseta elevada sobre patas. Las aves descansan debajo. Ponederos dentro."
+    },
+    "tejado": {
+      "rect": [25, 11, 4, 3],
+      "alto": 2.5,
+      "notas": "Tejado grande 4x3m que cubre caseta y parte del parque. Protege de lluvia."
     },
     "zonas": [
-      {"id": "ponederos",  "tipo": "nido",      "rect": [0.0, 3.0, 1.5, 1.0], "notas": "Cajones nido"},
-      {"id": "perchas",    "tipo": "descanso",   "rect": [2.0, 2.5, 3.0, 1.0], "notas": "Perchas"},
-      {"id": "comedero",   "tipo": "comedero",   "rect": [4.5, 0.5, 1.0, 1.0], "notas": "Comedero"},
-      {"id": "bebedero",   "tipo": "bebedero",   "rect": [0.5, 0.5, 0.5, 0.5], "notas": "Bebedero"},
-      {"id": "puerta",     "tipo": "puerta",     "rect": [2.5, 0.0, 1.0, 0.1], "notas": "Puerta sur"},
-      {"id": "patio",      "tipo": "exterior",   "rect": [0.0, -3.0, 6.0, 3.0], "notas": "Patio vallado exterior"}
-    ],
-    "_placeholder": true
+      {"id": "parque_g2",   "tipo": "exterior",   "rect": [25, 6, 5, 2.5], "notas": "Parque vallado 5m x 2.5m al sur de la caseta"},
+      {"id": "bajo_caseta", "tipo": "descanso",    "rect": [25.5, 12, 1.5, 2], "notas": "Debajo de la caseta — zona de descanso"},
+      {"id": "comedero_g2", "tipo": "comedero",    "rect": [26, 7, 0.5, 0.5], "notas": "Comedero"},
+      {"id": "bebedero_g2", "tipo": "bebedero",    "rect": [28, 7.5, 0.5, 0.5], "notas": "Bebedero"}
+    ]
   }
 }

@@ -35,7 +35,7 @@ GALLINERO_CAMERAS = {
         "stream": "gallinero_durrif_1",
         "stream_sub": "gallinero_durrif_1_sub",
         "name": "Gallinero Durrif I",
-        "camera": "Dahua WizSense DH-IPC-HFW2841T-ZS",
+        "camera": "TP-Link VIGI C340 4K",
     },
     3: {
         "stream": "gallinero_durrif_2",

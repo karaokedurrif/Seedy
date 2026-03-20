@@ -1,7 +1,7 @@
 /**
  * OvoSfera Camera + Seedy Widget Injector
  *
- * Inyecta feeds de cámaras en la página de gallineros de OvoSfera
+ * Inyecta feeds de cámaras en las páginas de gallineros y dashboard de OvoSfera
  * y carga el widget de chat Seedy 🌱.
  *
  * Uso: <script src="https://seedy-api.neofarm.io/dashboard/ovosfera-inject.js"></script>
@@ -10,11 +10,10 @@
   "use strict";
 
   const SEEDY_API = "https://seedy-api.neofarm.io";
-  const SNAPSHOT_INTERVAL = 5000; // refresh every 5s in snapshot mode
-  const YOLO_INTERVAL = 4000; // YOLO annotated every 4s
-  const ANNOTATED_INTERVAL = 30000; // full IA annotated every 30s
+  const SNAPSHOT_INTERVAL = 5000;
+  const YOLO_INTERVAL = 4000;
+  const ANNOTATED_INTERVAL = 30000;
 
-  // Gallinero ID → camera stream mapping (must match ovosfera_bridge.py)
   const CAMERA_MAP = {
     2: { name: "Durrif I", stream: "gallinero_durrif_1" },
     3: { name: "Durrif II", stream: "gallinero_durrif_2" },
@@ -89,7 +88,6 @@
       color: #999;
       font-size: 12px;
     }
-    /* Fullscreen overlay */
     .seedy-fullscreen {
       position: fixed;
       inset: 0;
@@ -118,7 +116,6 @@
       font-size: 18px;
       cursor: pointer;
     }
-    /* Annotated toggle */
     .seedy-cam-toggle {
       display: flex;
       gap: 0;
@@ -142,6 +139,70 @@
       background: var(--primary-600, #B07D2B);
       color: #fff;
     }
+    /* ── Dashboard dual-camera panel ── */
+    .seedy-dashboard-panel {
+      padding: 16px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .seedy-dashboard-panel h3 {
+      color: var(--neutral-100, #f1f5f9);
+      font-size: 1.1em;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .seedy-dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .seedy-dashboard-grid { grid-template-columns: 1fr; }
+    }
+    .seedy-dashboard-cell {
+      background: var(--neutral-900, #111827);
+      border-radius: 12px;
+      border: 1px solid var(--neutral-800, #1f2937);
+      overflow: hidden;
+    }
+    .seedy-dashboard-cell h4 {
+      padding: 10px 14px 0;
+      font-size: 0.9em;
+      color: var(--neutral-300, #d1d5db);
+      margin: 0;
+    }
+    .seedy-dashboard-cell .seedy-cam-wrap { margin: 8px; border-radius: 8px; }
+    .seedy-dashboard-cell .seedy-cam-toggle { margin: 0 8px 8px; }
+    .seedy-twin-links {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .seedy-twin-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85em;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .seedy-twin-links a.twin-3d {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff;
+    }
+    .seedy-twin-links a.twin-3d:hover { opacity: 0.85; }
+    .seedy-twin-links a.twin-2d {
+      background: var(--neutral-800, #1f2937);
+      color: var(--neutral-200, #e5e7eb);
+      border: 1px solid var(--neutral-700, #374151);
+    }
+    .seedy-twin-links a.twin-2d:hover { background: var(--neutral-700, #374151); }
   `;
 
   // ── Inject CSS ──
@@ -263,23 +324,26 @@
     if (!cam) return;
     const ts = Date.now();
 
-    // If switching TO live mode, use MJPEG stream (real-time)
+    // Stop any MJPEG stream when switching modes
+    if (img.src.includes("/mjpeg")) {
+      img.src = "";
+    }
+
     if (mode === "live") {
-      const mjpegUrl = `${SEEDY_API}/ovosfera/camera/${gallineroId}/mjpeg`;
-      if (img.src !== mjpegUrl) {
+      // Snapshot mode: fast frame refresh (works through Cloudflare tunnel)
+      const url = `${SEEDY_API}/ovosfera/camera/${gallineroId}/snapshot?_t=${ts}`;
+      const tempImg = new Image();
+      tempImg.onload = () => {
         if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
-        img.src = mjpegUrl;
+        img.src = tempImg.src;
         img.classList.remove("loading");
-      }
+      };
+      tempImg.onerror = () => img.classList.remove("loading");
+      tempImg.src = url;
       // Update badge
       const badge = wrap.querySelector(".seedy-cam-badge");
       if (badge) badge.innerHTML = `<span class="live">● LIVE</span><span>📷 ${cam.name}</span>`;
       return;
-    }
-
-    // Stop MJPEG if switching away from live
-    if (img.src.includes("/mjpeg")) {
-      img.src = "";
     }
 
     img.classList.add("loading");
@@ -339,9 +403,8 @@
 
   // ── Inject cameras into gallinero cards ──
   function injectCameras() {
-    const cards = document.querySelectorAll(".nf-card");
+    const cards = document.querySelectorAll(".nf-card, [class*='card'], [class*='Card']");
     cards.forEach((card) => {
-      // Skip if already injected
       if (card.querySelector(".seedy-cam-container")) return;
 
       const gid = parseGallineroId(card);
@@ -378,11 +441,21 @@
         const gid = parseInt(wrap.dataset.gallineroId, 10);
         if (!gid) return;
         const mode = wrap.dataset.mode || "live";
-        // Live mode uses MJPEG (no refresh needed), yolo/annotated refresh periodically
-        if (mode === "live") return;
-        refreshSnapshot(wrap, gid);
+        // Live: refresh every 2s (snapshot), YOLO: every 4s, IA: every 30s
+        if (mode === "live" || mode === "yolo") {
+          refreshSnapshot(wrap, gid);
+        }
       });
-    }, YOLO_INTERVAL);
+    }, 2000); // 2s base interval for live, YOLO checked inside
+
+    // Slower loop for IA annotated
+    setInterval(() => {
+      document.querySelectorAll(".seedy-cam-wrap").forEach((wrap) => {
+        const gid = parseInt(wrap.dataset.gallineroId, 10);
+        if (!gid) return;
+        if (wrap.dataset.mode === "annotated") refreshSnapshot(wrap, gid);
+      });
+    }, ANNOTATED_INTERVAL);
   }
 
   function stopRefreshLoop() {
@@ -406,13 +479,93 @@
     return window.location.pathname.includes("/gallineros");
   }
 
+  function isDashboardPage() {
+    return window.location.pathname.includes("/dashboard");
+  }
+
+  function isFarmPage() {
+    return window.location.pathname.includes("/farm/");
+  }
+
+  // ── Dashboard panel: dual cameras + digital twin links ──
+  function injectDashboardPanel() {
+    if (document.getElementById("seedy-dashboard-injected")) return;
+
+    // Find a suitable container in the dashboard page
+    const main =
+      document.querySelector("main") ||
+      document.querySelector("[class*='content']") ||
+      document.querySelector("[class*='Content']") ||
+      document.querySelector("[class*='dashboard']") ||
+      document.querySelector("[class*='Dashboard']");
+
+    if (!main) return;
+
+    const panel = document.createElement("div");
+    panel.id = "seedy-dashboard-injected";
+    panel.className = "seedy-dashboard-panel";
+
+    // Header
+    const header = document.createElement("h3");
+    header.innerHTML = "📹 Cámaras en directo";
+    panel.appendChild(header);
+
+    // Grid with both cameras
+    const grid = document.createElement("div");
+    grid.className = "seedy-dashboard-grid";
+
+    for (const [gid, cam] of Object.entries(CAMERA_MAP)) {
+      const cell = document.createElement("div");
+      cell.className = "seedy-dashboard-cell";
+      const title = document.createElement("h4");
+      title.textContent = cam.name;
+      cell.appendChild(title);
+
+      const camEl = buildCameraElement(parseInt(gid));
+      if (camEl) cell.appendChild(camEl);
+      grid.appendChild(cell);
+    }
+
+    panel.appendChild(grid);
+
+    // Digital Twin links
+    const links = document.createElement("div");
+    links.className = "seedy-twin-links";
+    links.innerHTML = `
+      <a href="${SEEDY_API}/dashboard/digital_twin_3d.html" target="_blank" class="twin-3d">
+        🏗️ Digital Twin 3D
+      </a>
+      <a href="${SEEDY_API}/dashboard/plano_2d.html" target="_blank" class="twin-2d">
+        📐 Plano 2D
+      </a>
+    `;
+    panel.appendChild(links);
+
+    // Insert at the top of main content
+    if (main.firstChild) {
+      main.insertBefore(panel, main.firstChild);
+    } else {
+      main.appendChild(panel);
+    }
+  }
+
   function onPageChange() {
-    if (isGallinerosPage()) {
-      // Small delay for React to render cards
+    if (isDashboardPage()) {
+      setTimeout(() => {
+        injectDashboardPanel();
+        injectCameras();
+        startRefreshLoop();
+      }, 800);
+    } else if (isGallinerosPage()) {
       setTimeout(() => {
         injectCameras();
         startRefreshLoop();
       }, 800);
+    } else if (isFarmPage()) {
+      // Any farm page — try to inject cameras if cards exist
+      setTimeout(() => {
+        injectCameras();
+      }, 1000);
     } else {
       stopRefreshLoop();
     }
@@ -429,6 +582,9 @@
     // Watch for SPA navigation and DOM changes
     const observer = new MutationObserver(() => {
       if (isGallinerosPage()) {
+        injectCameras();
+      } else if (isDashboardPage()) {
+        injectDashboardPanel();
         injectCameras();
       }
     });

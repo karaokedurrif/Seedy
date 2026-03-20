@@ -7,8 +7,7 @@
     "ovosfera_id": 2,
     "zona": "Cría",
     "permite_visitantes_de": "gallinero_durrif_2",
-    "_nota": "13 aves. Cámara desmontada temporalmente. Razas por descubrir por descarte (las que no están en G2).",
-    "_camera_status": "offline — desmontada 2026-03-20, pendiente nueva instalación",
+    "_nota": "13 aves. Nueva cámara VIGI C340 instalada 2026-03-20. Razas por descubrir por descarte (las que no están en G2).",
     "aves": [
       {"raza": "Por determinar", "color": "", "sexo": "unknown", "cantidad": 13, "notas": "13 aves pendientes de identificación por descarte. Se instalará nueva cámara."}
     ]
