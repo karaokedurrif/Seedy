@@ -6,6 +6,7 @@
     "orientacion_norte": 0,
     "camera": {
       "modelo": "Dahua WizSense DH-IPC-HFW2841T-ZS",
+      "status": "offline — desmontada 2026-03-20",
       "posicion": [3.0, 3.8, 2.3],
       "apunta_hacia": [3.0, 0.0, 1.0],
       "fov_h": 110,

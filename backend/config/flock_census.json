@@ -1,39 +1,34 @@
 {
-  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Ajustar con los números reales de cada gallinero.",
-  "_nota_distribucion": "G2 tiene 11 aves FIJAS. El resto están en G1. A veces 1-2 aves saltan la valla de G1 a G2 y vuelven. La IA debe tolerar detecciones 'visitantes' sin romper cuotas.",
+  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision.",
+  "_nota_distribucion": "G2 tiene 12 aves fijas confirmadas. G1 tiene 13 aves por descubrir por descarte. A veces 1-2 saltan la valla.",
+  "_total": 25,
   "gallinero_durrif_1": {
     "name": "Gallinero Durrif I",
     "ovosfera_id": 2,
     "zona": "Cría",
     "permite_visitantes_de": "gallinero_durrif_2",
+    "_nota": "13 aves. Cámara desmontada temporalmente. Razas por descubrir por descarte (las que no están en G2).",
+    "_camera_status": "offline — desmontada 2026-03-20, pendiente nueva instalación",
     "aves": [
-      {"raza": "Sussex",           "color": "blanco",         "sexo": "female", "cantidad": 5, "notas": "Blancas con collar negro (armiñado)"},
-      {"raza": "Brahma",           "color": "armiñado",       "sexo": "female", "cantidad": 2, "notas": "Grandes, patas emplumadas, armiñado oscuro"},
-      {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Bresse, patas azules, cresta roja grande"},
-      {"raza": "Isa Brown",        "color": "leonado",        "sexo": "female", "cantidad": 0, "notas": "NO hay Isa Brown — ajustar si es incorrecto"},
-      {"raza": "Leghorn",          "color": "blanco",         "sexo": "male",   "cantidad": 0, "notas": "NO hay gallo Leghorn — ajustar si es incorrecto"}
+      {"raza": "Por determinar", "color": "", "sexo": "unknown", "cantidad": 13, "notas": "13 aves pendientes de identificación por descarte. Se instalará nueva cámara."}
     ]
   },
   "gallinero_durrif_2": {
     "name": "Gallinero Durrif II",
     "ovosfera_id": 3,
     "zona": "Cría",
-    "aves_fijas": 11,
-    "_nota": "11 aves fijas. A veces recibe 1-2 visitantes de G1 que saltan la valla.",
+    "aves_fijas": 12,
+    "_nota": "12 aves fijas confirmadas por el usuario 2026-03-20.",
     "aves": [
-      {"raza": "Bresse",           "color": "blanco",         "sexo": "female", "cantidad": 3, "notas": "Blancas, patas azules"},
-      {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Bresse, patas azules"},
-      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "female", "cantidad": 3, "notas": "Negras con reflejos cobrizos en cuello"},
-      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "male",   "cantidad": 1, "notas": "Gallo Marans, negro cobrizo"},
-      {"raza": "Castellana Negra", "color": "negro",          "sexo": "female", "cantidad": 2, "notas": "Totalmente negras, cara blanca, orejillas blancas"},
-      {"raza": "Pita Pinta",       "color": "negro barrado",  "sexo": "female", "cantidad": 2, "notas": "Barrado blanco y negro irregular (pinta)"},
-      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "female", "cantidad": 2, "notas": "Cuerpo leonado/dorado, cuello y cola negros"},
-      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Vorwerk, dorado con collar negro"},
-      {"raza": "Araucana",         "color": "azul",           "sexo": "female", "cantidad": 2, "notas": "Sin cola (rumpless), plumaje azul/gris, huevos azules"},
-      {"raza": "Orpington",        "color": "leonado",        "sexo": "female", "cantidad": 2, "notas": "Grandes, leonado/buff, muy redondas"},
-      {"raza": "Andaluza Azul",    "color": "azul",           "sexo": "female", "cantidad": 2, "notas": "Gris azulado uniforme, cresta grande"},
-      {"raza": "Plymouth Rock",    "color": "barrado",        "sexo": "female", "cantidad": 2, "notas": "Barrado blanco y negro regular"},
-      {"raza": "Sussex",           "color": "blanco",         "sexo": "female", "cantidad": 2, "notas": "Blancas con collar negro"}
+      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "female", "cantidad": 3, "notas": "Cuerpo leonado/dorado, cuello y cola negros. 3 gallinas."},
+      {"raza": "Sussex",           "color": "silver",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Sussex Silver. Plumaje plateado con negro."},
+      {"raza": "Araucana",         "color": "trigueño",       "sexo": "female", "cantidad": 1, "notas": "Gallina Araucana trigueña. Sin cola (rumpless), huevos azules/verdes."},
+      {"raza": "Sulmtaler",        "color": "trigueño",       "sexo": "male",   "cantidad": 1, "notas": "Gallo Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado, porte elegante."},
+      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "female", "cantidad": 1, "notas": "Gallina Marans. Negra con reflejos cobrizos en cuello."},
+      {"raza": "F1 (cruce)",       "color": "variado",        "sexo": "female", "cantidad": 2, "notas": "Las 2 únicas gallinas F1 (cruce) de toda la cabaña. Fenotipo mixto."},
+      {"raza": "Bresse",           "color": "blanco",         "sexo": "female", "cantidad": 1, "notas": "Gallina Bresse blanca grande. Patas azules, plumaje blanco puro."},
+      {"raza": "Sussex",           "color": "silver",         "sexo": "female", "cantidad": 1, "notas": "Gallina Sussex Silver. Plumaje plateado con marcas negras."},
+      {"raza": "Andaluza Azul",    "color": "azul",           "sexo": "female", "cantidad": 1, "notas": "Gallina Andaluza Azul. Gris azulado uniforme, cresta grande."}
     ]
   }
 }

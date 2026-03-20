@@ -22,6 +22,7 @@ import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 
@@ -813,9 +814,14 @@ async def snapshot_annotated(gallinero_id: str):
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    analysis = await _analyze_frame(frame)
+    analysis = await _analyze_frame(frame, gallinero_id)
     if not analysis:
-        raise HTTPException(503, "No se pudo analizar la imagen")
+        # Sin aves detectadas → devolver frame limpio con watermark
+        return Response(
+            content=frame,
+            media_type="image/jpeg",
+            headers={"X-Birds-Detected": "0", "X-Engine": "none"},
+        )
 
     birds = analysis.get("birds", [])
 
@@ -825,7 +831,6 @@ async def snapshot_annotated(gallinero_id: str):
     # Dibujar anotaciones
     annotated = _draw_annotations(frame, birds, gallinero_id)
 
-    from fastapi.responses import Response
     return Response(
         content=annotated,
         media_type="image/jpeg",
@@ -834,6 +839,35 @@ async def snapshot_annotated(gallinero_id: str):
             "X-Total-Visible": str(analysis.get("total_visible", 0)),
             "X-Conditions": analysis.get("conditions", ""),
             "X-Engine": "yolo+gemini" if not analysis.get("yolo_only") else "yolo",
+        },
+    )
+
+
+@router.get("/snapshot/{gallinero_id}/yolo")
+async def snapshot_yolo_only(gallinero_id: str):
+    """Captura + YOLO rápido (~50ms) → JPEG con bboxes. Sin Gemini, rápido para live."""
+    if gallinero_id not in CAMERAS:
+        raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
+
+    cam = CAMERAS[gallinero_id]
+    frame = await _capture_frame(cam["stream"])
+    if not frame:
+        raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
+
+    yolo_result = _detect_with_yolo(frame)
+    if not yolo_result or not yolo_result["detections"]:
+        return Response(content=frame, media_type="image/jpeg",
+                        headers={"X-Birds-Detected": "0", "X-Engine": "yolo"})
+
+    from services.yolo_detector import draw_detections
+    annotated = draw_detections(frame, yolo_result["detections"], cam["name"])
+    return Response(
+        content=annotated,
+        media_type="image/jpeg",
+        headers={
+            "X-Birds-Detected": str(yolo_result["count"]),
+            "X-Inference-Ms": f"{yolo_result['inference_ms']:.0f}",
+            "X-Engine": "yolo",
         },
     )
 
@@ -917,7 +951,6 @@ async def yolo_annotated(gallinero_id: str):
     from services.yolo_detector import draw_detections
     annotated = draw_detections(frame, result["detections"], cam["name"])
 
-    from fastapi.responses import Response
     return Response(
         content=annotated,
         media_type="image/jpeg",

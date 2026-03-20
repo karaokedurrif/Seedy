@@ -10,8 +10,9 @@
   "use strict";
 
   const SEEDY_API = "https://seedy-api.neofarm.io";
-  const SNAPSHOT_INTERVAL = 15000; // refresh every 15s
-  const ANNOTATED_INTERVAL = 30000; // annotated every 30s
+  const SNAPSHOT_INTERVAL = 5000; // refresh every 5s in snapshot mode
+  const YOLO_INTERVAL = 4000; // YOLO annotated every 4s
+  const ANNOTATED_INTERVAL = 30000; // full IA annotated every 30s
 
   // Gallinero ID → camera stream mapping (must match ovosfera_bridge.py)
   const CAMERA_MAP = {
@@ -214,12 +215,13 @@
 
     wrap.appendChild(toolbar);
 
-    // Toggle bar
+    // Toggle bar — 3 modes: live MJPEG, YOLO fast, full IA
     const toggle = document.createElement("div");
     toggle.className = "seedy-cam-toggle";
     toggle.innerHTML = `
       <button class="active" data-mode="live">📷 Live</button>
-      <button data-mode="annotated">🐔 IA Detección</button>
+      <button data-mode="yolo">🎯 YOLO</button>
+      <button data-mode="annotated">🐔 IA</button>
     `;
     toggle.querySelectorAll("button").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -257,35 +259,68 @@
     const img = wrap.querySelector("img");
     if (!img) return;
     const mode = wrap.dataset.mode || "live";
+    const cam = CAMERA_MAP[gallineroId];
+    if (!cam) return;
     const ts = Date.now();
+
+    // If switching TO live mode, use MJPEG stream (real-time)
+    if (mode === "live") {
+      const mjpegUrl = `${SEEDY_API}/ovosfera/camera/${gallineroId}/mjpeg`;
+      if (img.src !== mjpegUrl) {
+        if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
+        img.src = mjpegUrl;
+        img.classList.remove("loading");
+      }
+      // Update badge
+      const badge = wrap.querySelector(".seedy-cam-badge");
+      if (badge) badge.innerHTML = `<span class="live">● LIVE</span><span>📷 ${cam.name}</span>`;
+      return;
+    }
+
+    // Stop MJPEG if switching away from live
+    if (img.src.includes("/mjpeg")) {
+      img.src = "";
+    }
 
     img.classList.add("loading");
 
-    if (mode === "annotated") {
-      // Annotated endpoint uses stream name, not numeric ID
-      const cam = CAMERA_MAP[gallineroId];
-      if (!cam) return;
-      fetch(`${SEEDY_API}/vision/identify/snapshot/${cam.stream}/annotated?_t=${ts}`, {
-        method: "POST",
-      })
-        .then((r) => (r.ok ? r.blob() : Promise.reject("error")))
+    if (mode === "yolo") {
+      // YOLO-only: fast GET endpoint (~50ms inference)
+      const url = `${SEEDY_API}/vision/identify/snapshot/${cam.stream}/yolo?_t=${ts}`;
+      fetch(url)
+        .then((r) => {
+          if (!r.ok) return Promise.reject("error");
+          const birds = r.headers.get("X-Birds-Detected") || "0";
+          const ms = r.headers.get("X-Inference-Ms") || "?";
+          const badge = wrap.querySelector(".seedy-cam-badge");
+          if (badge) badge.innerHTML = `<span style="background:rgba(76,175,80,0.85)">🎯 YOLO ${ms}ms</span><span>🐔 ${birds} aves</span>`;
+          return r.blob();
+        })
         .then((blob) => {
-          // Revoke previous blob URL to avoid memory leaks
           if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
           img.src = URL.createObjectURL(blob);
           img.classList.remove("loading");
         })
         .catch(() => img.classList.remove("loading"));
-    } else {
-      // Live snapshot is GET — use Image preload for smooth transition
-      const url = `${SEEDY_API}/ovosfera/camera/${gallineroId}/snapshot?_t=${ts}`;
-      const newImg = new Image();
-      newImg.onload = () => {
-        img.src = newImg.src;
-        img.classList.remove("loading");
-      };
-      newImg.onerror = () => img.classList.remove("loading");
-      newImg.src = url;
+    } else if (mode === "annotated") {
+      // Full IA: POST (YOLO + Gemini, slower)
+      fetch(`${SEEDY_API}/vision/identify/snapshot/${cam.stream}/annotated?_t=${ts}`, {
+        method: "POST",
+      })
+        .then((r) => {
+          if (!r.ok) return Promise.reject("error");
+          const birds = r.headers.get("X-Birds-Detected") || "0";
+          const engine = r.headers.get("X-Engine") || "?";
+          const badge = wrap.querySelector(".seedy-cam-badge");
+          if (badge) badge.innerHTML = `<span style="background:rgba(33,150,243,0.85)">🐔 IA</span><span>${engine} · ${birds} aves</span>`;
+          return r.blob();
+        })
+        .then((blob) => {
+          if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
+          img.src = URL.createObjectURL(blob);
+          img.classList.remove("loading");
+        })
+        .catch(() => img.classList.remove("loading"));
     }
   }
 
@@ -341,9 +376,13 @@
     refreshTimer = setInterval(() => {
       document.querySelectorAll(".seedy-cam-wrap").forEach((wrap) => {
         const gid = parseInt(wrap.dataset.gallineroId, 10);
-        if (gid) refreshSnapshot(wrap, gid);
+        if (!gid) return;
+        const mode = wrap.dataset.mode || "live";
+        // Live mode uses MJPEG (no refresh needed), yolo/annotated refresh periodically
+        if (mode === "live") return;
+        refreshSnapshot(wrap, gid);
       });
-    }, SNAPSHOT_INTERVAL);
+    }, YOLO_INTERVAL);
   }
 
   function stopRefreshLoop() {
