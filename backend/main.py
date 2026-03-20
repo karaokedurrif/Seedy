@@ -56,6 +56,9 @@ async def lifespan(app: FastAPI):
     daily_task = asyncio.create_task(_daily_update_loop())
     app.state.daily_task = daily_task  # Mantener referencia
 
+    # Warmup go2rtc streams (pre-connect RTSP → evita cold start de 5s)
+    asyncio.create_task(_warmup_go2rtc_streams())
+
     logger.info("🌱 Seedy Backend listo")
     yield
 
@@ -80,6 +83,24 @@ async def _daily_update_loop():
             logger.error(f"Error en actualización diaria: {e}")
         # Esperar 24h hasta la siguiente
         await asyncio.sleep(86400)
+
+
+async def _warmup_go2rtc_streams():
+    """Pre-calienta streams go2rtc para evitar cold start RTSP (~5s)."""
+    import httpx
+    go2rtc = os.environ.get("GO2RTC_URL", "http://go2rtc:1984")
+    streams = [
+        "gallinero_durrif_1_sub", "gallinero_durrif_2_sub",
+        "gallinero_durrif_1", "gallinero_durrif_2",
+    ]
+    await asyncio.sleep(5)  # dar tiempo a go2rtc para arrancar
+    for s in streams:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{go2rtc}/api/frame.jpeg?src={s}")
+                logger.info(f"🔥 Stream warmup {s}: {resp.status_code} ({len(resp.content)} bytes)")
+        except Exception as e:
+            logger.debug(f"Stream warmup {s} failed: {e}")
 
 
 app = FastAPI(

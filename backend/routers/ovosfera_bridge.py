@@ -34,12 +34,14 @@ GALLINERO_CAMERAS = {
     2: {
         "stream": "gallinero_durrif_1",
         "stream_sub": "gallinero_durrif_1_sub",
+        "snapshot_url": "http://10.10.10.11/cgi-bin/snapshot.cgi",
         "name": "Gallinero Durrif I",
         "camera": "TP-Link VIGI C340 4K",
     },
     3: {
         "stream": "gallinero_durrif_2",
         "stream_sub": "gallinero_durrif_2_sub",
+        "snapshot_url": "http://10.10.10.10/cgi-bin/snapshot.cgi",
         "name": "Gallinero Durrif II",
         "camera": "TP-Link VIGI C340 4K",
     },
@@ -80,13 +82,31 @@ async def get_gallineros_with_cameras():
 
 @router.get("/camera/{gallinero_id}/snapshot")
 async def camera_snapshot(gallinero_id: int):
-    """Proxy: captura un frame JPEG de la cámara del gallinero."""
+    """Proxy: captura un frame JPEG de la cámara (CGI directo ~100ms, fallback go2rtc)."""
     cam = GALLINERO_CAMERAS.get(gallinero_id)
     if not cam:
         raise HTTPException(404, f"No hay cámara configurada para gallinero {gallinero_id}")
+
+    # Intento 1: CGI snapshot directo (704x576, ~100ms vs 5s de go2rtc)
+    cgi_url = cam.get("snapshot_url")
+    if cgi_url:
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(cgi_url, auth=httpx.BasicAuth("admin", "123456"))
+                if resp.status_code == 200 and len(resp.content) > 1000:
+                    return Response(
+                        content=resp.content,
+                        media_type="image/jpeg",
+                        headers={"Cache-Control": "no-cache, no-store"},
+                    )
+        except Exception as e:
+            logger.debug(f"CGI snapshot failed for gallinero {gallinero_id}: {e}")
+
+    # Fallback: go2rtc substream
     try:
+        stream_key = cam.get('stream_sub', cam['stream'])
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{GO2RTC_URL}/api/frame.jpeg?src={cam['stream']}")
+            resp = await client.get(f"{GO2RTC_URL}/api/frame.jpeg?src={stream_key}")
             if resp.status_code == 200:
                 return Response(
                     content=resp.content,
@@ -94,7 +114,7 @@ async def camera_snapshot(gallinero_id: int):
                     headers={"Cache-Control": "no-cache, no-store"},
                 )
     except Exception as e:
-        logger.warning(f"Snapshot failed for gallinero {gallinero_id}: {e}")
+        logger.warning(f"Snapshot fallback failed for gallinero {gallinero_id}: {e}")
     raise HTTPException(503, "No se pudo capturar frame de la cámara")
 
 

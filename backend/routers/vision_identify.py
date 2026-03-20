@@ -36,10 +36,14 @@ OVOSFERA_FARM = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
 CAMERAS = {
     "gallinero_durrif_1": {
         "stream": "gallinero_durrif_1",
+        "stream_sub": "gallinero_durrif_1_sub",
+        "snapshot_url": "http://10.10.10.11/cgi-bin/snapshot.cgi",
         "name": "Gallinero Durrif I",
     },
     "gallinero_durrif_2": {
         "stream": "gallinero_durrif_2",
+        "stream_sub": "gallinero_durrif_2_sub",
+        "snapshot_url": "http://10.10.10.10/cgi-bin/snapshot.cgi",
         "name": "Gallinero Durrif II",
     },
 }
@@ -127,17 +131,32 @@ _last_results: dict[str, dict] = {}
 _task: asyncio.Task | None = None
 
 
-async def _capture_frame(camera_stream: str) -> bytes | None:
-    """Captura un frame JPEG de go2rtc."""
+async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_url: str = "") -> bytes | None:
+    """Captura un frame JPEG. Intenta CGI directo (~100ms), luego go2rtc."""
     import httpx
-    url = f"{GO2RTC_URL}/api/frame.jpeg?src={camera_stream}"
+
+    # Intento 1: CGI snapshot directo (50x más rápido que go2rtc frame.jpeg)
+    if snapshot_url:
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(snapshot_url, auth=httpx.BasicAuth("admin", "123456"))
+                if resp.status_code == 200 and len(resp.content) > 1000:
+                    return resp.content
+        except Exception:
+            pass
+
+    # Fallback: go2rtc
+    stream_key = camera_stream
+    if use_sub:
+        stream_key = camera_stream + "_sub" if not camera_stream.endswith("_sub") else camera_stream
+    url = f"{GO2RTC_URL}/api/frame.jpeg?src={stream_key}"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
                 return resp.content
     except Exception as e:
-        logger.debug(f"Frame capture failed ({camera_stream}): {e}")
+        logger.debug(f"Frame capture failed ({stream_key}): {e}")
     return None
 
 
@@ -585,7 +604,12 @@ async def _identification_loop():
             if not _running:
                 break
 
-            frame = await _capture_frame(cam_config["stream"])
+            # CGI directo para todos los ciclos (~100ms); fallback go2rtc
+            snap_url = cam_config.get("snapshot_url", "")
+            if is_full_cycle:
+                frame = await _capture_frame(cam_config["stream"], snapshot_url=snap_url)
+            else:
+                frame = await _capture_frame(cam_config["stream"], use_sub=True, snapshot_url=snap_url)
             if not frame:
                 continue
 
@@ -685,7 +709,7 @@ async def snapshot_identify(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"])
+    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
@@ -810,7 +834,7 @@ async def snapshot_annotated(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"])
+    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
@@ -850,7 +874,7 @@ async def snapshot_yolo_only(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"])
+    frame = await _capture_frame(cam["stream"], use_sub=True, snapshot_url=cam.get("snapshot_url", ""))
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
@@ -884,7 +908,7 @@ async def full_analysis(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"])
+    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
@@ -914,7 +938,7 @@ async def yolo_detect(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"])
+    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
@@ -940,7 +964,7 @@ async def yolo_annotated(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"])
+    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
