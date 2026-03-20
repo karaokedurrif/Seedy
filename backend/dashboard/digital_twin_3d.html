@@ -5,26 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seedy — Digital Twin 3D Gallineros Durrif</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#e8dcc8; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; }
-  canvas { display:block; }
-  #hud { position:fixed; top:10px; left:10px; color:#3d2817; font-size:0.85em; background:rgba(255,250,240,0.92); padding:10px 14px; border-radius:8px; border:1px solid #b8a080; z-index:10; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
-  #hud h2 { font-size:1.1em; margin-bottom:6px; color:#5a3e1b; }
-  #hud .stat { color:#6b5b4a; font-size:0.8em; margin:2px 0; }
-  #controls { position:fixed; bottom:10px; left:50%; transform:translateX(-50%); color:#5a4a3a; font-size:0.75em; background:rgba(255,250,240,0.9); padding:6px 14px; border-radius:6px; border:1px solid #c8b090; }
-  #north { position:fixed; top:10px; right:10px; width:60px; height:60px; z-index:10; }
-  #info { position:fixed; top:80px; right:10px; color:#3d2817; font-size:0.8em; background:rgba(255,250,240,0.95); padding:10px; border-radius:8px; border:1px solid #b8a080; display:none; max-width:220px; z-index:10; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0e14;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif}
+  canvas{display:block}
+  #hud{position:fixed;top:10px;left:10px;color:#c8d6e5;font-size:0.85em;background:rgba(13,17,23,0.92);padding:10px 14px;border-radius:10px;border:1px solid #1e293b;z-index:10;backdrop-filter:blur(8px)}
+  #hud h2{font-size:1.1em;margin-bottom:6px;color:#7fdbca}
+  #hud .stat{color:#64748b;font-size:0.8em;margin:2px 0}
+  #controls{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);color:#64748b;font-size:0.72em;background:rgba(13,17,23,0.88);padding:6px 14px;border-radius:6px;border:1px solid #1e293b;backdrop-filter:blur(6px)}
+  #north{position:fixed;top:10px;right:10px;width:60px;height:60px;z-index:10}
+  #info{position:fixed;top:80px;right:10px;color:#c8d6e5;font-size:0.8em;background:rgba(13,17,23,0.95);padding:10px;border-radius:8px;border:1px solid #1e293b;display:none;max-width:220px;z-index:10;backdrop-filter:blur(8px)}
 </style>
 </head>
 <body>
 <div id="hud">
-  <h2>&#127793; Digital Twin 3D</h2>
+  <h2>Digital Twin 3D</h2>
   <div class="stat">Los Capones de Palacio</div>
   <div class="stat">G1: 13 aves | G2: 12 aves</div>
   <div class="stat" id="fps"></div>
 </div>
-<svg id="north" viewBox="0 0 60 60"><polygon points="30,5 23,28 37,28" fill="#666"/><polygon points="30,5 30,28 37,28" fill="#333"/><text x="30" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">N</text></svg>
-<div id="controls">&#x1F5B1; Rotar: click+arrastrar | &#x1F50D; Zoom: scroll | &#x21C6; Mover: click derecho</div>
+<svg id="north" viewBox="0 0 60 60"><polygon points="30,5 23,28 37,28" fill="#475569"/><polygon points="30,5 30,28 37,28" fill="#334155"/><text x="30" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#64748b">N</text></svg>
+<div id="controls">Rotar: click+arrastrar | Zoom: scroll | Mover: click derecho</div>
 <div id="info"></div>
 
 <script type="importmap">
@@ -40,12 +40,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe8dcc8);
-scene.fog = new THREE.FogExp2(0xe8dcc8, 0.012);
+scene.background = new THREE.Color(0x0d1117);
+scene.fog = new THREE.FogExp2(0x0d1117, 0.008);
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
-camera.position.set(15, 22, 32);
-camera.lookAt(15, 0, 10);
+camera.position.set(15, 24, 35);
+camera.lookAt(15, 0, 8);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
@@ -53,320 +53,355 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 0.9;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(15, 0, 10);
+controls.target.set(15, 0, 8);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.maxPolarAngle = Math.PI / 2.15;
+controls.maxPolarAngle = Math.PI / 2.1;
 
-// Lights — warm daylight
-scene.add(new THREE.AmbientLight(0xfff5e0, 0.5));
-const sun = new THREE.DirectionalLight(0xfff0d0, 1.5);
-sun.position.set(25, 30, 20);
+// ── LIGHTS — warm golden hour ──
+scene.add(new THREE.AmbientLight(0x8899bb, 0.35));
+const sun = new THREE.DirectionalLight(0xffeedd, 2.0);
+sun.position.set(-10, 30, 25);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
-sun.shadow.camera.top = 25; sun.shadow.camera.bottom = -5;
+const sc = sun.shadow.camera;
+sc.left=-40; sc.right=40; sc.top=25; sc.bottom=-5; sc.near=1; sc.far=80;
+sun.shadow.bias = -0.001;
 scene.add(sun);
-scene.add(new THREE.HemisphereLight(0x87ceeb, 0x5c3a1a, 0.6));
+scene.add(new THREE.HemisphereLight(0x6688cc, 0x443322, 0.5));
+// Back-fill
+const fill = new THREE.DirectionalLight(0x6688aa, 0.3);
+fill.position.set(30, 10, -10); scene.add(fill);
 
-// Helper
-function box(x, z, w, d, h, color, y=0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness:0.85 }));
-  m.position.set(x+w/2, y+h/2, z+d/2);
+// ── HELPERS ──
+function box(x, z, w, d, h, color, y0=0, opts={}) {
+  const mat = new THREE.MeshStandardMaterial({color, roughness:opts.roughness||0.85, metalness:opts.metalness||0});
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.position.set(x+w/2, y0+h/2, z+d/2);
   m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
-  return m;
+  if (opts.name) m.userData = {name:opts.name, info:opts.info||''};
+  scene.add(m); return m;
 }
 
-// ── GROUND ──
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), new THREE.MeshStandardMaterial({ color:0xa08060, roughness:1 }));
-ground.rotation.x = -Math.PI/2; ground.position.set(15, -0.02, 10);
-ground.receiveShadow = true; scene.add(ground);
-
-// Inner dirt
-const inner = new THREE.Mesh(new THREE.PlaneGeometry(32, 16), new THREE.MeshStandardMaterial({ color:0xc4a878, roughness:1 }));
-inner.rotation.x = -Math.PI/2; inner.position.set(15, -0.01, 7); inner.receiveShadow = true; scene.add(inner);
-
-// ════════════════════════════════
-// MURO CON TALUD Y ARBOLES (30m)
-// ════════════════════════════════
-for (let x = 0; x < 30; x += 0.55) {
-  const w = 0.4 + Math.random()*0.3;
-  const h = 1.3 + Math.random()*0.5;
-  const c = 0x908070 + Math.floor(Math.random()*0x202020);
-  box(x, 14, w, 0.8, h, c);
-}
-// Talud
-const talud = new THREE.Mesh(new THREE.BoxGeometry(32, 1.2, 2), new THREE.MeshStandardMaterial({ color:0x6b5b3a, roughness:1 }));
-talud.position.set(15, 0.5, 15.5); scene.add(talud);
-
-// Trees on wall
-function addTree(x, z, trunkH, crownR, crownColor) {
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.12, 0.18, trunkH, 6),
-    new THREE.MeshStandardMaterial({ color:0x5c3a1a, roughness:0.9 })
-  );
-  trunk.position.set(x, trunkH/2+1.3, z); trunk.castShadow = true; scene.add(trunk);
-  const c1 = new THREE.Mesh(
-    new THREE.SphereGeometry(crownR, 8, 6),
-    new THREE.MeshStandardMaterial({ color:crownColor, roughness:0.8 })
-  );
-  c1.position.set(x, trunkH*0.7+1.3, z); c1.castShadow = true; scene.add(c1);
-  const c2 = new THREE.Mesh(
-    new THREE.SphereGeometry(crownR*0.6, 7, 5),
-    new THREE.MeshStandardMaterial({ color:crownColor+0x0a0a00, roughness:0.8 })
-  );
-  c2.position.set(x+crownR*0.4, trunkH*0.5+1.3, z-crownR*0.3); c2.castShadow = true; scene.add(c2);
-}
-for (let i = 0; i < 15; i++) {
-  addTree(1+i*2+Math.random()*0.5, 15.5+Math.random()*0.5, 2.5+Math.random(), 1.2+Math.random()*0.6,
-    Math.random()>0.5 ? 0xd4e8c4 : 0x3d6b2a);
-}
-
-// ════════════════════════════════
-// SAUNA (izquierda, pegada al muro)
-// ════════════════════════════════
-const saunaBody = box(0, 8, 3.5, 6, 2.5, 0xb08040);
-saunaBody.userData = { name:'Sauna', info:'Edificio madera 3.5x6m\nCamara G1 en fachada este' };
-// Pitched roof
-const roofMat = new THREE.MeshStandardMaterial({ color:0x8b6538, roughness:0.7 });
-const sr = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 6.8), roofMat);
-sr.position.set(1.75, 2.85, 11); sr.rotation.z = 0.08; sr.castShadow = true; scene.add(sr);
-// Door
-box(2.8, 8, 0.6, 0.05, 1.6, 0x5a3a1a, 0);
-
-// ════════════════════════════════
-// HUERTO — Bancales elevados (centro-izquierda)
-// ════════════════════════════════
-function gardenBed(x, z, w, d) {
-  box(x, z, w, d, 0.35, 0x9a7040);
-  box(x+0.05, z+0.05, w-0.1, d-0.1, 0.3, 0x4a3018, 0.05);
-  const p = new THREE.Mesh(
-    new THREE.BoxGeometry(w-0.15, 0.15, d-0.15),
-    new THREE.MeshStandardMaterial({ color:0x5a8a2a+Math.floor(Math.random()*0x102010), roughness:0.7 })
-  );
-  p.position.set(x+w/2, 0.45, z+d/2); p.castShadow = true; scene.add(p);
-}
-for (let i = 0; i < 5; i++) gardenBed(6+i*2.5, 4, 2.0, 3.5);
-
-// Low tunnel / greenhouse
-const tGeo = new THREE.CylinderGeometry(0.8, 0.8, 5, 8, 1, false, 0, Math.PI);
-const tMat = new THREE.MeshStandardMaterial({ color:0xdddddd, transparent:true, opacity:0.3, side:THREE.DoubleSide, roughness:0.3 });
-const tun = new THREE.Mesh(tGeo, tMat);
-tun.rotation.z = Math.PI/2; tun.rotation.y = Math.PI/2;
-tun.position.set(10, 0.8, 1.5); scene.add(tun);
-
-// ════════════════════════════════
-// GALLINERO II — Coop (esquina derecha, pegado al muro)
-// ════════════════════════════════
-// White walls + blue accent + corrugated roof
-box(24, 11.5, 6, 0.15, 3, 0xddd8cc); // back wall
-box(24, 11.5, 0.15, 3, 3, 0xddd8cc); // left wall
-box(29.85, 11.5, 0.15, 3, 3, 0xddd8cc); // right wall
-box(24, 11.35, 2.5, 0.15, 1.2, 0xddd8cc); // front half-wall L
-box(27.5, 11.35, 2.5, 0.15, 1.2, 0xddd8cc); // front half-wall R
-box(28, 11.8, 1.8, 0.08, 2, 0x3a6090, 0.5); // blue panel
-
-const coopRoof = new THREE.Mesh(
-  new THREE.BoxGeometry(6.6, 0.12, 3.6),
-  new THREE.MeshStandardMaterial({ color:0x3a3a3a, roughness:0.4, metalness:0.5 })
+// ══════════════════════════════════
+// GROUND — layered for realism
+// ══════════════════════════════════
+const gnd = new THREE.Mesh(
+  new THREE.PlaneGeometry(65, 45, 32, 32),
+  new THREE.MeshStandardMaterial({color:0x2a1f14, roughness:1})
 );
-coopRoof.position.set(27, 3.2, 13); coopRoof.rotation.z = -0.06;
-coopRoof.castShadow = true; scene.add(coopRoof);
+gnd.rotation.x=-Math.PI/2; gnd.position.set(15,-0.02,8); gnd.receiveShadow=true; scene.add(gnd);
 
-// ════════════════════════════════
-// CASETAS G1
-// ════════════════════════════════
-const cs1 = box(3.5, 13, 1, 1, 0.8, 0xdaa520);
-cs1.userData = { name:'Caseta esquina sauna', info:'Nido G1 — 1x1m' };
-const cs2 = box(23.5, 7.5, 1.5, 0.7, 0.8, 0xdaa520);
-cs2.userData = { name:'Caseta junto G2', info:'Nido G1 — 1.5x0.7m' };
+// G I ground (terra)
+const g1g = new THREE.Mesh(new THREE.PlaneGeometry(25,6), new THREE.MeshStandardMaterial({color:0x3d2f1e, roughness:1}));
+g1g.rotation.x=-Math.PI/2; g1g.position.set(12.5,0.001,11); g1g.receiveShadow=true; scene.add(g1g);
 
-// Feeders
-function feeder(x, z, color, name) {
-  const m = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.3, 0.5, 8),
-    new THREE.MeshStandardMaterial({ color })
+// G II ground
+const g2g = new THREE.Mesh(new THREE.PlaneGeometry(5,14), new THREE.MeshStandardMaterial({color:0x352c1a, roughness:1}));
+g2g.rotation.x=-Math.PI/2; g2g.position.set(27.5,0.001,7); g2g.receiveShadow=true; scene.add(g2g);
+
+// Huerto ground (darker earth)
+const hg = new THREE.Mesh(new THREE.PlaneGeometry(25,8), new THREE.MeshStandardMaterial({color:0x1f1a12, roughness:1}));
+hg.rotation.x=-Math.PI/2; hg.position.set(12.5,0.0005,4); hg.receiveShadow=true; scene.add(hg);
+
+// Patchwork grass spots in G I
+for (let i = 0; i < 20; i++) {
+  const gx = 4+Math.random()*20, gz = 8.5+Math.random()*5;
+  const gs = 0.5+Math.random()*1.5;
+  const gp = new THREE.Mesh(
+    new THREE.CircleGeometry(gs, 8),
+    new THREE.MeshStandardMaterial({color:0x2d4a1a+Math.floor(Math.random()*0x0a1508), roughness:1, transparent:true, opacity:0.3})
   );
-  m.position.set(x, 0.25, z); m.castShadow = true;
-  m.userData = { name, info:name };
-  scene.add(m);
+  gp.rotation.x=-Math.PI/2; gp.position.set(gx, 0.003, gz); scene.add(gp);
 }
-feeder(10.5, 10.5, 0x909090, 'Comedero G1');
-feeder(13.25, 10, 0x2080c0, 'Bebedero G1');
-feeder(26.25, 10, 0x909090, 'Comedero G2');
-feeder(28.25, 10.5, 0x2080c0, 'Bebedero G2');
 
-// ════════════════════════════════
-// FENCING
-// ════════════════════════════════
-function fence(pts, h, color=0x999999) {
+// ══════════════════════════════════
+// MURO CON TALUD Y ARBOLES (30m)
+// ══════════════════════════════════
+// Individual stones
+for (let x = -0.2; x < 30.2; x += 0.35+Math.random()*0.25) {
+  for (let row = 0; row < 3; row++) {
+    const sw = 0.25+Math.random()*0.3;
+    const sh = 0.35+Math.random()*0.2;
+    const c = new THREE.Color().setHSL(0.08+Math.random()*0.04, 0.15+Math.random()*0.1, 0.25+Math.random()*0.15);
+    box(x, 14, sw, 0.7, sh, c.getHex(), row*0.45, {roughness:0.95});
+  }
+}
+// Talud (earth mound)
+const taludGeo = new THREE.BoxGeometry(32,0.8,1.8);
+const taludMat = new THREE.MeshStandardMaterial({color:0x3d3020, roughness:1});
+const talud = new THREE.Mesh(taludGeo, taludMat);
+talud.position.set(15,0.35,15.4); talud.receiveShadow=true; scene.add(talud);
+
+// Trees on muro
+function addTree(x, z, tH, cR) {
+  // Trunk
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.14, tH, 6),
+    new THREE.MeshStandardMaterial({color:0x3a2510, roughness:0.9})
+  );
+  trunk.position.set(x, tH/2+1.2, z); trunk.castShadow=true; scene.add(trunk);
+  // Crown layers
+  const g = 0x1a3a0a+Math.floor(Math.random()*0x102010);
+  for (let i = 0; i < 3; i++) {
+    const cr = cR*(1-i*0.2);
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(cr, 7, 5),
+      new THREE.MeshStandardMaterial({color:g+i*0x050800, roughness:0.75})
+    );
+    s.position.set(x+(Math.random()-0.5)*0.3, tH*0.6+1.2+i*cR*0.5, z+(Math.random()-0.5)*0.3);
+    s.castShadow=true; scene.add(s);
+  }
+}
+for (let i = 0; i < 15; i++) addTree(1+i*2+Math.random()*0.5, 15.5+Math.random()*0.3, 2+Math.random()*1.5, 0.9+Math.random()*0.5);
+// Extra trees inside G1
+addTree(5, 12.5, 3, 1.5);
+addTree(10, 11, 2.5, 1.2);
+
+// ══════════════════════════════════
+// SAUNA (x=0-3.5, z=8-14) — madera rústica
+// ══════════════════════════════════
+// Log walls
+for (let row = 0; row < 8; row++) {
+  const y0 = row * 0.32;
+  const c = 0x7a5a30 + Math.floor(Math.random()*0x101008);
+  box(0, 8, 3.5, 0.12, 0.3, c, y0, {roughness:0.9}); // front
+  box(0, 13.88, 3.5, 0.12, 0.3, c, y0); // back
+  box(0, 8, 0.12, 6, 0.3, c, y0); // left
+  box(3.38, 8, 0.12, 6, 0.3, c, y0); // right
+}
+// Roof
+const sRoof = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.12, 6.8), new THREE.MeshStandardMaterial({color:0x4a3520, roughness:0.7}));
+sRoof.position.set(1.75, 2.7, 11); sRoof.rotation.z=0.07; sRoof.castShadow=true; scene.add(sRoof);
+// Ridge
+const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 6.8), new THREE.MeshStandardMaterial({color:0x3a2510, roughness:0.8}));
+ridge.position.set(1.75, 2.78, 11); scene.add(ridge);
+// Door
+box(2.5, 8, 0.7, 0.05, 1.8, 0x4a2a10, 0, {name:'Sauna', info:'Edificio madera 3.5x6m'});
+// Window
+box(1.0, 8, 0.5, 0.05, 0.4, 0x446688, 1.3);
+
+// ══════════════════════════════════
+// GALLINERO II — Caseta elevada (x=25-30, z=11-14)
+// ══════════════════════════════════
+// Walls — white washed concrete
+const g2WallColor = 0xccccbb;
+box(25, 11.5, 4, 0.15, 3, g2WallColor, 0, {roughness:0.9}); // back (north)
+box(25, 11.5, 0.15, 2.5, 3, g2WallColor, 0); // left
+box(28.85, 11.5, 0.15, 2.5, 3, g2WallColor, 0); // right
+box(25, 11.35, 1.5, 0.15, 1.2, g2WallColor, 0); // front half-wall L
+box(28, 11.35, 1, 0.15, 1.2, g2WallColor, 0); // front half-wall R
+// Corrugated metal roof
+const g2Roof = new THREE.Mesh(
+  new THREE.BoxGeometry(4.5, 0.1, 3.2),
+  new THREE.MeshStandardMaterial({color:0x3a3a3a, roughness:0.35, metalness:0.65})
+);
+g2Roof.position.set(27, 3.15, 12.75); g2Roof.rotation.z=-0.05; g2Roof.castShadow=true; scene.add(g2Roof);
+// Elevated caseta inside
+box(25.5, 12, 1.5, 2, 1.8, 0xb0944a, 0.5, {name:'Caseta G II', info:'1.5x2m — elevada\nNidos arriba / descanso debajo'});
+
+// ══════════════════════════════════
+// CASETAS G I (pegadas al muro)
+// ══════════════════════════════════
+// Caseta 1: esquina con la sauna
+box(3.5, 13, 1.5, 1, 1.0, 0xb09040, 0, {name:'Habitaculo 1', info:'Esquina sauna — 1.5x1m\nPegado al muro'});
+const cs1r = new THREE.Mesh(new THREE.BoxGeometry(1.8,0.08,1.3), new THREE.MeshStandardMaterial({color:0x5a4020, roughness:0.7}));
+cs1r.position.set(4.25,1.05,13.5); cs1r.rotation.z=-0.06; cs1r.castShadow=true; scene.add(cs1r);
+
+// Caseta 2: cerca del habitaculo de G II
+box(21, 13, 2, 1.2, 1.2, 0xb09040, 0, {name:'Habitaculo 2', info:'Cerca de G II — 2x1.2m\nPegado al muro'});
+const cs2r = new THREE.Mesh(new THREE.BoxGeometry(2.3,0.08,1.5), new THREE.MeshStandardMaterial({color:0x5a4020, roughness:0.7}));
+cs2r.position.set(22,1.25,13.6); cs2r.rotation.z=-0.06; cs2r.castShadow=true; scene.add(cs2r);
+
+// ══════════════════════════════════
+// HUERTO — Bancales
+// ══════════════════════════════════
+for (let i = 0; i < 5; i++) {
+  // Wood frame
+  box(6+i*2.5, 3.5, 2.0, 3.5, 0.35, 0x5a3a1a);
+  // Soil inside
+  box(6.05+i*2.5, 3.55, 1.9, 3.4, 0.32, 0x2a1e10, 0.05);
+  // Green plant strip
+  const p = new THREE.Mesh(
+    new THREE.BoxGeometry(1.85, 0.12, 3.3),
+    new THREE.MeshStandardMaterial({color:0x2a5a1a+Math.floor(Math.random()*0x0a1508), roughness:0.7})
+  );
+  p.position.set(7+i*2.5, 0.42, 5.25); p.castShadow=true; scene.add(p);
+}
+
+// ══════════════════════════════════
+// FENCING — wire mesh with posts
+// ══════════════════════════════════
+function fence(pts, h, color) {
+  color = color || 0x555555;
   for (let i = 0; i < pts.length-1; i++) {
-    const [x1,z1] = pts[i], [x2,z2] = pts[i+1];
-    const dx = x2-x1, dz = z2-z1, len = Math.sqrt(dx*dx+dz*dz);
-    const angle = Math.atan2(dx, dz);
-    // Wire mesh panel
+    const [x1,z1]=pts[i], [x2,z2]=pts[i+1];
+    const dx=x2-x1, dz=z2-z1, len=Math.sqrt(dx*dx+dz*dz);
+    const angle=Math.atan2(dx,dz);
+    // Wire panel
     const panel = new THREE.Mesh(
       new THREE.PlaneGeometry(len, h),
-      new THREE.MeshStandardMaterial({ color, transparent:true, opacity:0.15, side:THREE.DoubleSide })
+      new THREE.MeshStandardMaterial({color, transparent:true, opacity:0.12, side:THREE.DoubleSide, roughness:0.6, metalness:0.3})
     );
     panel.position.set((x1+x2)/2, h/2, (z1+z2)/2);
-    panel.rotation.y = angle; scene.add(panel);
+    panel.rotation.y=angle; scene.add(panel);
+    // Wire lines
+    for (let w = 0; w < 4; w++) {
+      const wire = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.005, 0.005, len, 3),
+        new THREE.MeshStandardMaterial({color:0x888888, metalness:0.4})
+      );
+      wire.rotation.z=Math.PI/2; wire.rotation.y=-angle+Math.PI/2;
+      wire.position.set((x1+x2)/2, 0.2+w*h/4, (z1+z2)/2); scene.add(wire);
+    }
     // Posts
     const n = Math.max(2, Math.ceil(len/2));
     for (let p = 0; p <= n; p++) {
-      const t = p/n;
+      const t=p/n;
       const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.04, h+0.1, 4),
-        new THREE.MeshStandardMaterial({ color:0x666666, roughness:0.6 })
+        new THREE.CylinderGeometry(0.03, 0.04, h+0.15, 4),
+        new THREE.MeshStandardMaterial({color:0x555555, metalness:0.3})
       );
-      post.position.set(x1+dx*t, h/2, z1+dz*t); post.castShadow = true; scene.add(post);
+      post.position.set(x1+dx*t, h/2, z1+dz*t); post.castShadow=true; scene.add(post);
     }
   }
 }
+// Property boundary
 fence([[0,0],[0,14]], 1.5);
 fence([[0,0],[15,0],[25,0],[30,0]], 1.5);
-fence([[30,0],[30,8]], 1.5);
-fence([[30,8],[25,8]], 1.5);
-fence([[25,8],[25,14]], 1.5, 0xbbaa44);
-fence([[25,0],[25,6]], 1.5);
-fence([[24,8],[24,14]], 1.5);
+fence([[30,0],[30,14]], 1.5);
+// G I/G II separator (yellow)
+fence([[25,0],[25,14]], 1.5, 0xaa9933);
+// G I/Huerto fence
+fence([[3.5,8],[25,8]], 1.2);
 
-// ════════════════════════════════
-// CAMERAS
-// ════════════════════════════════
-function addCam(x, y, z, aimX, aimZ, label) {
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.25, 0.18, 0.12),
-    new THREE.MeshStandardMaterial({ color:0xeeeeee, roughness:0.3 })
-  );
-  body.position.set(x, y, z); body.castShadow = true;
-  body.userData = { name:label, info:label+'\nVIGI C340 4K\n3840x2160' };
+// ══════════════════════════════════
+// CAMERAS — correct positions
+// ══════════════════════════════════
+function addCam(x, y, z, aimX, aimZ, label, isOffline) {
+  // Camera body
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: isOffline ? 0x888866 : 0xeeeeee,
+    roughness:0.3, metalness:0.2
+  });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.15), bodyMat);
+  body.position.set(x, y, z); body.castShadow=true;
+  body.userData = {name:label, info:label + (isOffline ? '\nNO CONECTADA' : '\nVIGI C340 4K — 3840x2160')};
+  // Point camera toward aim
+  body.lookAt(new THREE.Vector3(aimX, y, aimZ));
   scene.add(body);
+  // Lens
+  const lens = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.08, 0.08, 8),
+    new THREE.MeshStandardMaterial({color:0x222222, roughness:0.2, metalness:0.5})
+  );
+  lens.rotation.x=Math.PI/2;
+  lens.position.copy(body.position);
+  const dir = new THREE.Vector3(aimX-x,0,aimZ-z).normalize().multiplyScalar(0.12);
+  lens.position.add(dir); scene.add(lens);
+  // LED
   const led = new THREE.Mesh(
     new THREE.SphereGeometry(0.04, 6, 6),
-    new THREE.MeshBasicMaterial({ color:0xff2200 })
+    new THREE.MeshBasicMaterial({color: isOffline ? 0x886600 : 0xff2200})
   );
-  led.position.set(x, y+0.12, z); led.userData = { isLed:true }; scene.add(led);
-  // FOV cone
-  const dist = 6, angle = Math.atan2(aimZ-z, aimX-x), half = (100/2)*Math.PI/180;
-  const geo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(x, 0.05, z),
-    new THREE.Vector3(x+dist*Math.cos(angle-half), 0.05, z+dist*Math.sin(angle-half)),
-    new THREE.Vector3(x+dist*Math.cos(angle+half), 0.05, z+dist*Math.sin(angle+half)),
-  ]);
-  geo.setIndex([0,1,2]); geo.computeVertexNormals();
-  scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color:0xff3333, transparent:true, opacity:0.06, side:THREE.DoubleSide })));
-}
-// CAM G1 — sauna fachada este, mira hacia G1 (al este/sur)
-addCam(3.5, 2.5, 11, 15, 5, 'CAM G1 (10.10.10.11)');
-// CAM G2 — esquina NE del gallinero, mira hacia la sauna (oeste)
-addCam(29, 2.5, 8, 3.5, 11, 'CAM G2 (10.10.10.10)');
-
-// ════════════════════════════════
-// CHICKENS
-// ════════════════════════════════
-const chickens = [];
-function addChicken(x, z, color, isRooster=false) {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.SphereGeometry(0.2, 7, 5),
-    new THREE.MeshStandardMaterial({ color, roughness:0.7 })
-  );
-  body.scale.set(1, 0.8, 1.3); body.position.y = 0.22; g.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 5), new THREE.MeshStandardMaterial({ color, roughness:0.7 }));
-  head.position.set(0.18, 0.38, 0); g.add(head);
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 4), new THREE.MeshStandardMaterial({ color:0xdd9922 }));
-  beak.rotation.z = -Math.PI/2; beak.position.set(0.27, 0.37, 0); g.add(beak);
-  const comb = new THREE.Mesh(new THREE.SphereGeometry(isRooster?0.07:0.04, 5, 4), new THREE.MeshStandardMaterial({ color:isRooster?0xcc0000:0xdd3333 }));
-  comb.position.set(0.16, 0.46, 0); g.add(comb);
-  if (isRooster) {
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 4), new THREE.MeshStandardMaterial({ color:color-0x111100 }));
-    tail.rotation.z = Math.PI*0.7; tail.position.set(-0.22, 0.35, 0); g.add(tail);
-  }
-  [-0.06,0.06].forEach(dz => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 3), new THREE.MeshStandardMaterial({ color:0xcc8833 }));
-    leg.position.set(0, 0.07, dz); g.add(leg);
-  });
-  g.position.set(x, 0, z); g.castShadow = true; scene.add(g);
-  chickens.push({ group:g, baseX:x, baseZ:z, phase:Math.random()*Math.PI*2, speed:0.2+Math.random()*0.4, range:0.5+Math.random()*2 });
+  led.position.set(x, y+0.14, z); led.userData={isLed:true, offline:isOffline}; scene.add(led);
+  // FOV cone on ground
+  var dist = isOffline ? 8 : (label.indexOf('Nueva')>=0 ? 16 : 7);
+  var angle = Math.atan2(aimZ-z, aimX-x), half=(100/2)*Math.PI/180;
+  var fovPts = [
+    new THREE.Vector3(x, 0.04, z),
+    new THREE.Vector3(x+dist*Math.cos(angle-half), 0.04, z+dist*Math.sin(angle-half)),
+    new THREE.Vector3(x+dist*Math.cos(angle+half), 0.04, z+dist*Math.sin(angle+half)),
+  ];
+  var fovGeo = new THREE.BufferGeometry().setFromPoints(fovPts);
+  fovGeo.setIndex([0,1,2]); fovGeo.computeVertexNormals();
+  var fovColor = isOffline ? 0xaa8800 : 0xcc2222;
+  scene.add(new THREE.Mesh(fovGeo, new THREE.MeshBasicMaterial({
+    color:fovColor, transparent:true, opacity:isOffline?0.04:0.06, side:THREE.DoubleSide
+  })));
+  // Label sprite
+  var cv=document.createElement('canvas'); cv.width=512; cv.height=80;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle=isOffline?'#f59e0b':'#ef4444';
+  ctx.font='bold 28px sans-serif'; ctx.textAlign='center';
+  var shortLabel=label.replace(/\s*\(.*\)/,'');
+  ctx.fillText(shortLabel, 256, 45);
+  if(isOffline){ctx.font='18px sans-serif';ctx.fillStyle='#f59e0b88';ctx.fillText('(offline)',256,70)}
+  var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true}));
+  sp.position.set(x,y+0.6,z); sp.scale.set(3,0.5,1); scene.add(sp);
 }
 
-// G1 — zona larga pegada al muro (x=4..23, z=9..13)
-[[0xeeddaa,true],[0xffffff,false],[0x333333,false],[0xdaa520,false],[0xb8860b,false],
- [0xffffff,false],[0x555555,false],[0xffd700,false],[0x8b4513,false],
- [0xffffff,false],[0xc0c0c0,false],[0xff8c00,false],[0x444444,false]].forEach(([c,r]) => {
-  addChicken(4+Math.random()*19, 9+Math.random()*4, c, r);
-});
-// G2 — esquina derecha coop (x=25..29, z=9..13)
-[[0xdaa520,true],[0xdaa520,false],[0xdaa520,false],[0xc0c0c0,false],[0x5c3a1a,false],
- [0x8b4513,false],[0x333333,false],[0xffffff,false],[0xcccccc,false],
- [0xffffff,false],[0x4a6fa5,false],[0xaa8855,false]].forEach(([c,r]) => {
-  addChicken(25.5+Math.random()*3.5, 9+Math.random()*3.5, c, r);
-});
+// Cam Sauna (Dahua) — al lado de la sauna, mirando SE — NO CONECTADA
+addCam(3, 2.3, 11, 15, 5, 'Cam. Sauna (Dahua)', true);
 
-// ════════════════════════════════
+// Cam Nueva (VIGI G1, 10.10.10.11) — lateral edificio G II, mirando OESTE hacia sauna
+addCam(25, 2.5, 12, 3.5, 11, 'Cam. Nueva (VIGI G1)', false);
+
+// Cam G II (VIGI G2, 10.10.10.10) — dentro de G II, apuntando al parque sur
+addCam(27.5, 2.5, 13.5, 27.5, 5, 'Cam. G II (VIGI G2)', false);
+
+// ══════════════════════════════════
 // LABELS
-// ════════════════════════════════
+// ══════════════════════════════════
 function addLabel(text, x, y, z, color) {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96;
-  const ctx = cv.getContext('2d'); ctx.fillStyle = color;
-  ctx.font = 'bold 32px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(text, 256, 60);
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cv), transparent:true }));
-  s.position.set(x, y, z); s.scale.set(6, 1.2, 1); scene.add(s);
+  var cv=document.createElement('canvas'); cv.width=512; cv.height=96;
+  var ctx=cv.getContext('2d'); ctx.fillStyle=color;
+  ctx.font='bold 32px sans-serif'; ctx.textAlign='center'; ctx.fillText(text,256,60);
+  var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true}));
+  sp.position.set(x,y,z); sp.scale.set(6,1.2,1); scene.add(sp);
 }
-addLabel('GALLINERO I  13 aves', 12, 4.5, 11, '#2d5016');
-addLabel('GALLINERO II  12 aves', 27, 4.5, 10, '#1e4080');
-addLabel('SAUNA', 1.75, 4, 11, '#6b4520');
-addLabel('HUERTO', 12, 2, 3, '#5a7a30');
-addLabel('Muro con talud y arboles', 15, 4.5, 15.5, '#555');
-addLabel('30 m', 15, 0.4, -1.5, '#888');
+addLabel('GALLINERO I', 12, 5, 11, '#22c55e60');
+addLabel('GALLINERO II', 27.5, 5, 7, '#3b82f660');
+addLabel('SAUNA', 1.75, 4, 11, '#a78bfa60');
+addLabel('HUERTO', 12, 2.5, 4, '#78716c60');
+addLabel('Muro con talud y arboles', 15, 4.5, 15.5, '#78716c50');
 
-// ════════════════════════════════
+// ══════════════════════════════════
 // RAYCASTER
-// ════════════════════════════════
+// ══════════════════════════════════
 const raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
 const infoDiv = document.getElementById('info');
-renderer.domElement.addEventListener('click', e => {
-  mouse.x = (e.clientX/innerWidth)*2-1;
-  mouse.y = -(e.clientY/innerHeight)*2+1;
+renderer.domElement.addEventListener('click', function(e){
+  mouse.x=(e.clientX/innerWidth)*2-1;
+  mouse.y=-(e.clientY/innerHeight)*2+1;
   raycaster.setFromCamera(mouse, camera);
-  for (const h of raycaster.intersectObjects(scene.children)) {
-    if (h.object.userData?.name) {
-      infoDiv.innerHTML = '<b>'+h.object.userData.name+'</b><br>'+(h.object.userData.info||'').replace(/\n/g,'<br>');
-      infoDiv.style.display = 'block';
-      setTimeout(() => infoDiv.style.display='none', 4000);
+  var hits=raycaster.intersectObjects(scene.children);
+  for(var i=0;i<hits.length;i++){
+    if(hits[i].object.userData && hits[i].object.userData.name){
+      infoDiv.innerHTML='<b>'+hits[i].object.userData.name+'</b><br>'+(hits[i].object.userData.info||'').replace(/\n/g,'<br>');
+      infoDiv.style.display='block';
+      setTimeout(function(){infoDiv.style.display='none'},4000);
       break;
     }
   }
 });
 
-// ════════════════════════════════
-// ANIMATION
-// ════════════════════════════════
-let frames = 0, fpsSec = 0;
-function animate(time) {
+// ══════════════════════════════════
+// ANIMATION — no chickens, just LEDs + controls
+// ══════════════════════════════════
+var frames=0, fpsSec=0;
+function animate(time){
   requestAnimationFrame(animate);
   frames++;
-  if (time-fpsSec>1000) { document.getElementById('fps').textContent = frames+' FPS'; frames=0; fpsSec=time; }
-  const t = time*0.001;
-  chickens.forEach(c => {
-    c.group.position.x = c.baseX + Math.sin(t*c.speed+c.phase)*c.range;
-    c.group.position.z = c.baseZ + Math.cos(t*c.speed*0.7+c.phase)*c.range*0.5;
-    c.group.position.y = Math.abs(Math.sin(t*3+c.phase))*0.02;
-    c.group.rotation.y = Math.atan2(Math.cos(t*c.speed+c.phase)*c.speed, -Math.sin(t*c.speed*0.7+c.phase)*c.speed*0.7);
+  if(time-fpsSec>1000){document.getElementById('fps').textContent=frames+' FPS';frames=0;fpsSec=time}
+  var t=time*0.001;
+  scene.traverse(function(obj){
+    if(obj.userData && obj.userData.isLed){
+      var blink = obj.userData.offline ? 0.3+0.2*Math.sin(t) : 0.5+0.5*Math.sin(t*3);
+      obj.material.opacity=blink; obj.material.transparent=true;
+    }
   });
-  scene.traverse(obj => { if (obj.userData?.isLed) { obj.material.opacity = 0.5+0.5*Math.sin(t*3); obj.material.transparent = true; }});
   controls.update();
   renderer.render(scene, camera);
 }
 animate(0);
 
-addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+addEventListener('resize', function(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 </script>
 </body>
 </html>

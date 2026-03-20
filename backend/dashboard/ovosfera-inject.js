@@ -15,7 +15,14 @@
   const ANNOTATED_INTERVAL = 30000;
 
   const CAMERA_MAP = {
-    2: { name: "Durrif I", stream: "gallinero_durrif_1" },
+    2: {
+      name: "Durrif I",
+      stream: "gallinero_durrif_1",
+      cameras: [
+        { id: "nueva", label: "Cám. Nueva (VIGI)", stream: "gallinero_durrif_1", active: true },
+        { id: "sauna", label: "Cám. Sauna (Dahua)", stream: null, active: false },
+      ],
+    },
     3: { name: "Durrif II", stream: "gallinero_durrif_2" },
   };
 
@@ -138,6 +145,49 @@
     .seedy-cam-toggle button.active {
       background: var(--primary-600, #B07D2B);
       color: #fff;
+    }
+    .seedy-cam-selector {
+      display: flex;
+      gap: 0;
+      margin-top: 8px;
+      margin-bottom: 2px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .seedy-cam-selector button {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: rgba(0,0,0,0.06);
+      color: var(--neutral-500, #888);
+    }
+    .seedy-cam-selector button.active {
+      background: var(--primary-700, #8a6220);
+      color: #fff;
+    }
+    .seedy-cam-selector button.offline {
+      color: var(--neutral-600, #666);
+      font-style: italic;
+    }
+    .seedy-cam-offline {
+      padding: 32px 16px;
+      text-align: center;
+      color: #888;
+      font-size: 12px;
+      background: #0a0a0a;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+    .seedy-cam-offline strong {
+      display: block;
+      color: #f59e0b;
+      font-size: 14px;
+      margin-bottom: 6px;
     }
     /* ── Dashboard dual-camera panel ── */
     .seedy-dashboard-panel {
@@ -298,6 +348,48 @@
     const container = document.createElement("div");
     container.className = "seedy-cam-container";
     container.dataset.gallineroId = gallineroId;
+
+    // Camera selector for multi-camera gallineros
+    if (cam.cameras && cam.cameras.length > 1) {
+      const selector = document.createElement("div");
+      selector.className = "seedy-cam-selector";
+      cam.cameras.forEach(function (c) {
+        const btn = document.createElement("button");
+        btn.textContent = c.label;
+        btn.dataset.camId = c.id;
+        if (!c.active) btn.classList.add("offline");
+        if (c.id === cam.cameras[0].id) btn.classList.add("active");
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          selector.querySelectorAll("button").forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          container.dataset.selectedCam = c.id;
+          // Handle offline cameras
+          var offlineEl = container.querySelector(".seedy-cam-offline");
+          if (!c.active) {
+            wrap.style.display = "none";
+            toggle.style.display = "none";
+            if (!offlineEl) {
+              offlineEl = document.createElement("div");
+              offlineEl.className = "seedy-cam-offline";
+              offlineEl.innerHTML = "<strong>" + c.label + "</strong>Cámara no conectada<br><small>Próximamente</small>";
+              container.insertBefore(offlineEl, toggle.nextSibling || null);
+            }
+          } else {
+            wrap.style.display = "";
+            toggle.style.display = "";
+            if (offlineEl) offlineEl.remove();
+            container.dataset.activeStream = c.stream;
+            refreshSnapshot(wrap, gallineroId);
+          }
+        });
+        selector.appendChild(btn);
+      });
+      container.appendChild(selector);
+      container.dataset.selectedCam = cam.cameras[0].id;
+      container.dataset.activeStream = cam.cameras[0].stream;
+    }
+
     container.appendChild(wrap);
     container.appendChild(toggle);
 
@@ -322,6 +414,9 @@
     const mode = wrap.dataset.mode || "live";
     const cam = CAMERA_MAP[gallineroId];
     if (!cam) return;
+    // Check for active stream override from camera selector
+    const container = wrap.parentElement;
+    const activeStream = (container && container.dataset.activeStream) || cam.stream;
     const ts = Date.now();
 
     // Stop any MJPEG stream when switching modes
@@ -350,7 +445,7 @@
 
     if (mode === "yolo") {
       // YOLO-only: fast GET endpoint (~50ms inference)
-      const url = `${SEEDY_API}/vision/identify/snapshot/${cam.stream}/yolo?_t=${ts}`;
+      const url = `${SEEDY_API}/vision/identify/snapshot/${activeStream}/yolo?_t=${ts}`;
       fetch(url)
         .then((r) => {
           if (!r.ok) return Promise.reject("error");
@@ -368,7 +463,7 @@
         .catch(() => img.classList.remove("loading"));
     } else if (mode === "annotated") {
       // Full IA: POST (YOLO + Gemini, slower)
-      fetch(`${SEEDY_API}/vision/identify/snapshot/${cam.stream}/annotated?_t=${ts}`, {
+      fetch(`${SEEDY_API}/vision/identify/snapshot/${activeStream}/annotated?_t=${ts}`, {
         method: "POST",
       })
         .then((r) => {

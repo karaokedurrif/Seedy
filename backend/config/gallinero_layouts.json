@@ -9,7 +9,7 @@
     "name": "Sauna (edificio madera)",
     "rect": [0, 8, 3.5, 6],
     "alto": 2.8,
-    "nota": "Edificio de madera grande al NO. Cámara G1 montada en su fachada este."
+    "nota": "Edificio de madera grande al NO. Cámara Dahua (pendiente de conectar) al lado."
   },
   "gallinero_durrif_1": {
     "name": "Gallinero Durrif I",
@@ -20,29 +20,38 @@
     "camera": {
       "modelo": "TP-Link VIGI C340",
       "ip": "10.10.10.11",
-      "posicion_global": [3.5, 11, 2.5],
-      "apunta_hacia": [15, 5, 0.5],
+      "posicion_global": [25, 12, 2.5],
+      "apunta_hacia": [3.5, 11, 0.5],
       "fov_h": 100,
       "fov_v": 56,
       "resolucion": [3840, 2160],
-      "montaje": "Fachada este de la sauna, esquina superior"
+      "montaje": "Lateral oeste del edificio G II, mirando hacia la sauna (~20m)"
+    },
+    "camera_dahua": {
+      "modelo": "Dahua",
+      "ip": null,
+      "posicion_global": [3, 11, 2.3],
+      "apunta_hacia": [15, 5, 0.5],
+      "fov_h": 100,
+      "estado": "no conectada",
+      "montaje": "Al lado de la sauna, mirando hacia G I"
     },
     "casetas": [
       {
         "id": "caseta_sauna",
-        "nombre": "Caseta esquina sauna",
-        "rect": [3.5, 13, 1.0, 1.0],
-        "alto": 0.8,
+        "nombre": "Habitáculo 1 (esquina sauna)",
+        "rect": [3.5, 13, 1.5, 1.0],
+        "alto": 1.0,
         "tipo": "nido",
-        "notas": "Caseta pequeña pegada a la esquina NE de la sauna. 1x1m."
+        "notas": "Caseta pegada al muro, hace esquina con la sauna. ~1.5x1m."
       },
       {
-        "id": "caseta_central",
-        "nombre": "Caseta junto a G2",
-        "rect": [23.5, 7.5, 1.5, 0.7],
-        "alto": 0.8,
+        "id": "caseta_cerca_g2",
+        "nombre": "Habitáculo 2 (cerca G II)",
+        "rect": [21, 13, 2.0, 1.2],
+        "alto": 1.2,
         "tipo": "nido",
-        "notas": "Caseta 1.5x0.7m junto al parque de G2."
+        "notas": "Caseta pegada al muro, cerca del habitáculo de G II. ~2x1.2m."
       }
     ],
     "zonas": [
