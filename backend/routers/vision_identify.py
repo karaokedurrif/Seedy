@@ -30,7 +30,7 @@ router = APIRouter(prefix="/vision/identify", tags=["vision-identify"])
 
 # ── Config ──
 
-GO2RTC_URL = os.environ.get("GO2RTC_URL", "http://go2rtc:1984")
+GO2RTC_URL = os.environ.get("GO2RTC_URL", "http://172.18.0.1:1984")
 OVOSFERA_API = os.environ.get("OVOSFERA_API_URL", "https://hub.ovosfera.com/api/ovosfera")
 OVOSFERA_FARM = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
 CAMERAS = {
@@ -39,12 +39,18 @@ CAMERAS = {
         "stream_sub": "gallinero_durrif_1_sub",
         "snapshot_url": "http://10.10.10.11/cgi-bin/snapshot.cgi",
         "name": "Gallinero Durrif I",
+        "distant": True,       # ~20m desde lateral G II, aves pequeñas
+        "yolo_imgsz": 1920,   # 4K frame needs large inference size
+        "use_tiled": True,     # SAHI-style tiled detection for small objects
     },
     "gallinero_durrif_2": {
         "stream": "gallinero_durrif_2",
         "stream_sub": "gallinero_durrif_2_sub",
         "snapshot_url": "http://10.10.10.10/cgi-bin/snapshot.cgi",
         "name": "Gallinero Durrif II",
+        "distant": False,      # cámara dentro del recinto, cerca
+        "yolo_imgsz": 1280,
+        "use_tiled": False,
     },
 }
 
@@ -131,11 +137,29 @@ _last_results: dict[str, dict] = {}
 _task: asyncio.Task | None = None
 
 
-async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_url: str = "") -> bytes | None:
-    """Captura un frame JPEG. Intenta CGI directo (~100ms), luego go2rtc."""
+async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_url: str = "", force_hires: bool = False) -> bytes | None:
+    """Captura un frame JPEG.
+
+    Estrategia:
+    - force_hires=True: siempre go2rtc main stream (4K, ~800KB, ~1s)
+      Necesario para cámaras lejanas donde CGI da solo 704x576.
+    - Normal: CGI directo (~100ms, 704x576), fallback go2rtc.
+    """
     import httpx
 
-    # Intento 1: CGI snapshot directo (50x más rápido que go2rtc frame.jpeg)
+    # Cámaras lejanas: go2rtc main stream directamente (4K)
+    if force_hires:
+        url = f"{GO2RTC_URL}/api/frame.jpeg?src={camera_stream}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200 and len(resp.content) > 1000:
+                    return resp.content
+        except Exception as e:
+            logger.debug(f"go2rtc hires capture failed ({camera_stream}): {e}")
+        # Fallback to CGI if go2rtc fails
+
+    # CGI snapshot directo (rápido pero 704x576)
     if snapshot_url:
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
@@ -160,11 +184,19 @@ async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_
     return None
 
 
-def _detect_with_yolo(frame_bytes: bytes) -> dict | None:
-    """Detección rápida con YOLO local. Devuelve conteo + bboxes."""
+def _detect_with_yolo(frame_bytes: bytes, *, imgsz: int | None = None, use_tiled: bool = False) -> dict | None:
+    """Detección rápida con YOLO local. Devuelve conteo + bboxes.
+
+    Args:
+        imgsz: Resolución de inferencia (overrides YOLO_IMGSZ default).
+        use_tiled: Si True, usa detección por tiles (SAHI) — mejor para aves lejanas.
+    """
     try:
+        if use_tiled:
+            from services.yolo_detector import detect_tiled
+            return detect_tiled(frame_bytes, tile_size=imgsz or 1280)
         from services.yolo_detector import detect_birds
-        return detect_birds(frame_bytes)
+        return detect_birds(frame_bytes, imgsz=imgsz)
     except Exception as e:
         logger.warning(f"YOLO detection failed: {e}")
         return None
@@ -216,10 +248,16 @@ async def _identify_breeds_gemini(frame_bytes: bytes, gallinero_id: str = "") ->
     return None
 
 
-async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "") -> dict | None:
-    """Análisis híbrido: YOLO (detección rápida) + Gemini (raza, solo si necesario)."""
+async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "", *, imgsz: int | None = None, use_tiled: bool = False, force_gemini: bool = False) -> dict | None:
+    """Análisis híbrido: YOLO (detección rápida) + Gemini (raza, solo si necesario).
+
+    Args:
+        imgsz: Resolución YOLO (para cámaras lejanas).
+        use_tiled: Usar detección SAHI por tiles.
+        force_gemini: Ejecutar Gemini incluso si YOLO no detecta nada (para cámaras lejanas).
+    """
     # 1) YOLO: detección local (~50ms)
-    yolo_result = _detect_with_yolo(frame_bytes)
+    yolo_result = _detect_with_yolo(frame_bytes, imgsz=imgsz, use_tiled=use_tiled)
     yolo_count = yolo_result["count"] if yolo_result else 0
 
     if yolo_result:
@@ -238,8 +276,8 @@ async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "") -> dict | N
         except Exception as e:
             logger.debug(f"Training data save failed: {e}")
 
-    # 3) Gemini: solo si YOLO detectó aves (necesitamos raza/color/sexo)
-    if yolo_count > 0:
+    # 3) Gemini: si YOLO detectó aves, o si force_gemini (cámaras lejanas)
+    if yolo_count > 0 or force_gemini:
         gemini_result = await _identify_breeds_gemini(frame_bytes, gallinero_id)
         if gemini_result:
             # Enriquecer con datos YOLO (bboxes más precisos)
@@ -604,9 +642,14 @@ async def _identification_loop():
             if not _running:
                 break
 
+            is_distant = cam_config.get("distant", False)
+            cam_imgsz = cam_config.get("yolo_imgsz")
+            use_tiled = cam_config.get("use_tiled", False)
+
             # CGI directo para todos los ciclos (~100ms); fallback go2rtc
+            # Cámaras lejanas: siempre stream principal (4K) para no perder resolución
             snap_url = cam_config.get("snapshot_url", "")
-            if is_full_cycle:
+            if is_full_cycle or is_distant:
                 frame = await _capture_frame(cam_config["stream"], snapshot_url=snap_url)
             else:
                 frame = await _capture_frame(cam_config["stream"], use_sub=True, snapshot_url=snap_url)
@@ -615,10 +658,15 @@ async def _identification_loop():
 
             if is_full_cycle:
                 # Ciclo completo: YOLO + Gemini (identificación de raza)
-                analysis = await _analyze_frame(frame, gallinero_id)
+                analysis = await _analyze_frame(
+                    frame, gallinero_id,
+                    imgsz=cam_imgsz,
+                    use_tiled=use_tiled,
+                    force_gemini=is_distant,
+                )
             else:
                 # Ciclo rápido: solo YOLO (conteo + training data)
-                yolo_result = _detect_with_yolo(frame)
+                yolo_result = _detect_with_yolo(frame, imgsz=cam_imgsz, use_tiled=use_tiled)
                 if yolo_result and yolo_result["detections"]:
                     try:
                         from services.yolo_trainer import save_confirmed_detection
@@ -709,11 +757,22 @@ async def snapshot_identify(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    analysis = await _analyze_frame(frame)
+    analysis = await _analyze_frame(
+        frame,
+        gallinero_id,
+        imgsz=cam.get("yolo_imgsz"),
+        use_tiled=cam.get("use_tiled", False),
+        force_gemini=is_distant,
+    )
     if not analysis:
         raise HTTPException(503, "Gemini no pudo analizar la imagen")
 
@@ -834,11 +893,24 @@ async def snapshot_annotated(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    analysis = await _analyze_frame(frame, gallinero_id)
+    cam_imgsz = cam.get("yolo_imgsz")
+    use_tiled = cam.get("use_tiled", False)
+
+    analysis = await _analyze_frame(
+        frame, gallinero_id,
+        imgsz=cam_imgsz,
+        use_tiled=use_tiled,
+        force_gemini=is_distant,
+    )
     if not analysis:
         # Sin aves detectadas → devolver frame limpio con watermark
         return Response(
@@ -874,11 +946,21 @@ async def snapshot_yolo_only(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"], use_sub=True, snapshot_url=cam.get("snapshot_url", ""))
+    is_distant = cam.get("distant", False)
+    cam_imgsz = cam.get("yolo_imgsz")
+    use_tiled = cam.get("use_tiled", False)
+
+    # Cámaras lejanas: go2rtc 4K directo; normales: CGI rápido
+    frame = await _capture_frame(
+        cam["stream"],
+        use_sub=not is_distant,
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    yolo_result = _detect_with_yolo(frame)
+    yolo_result = _detect_with_yolo(frame, imgsz=cam_imgsz, use_tiled=use_tiled)
     if not yolo_result or not yolo_result["detections"]:
         return Response(content=frame, media_type="image/jpeg",
                         headers={"X-Birds-Detected": "0", "X-Engine": "yolo"})
@@ -908,11 +990,21 @@ async def full_analysis(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    analysis = await _analyze_frame(frame, gallinero_id)
+    analysis = await _analyze_frame(
+        frame, gallinero_id,
+        imgsz=cam.get("yolo_imgsz"),
+        use_tiled=cam.get("use_tiled", False),
+        force_gemini=is_distant,
+    )
     if not analysis:
         raise HTTPException(503, "No se pudo analizar el frame")
 
@@ -938,11 +1030,16 @@ async def yolo_detect(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    result = _detect_with_yolo(frame)
+    result = _detect_with_yolo(frame, imgsz=cam.get("yolo_imgsz"), use_tiled=cam.get("use_tiled", False))
     if not result:
         raise HTTPException(503, "YOLO no disponible")
 
@@ -964,11 +1061,16 @@ async def yolo_annotated(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
-    frame = await _capture_frame(cam["stream"], snapshot_url=cam.get("snapshot_url", ""))
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
     if not frame:
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
-    result = _detect_with_yolo(frame)
+    result = _detect_with_yolo(frame, imgsz=cam.get("yolo_imgsz"), use_tiled=cam.get("use_tiled", False))
     if not result:
         raise HTTPException(503, "YOLO no disponible")
 

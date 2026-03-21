@@ -30,6 +30,7 @@ YOLO_CONFIDENCE = float(os.environ.get("YOLO_CONFIDENCE", "0.25"))
 YOLO_DEVICE = os.environ.get("YOLO_DEVICE", "0")
 YOLO_CUSTOM_MODEL = os.environ.get("YOLO_CUSTOM_MODEL", "")
 YOLO_DATA_DIR = Path(os.environ.get("YOLO_DATA_DIR", "/app/yolo_dataset"))
+YOLO_IMGSZ = int(os.environ.get("YOLO_IMGSZ", "1280"))
 
 # ── Clases COCO relevantes ──
 # Filtramos solo las que nos interesan del modelo COCO preentrenado
@@ -117,9 +118,14 @@ def get_model():
     return _model
 
 
-def detect(frame_bytes: bytes, confidence: float | None = None) -> dict:
+def detect(frame_bytes: bytes, confidence: float | None = None, imgsz: int | None = None) -> dict:
     """
     Detección completa: aves, plagas, infraestructura.
+
+    Args:
+        frame_bytes: JPEG bytes
+        confidence: umbral de confianza (default YOLO_CONFIDENCE)
+        imgsz: tamaño de inferencia (default YOLO_IMGSZ=1280; usar 1920 para cámaras lejanas)
 
     Returns:
         {
@@ -141,6 +147,7 @@ def detect(frame_bytes: bytes, confidence: float | None = None) -> dict:
 
     model = get_model()
     conf = confidence or YOLO_CONFIDENCE
+    sz = imgsz or YOLO_IMGSZ
     t0 = time.time()
 
     img = Image.open(io.BytesIO(frame_bytes))
@@ -149,6 +156,7 @@ def detect(frame_bytes: bytes, confidence: float | None = None) -> dict:
     results = model.predict(
         source=np.array(img),
         conf=conf,
+        imgsz=sz,
         device=YOLO_DEVICE,
         verbose=False,
     )
@@ -217,11 +225,141 @@ def detect(frame_bytes: bytes, confidence: float | None = None) -> dict:
 
 
 # Alias retrocompatible
-def detect_birds(frame_bytes: bytes, confidence: float | None = None) -> dict:
+def detect_birds(frame_bytes: bytes, confidence: float | None = None, imgsz: int | None = None) -> dict:
     """Alias retrocompatible: devuelve detect() con 'count' = poultry_count."""
-    result = detect(frame_bytes, confidence)
+    result = detect(frame_bytes, confidence, imgsz=imgsz)
     result["count"] = result["poultry_count"]
     return result
+
+
+def detect_tiled(frame_bytes: bytes, confidence: float | None = None, overlap: float = 0.2, tile_size: int = 1280) -> dict:
+    """SAHI-style tiled detection for distant/wide-angle cameras.
+
+    Splits the frame into overlapping tiles, runs YOLO on each,
+    then merges detections with NMS to remove duplicates.
+    Much better for small objects at distance (e.g. 20m camera).
+    """
+    import numpy as np
+    from PIL import Image
+
+    model = get_model()
+    conf = confidence or YOLO_CONFIDENCE
+    t0 = time.time()
+
+    img = Image.open(io.BytesIO(frame_bytes))
+    W, H = img.size
+    img_np = np.array(img)
+
+    stride = int(tile_size * (1 - overlap))
+    all_dets = []
+
+    # Slide tiles
+    for y0 in range(0, H, stride):
+        for x0 in range(0, W, stride):
+            x1 = min(x0 + tile_size, W)
+            y1 = min(y0 + tile_size, H)
+            # Skip tiny edge tiles
+            if (x1 - x0) < tile_size // 3 or (y1 - y0) < tile_size // 3:
+                continue
+            tile = img_np[y0:y1, x0:x1]
+
+            results = model.predict(
+                source=tile,
+                conf=conf,
+                imgsz=tile_size,
+                device=YOLO_DEVICE,
+                verbose=False,
+            )
+
+            for r in results:
+                if r.boxes is None:
+                    continue
+                for box in r.boxes:
+                    cls_id = int(box.cls[0])
+                    cls_conf = float(box.conf[0])
+
+                    if _model_type == "coco":
+                        if cls_id not in COCO_CLASSES_OF_INTEREST:
+                            continue
+                        class_name = COCO_CLASSES_OF_INTEREST[cls_id]
+                        category = "poultry" if cls_id == 14 else "pest"
+                    else:
+                        class_name = _custom_classes.get(cls_id, f"class_{cls_id}")
+                        if cls_id in SEEDY_POULTRY_CLASSES:
+                            category = "poultry"
+                        elif cls_id in SEEDY_PEST_CLASSES:
+                            category = "pest"
+                        elif cls_id in SEEDY_INFRA_CLASSES:
+                            category = "infra"
+                        else:
+                            category = "other"
+
+                    bx1, by1, bx2, by2 = box.xyxy[0].tolist()
+                    # Map tile-local coords back to full image
+                    bx1 += x0; bx2 += x0
+                    by1 += y0; by2 += y0
+
+                    all_dets.append({
+                        "class_name": class_name,
+                        "class_id": cls_id,
+                        "confidence": round(cls_conf, 3),
+                        "bbox": [round(bx1, 1), round(by1, 1), round(bx2, 1), round(by2, 1)],
+                        "bbox_norm": [round(bx1/W, 4), round(by1/H, 4), round(bx2/W, 4), round(by2/H, 4)],
+                        "category": category,
+                        "area_norm": round(((bx2-bx1)/W) * ((by2-by1)/H), 6),
+                    })
+
+    # NMS: remove duplicates from overlapping tiles (IoU > 0.5)
+    detections = _nms(all_dets, iou_threshold=0.5)
+
+    elapsed_ms = (time.time() - t0) * 1000
+    poultry = [d for d in detections if d["category"] == "poultry"]
+    pests = [d for d in detections if d["category"] == "pest"]
+    infra = [d for d in detections if d["category"] == "infra"]
+
+    return {
+        "detections": detections,
+        "poultry": poultry,
+        "pests": pests,
+        "infra": infra,
+        "poultry_count": len(poultry),
+        "pest_count": len(pests),
+        "count": len(poultry),
+        "model": _model_name,
+        "model_type": _model_type,
+        "inference_ms": round(elapsed_ms, 1),
+        "frame_width": W,
+        "frame_height": H,
+        "tiled": True,
+    }
+
+
+def _iou(a, b):
+    """Intersection over Union for two [x1,y1,x2,y2] boxes."""
+    x1 = max(a[0], b[0]); y1 = max(a[1], b[1])
+    x2 = min(a[2], b[2]); y2 = min(a[3], b[3])
+    inter = max(0, x2-x1) * max(0, y2-y1)
+    area_a = (a[2]-a[0]) * (a[3]-a[1])
+    area_b = (b[2]-b[0]) * (b[3]-b[1])
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0
+
+
+def _nms(detections, iou_threshold=0.5):
+    """Simple greedy NMS: keep highest confidence, suppress overlapping."""
+    if not detections:
+        return []
+    dets = sorted(detections, key=lambda d: d["confidence"], reverse=True)
+    keep = []
+    for d in dets:
+        suppress = False
+        for k in keep:
+            if d["class_name"] == k["class_name"] and _iou(d["bbox"], k["bbox"]) > iou_threshold:
+                suppress = True
+                break
+        if not suppress:
+            keep.append(d)
+    return keep
 
 
 def crop_detections(frame_bytes: bytes, detections: list[dict]) -> list[bytes]:
