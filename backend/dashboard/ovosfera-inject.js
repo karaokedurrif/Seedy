@@ -10,6 +10,7 @@
   "use strict";
 
   const SEEDY_API = "https://seedy-api.neofarm.io";
+  const SEEDY_FARM = "palacio";  // Solo activar en este tenant
   const SNAPSHOT_INTERVAL = 5000;
   const YOLO_INTERVAL = 4000;
   const ANNOTATED_INTERVAL = 30000;
@@ -582,6 +583,12 @@
     return window.location.pathname.includes("/farm/");
   }
 
+  function isTargetFarm() {
+    // Solo inyectar en el tenant configurado (palacio)
+    var m = window.location.pathname.match(/\/farm\/([^/]+)/);
+    return m && m[1] === SEEDY_FARM;
+  }
+
   // ── Dashboard panel: dual cameras + digital twin links ──
   function injectDashboardPanel() {
     if (document.getElementById("seedy-dashboard-injected")) return;
@@ -645,6 +652,10 @@
   }
 
   function onPageChange() {
+    if (!isTargetFarm()) {
+      stopRefreshLoop();
+      return;
+    }
     if (isDashboardPage()) {
       setTimeout(() => {
         injectDashboardPanel();
@@ -676,6 +687,7 @@
 
     // Watch for SPA navigation and DOM changes
     const observer = new MutationObserver(() => {
+      if (!isTargetFarm()) return;
       if (isGallinerosPage()) {
         injectCameras();
       } else if (isDashboardPage()) {
