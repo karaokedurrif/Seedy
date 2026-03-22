@@ -22,7 +22,7 @@
       stream: "gallinero_durrif_1",
       cameras: [
         { id: "nueva", label: "Cám. Nueva (VIGI)", stream: "gallinero_durrif_1", active: true },
-        { id: "sauna", label: "Cám. Sauna (Dahua)", stream: null, active: false },
+        { id: "sauna", label: "Cám. Sauna (Dahua)", stream: "sauna_durrif_1", active: true },
       ],
     },
     3: { name: "Durrif II", stream: "gallinero_durrif_2" },
@@ -459,7 +459,17 @@
     img.alt = `Cámara ${cam.name}`;
     img.loading = "lazy";
     img.className = "loading";
+    img.style.display = "none"; // hidden by default, shown in YOLO/IA mode
     wrap.appendChild(img);
+
+    const video = document.createElement("video");
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.className = "seedy-cam-video";
+    video.style.width = "100%";
+    video.style.borderRadius = "8px";
+    wrap.appendChild(video);
 
     // Badge
     const badge = document.createElement("div");
@@ -550,6 +560,7 @@
             toggle.style.display = "";
             if (offlineEl) offlineEl.remove();
             container.dataset.activeStream = c.stream;
+            delete wrap.dataset._mseFailed; // reset MSE for new camera
             refreshSnapshot(wrap, gallineroId);
           }
         });
@@ -577,44 +588,140 @@
     });
   }
 
-  // ── Refresh snapshot ──
+  // ── MSE WebSocket streaming ──
+  var _mseMap = new WeakMap();
+
+  function _startMSE(wrap, streamName) {
+    _stopMSE(wrap);
+    var video = wrap.querySelector("video");
+    var img = wrap.querySelector("img");
+    if (!video) return;
+    video.style.display = "";
+    if (img) img.style.display = "none";
+
+    var wsUrl = SEEDY_API.replace("https://", "wss://").replace("http://", "ws://")
+      + "/ovosfera/stream/" + streamName + "_web/mse";
+
+    var ws = new WebSocket(wsUrl);
+    ws.binaryType = "arraybuffer";
+    var ms = null, sb = null, queue = [];
+
+    function appendNext() {
+      if (sb && !sb.updating && queue.length > 0) {
+        try { sb.appendBuffer(queue.shift()); }
+        catch (e) {
+          if (e.name === "QuotaExceededError" && sb.buffered.length > 0) {
+            sb.remove(0, sb.buffered.end(sb.buffered.length - 1) - 5);
+          }
+        }
+      }
+    }
+
+    ws.onopen = function () {
+      ws.send(JSON.stringify({ type: "mse" }));
+    };
+
+    ws.onmessage = function (ev) {
+      if (typeof ev.data === "string") {
+        try {
+          var msg = JSON.parse(ev.data);
+          if (msg.type === "mse") {
+            if (typeof MediaSource === "undefined" || !MediaSource.isTypeSupported(msg.value)) {
+              console.warn("[Seedy] MSE codec not supported:", msg.value, "— fallback to snapshots");
+              ws.close();
+              _fallbackToSnapshot(wrap, streamName);
+              return;
+            }
+            ms = new MediaSource();
+            video.src = URL.createObjectURL(ms);
+            ms.addEventListener("sourceopen", function () {
+              try {
+                sb = ms.addSourceBuffer(msg.value);
+                sb.mode = "segments";
+                sb.addEventListener("updateend", appendNext);
+              } catch (e) {
+                console.warn("[Seedy] SourceBuffer error:", e);
+                ws.close();
+                _fallbackToSnapshot(wrap, streamName);
+              }
+            });
+            video.play().catch(function () {});
+          }
+        } catch (e) { /* ignore parse errors */ }
+      } else {
+        queue.push(ev.data);
+        appendNext();
+      }
+    };
+
+    ws.onerror = function () {
+      _fallbackToSnapshot(wrap, streamName);
+    };
+    ws.onclose = function () {};
+
+    _mseMap.set(wrap, { ws: ws, ms: ms, stream: streamName });
+  }
+
+  function _stopMSE(wrap) {
+    var session = _mseMap.get(wrap);
+    if (!session) return;
+    try { session.ws.close(); } catch (e) {}
+    var video = wrap.querySelector("video");
+    if (video) {
+      if (video.src && video.src.startsWith("blob:")) URL.revokeObjectURL(video.src);
+      video.src = "";
+      video.load();
+    }
+    _mseMap.delete(wrap);
+  }
+
+  function _fallbackToSnapshot(wrap, streamName) {
+    wrap.dataset._mseFailed = "1";
+    var video = wrap.querySelector("video");
+    var img = wrap.querySelector("img");
+    if (video) video.style.display = "none";
+    if (img) {
+      img.style.display = "";
+      _snapshotFallback(img, streamName, parseInt(wrap.dataset.gallineroId), null);
+    }
+  }
+
+  // ── Refresh / start MSE ──
   function refreshSnapshot(wrap, gallineroId) {
     const img = wrap.querySelector("img");
-    if (!img) return;
+    const video = wrap.querySelector("video");
     const mode = wrap.dataset.mode || "live";
     const cam = CAMERA_MAP[gallineroId];
     if (!cam) return;
-    // Check for active stream override from camera selector
     const container = wrap.parentElement;
     const activeStream = (container && container.dataset.activeStream) || cam.stream;
     const ts = Date.now();
 
-    // Stop any MJPEG stream when switching modes
-    if (img.src.includes("/mjpeg")) {
-      img.src = "";
-    }
-
     if (mode === "live") {
-      // Snapshot mode: fast frame refresh (works through Cloudflare tunnel)
-      const url = `${SEEDY_API}/ovosfera/camera/${gallineroId}/snapshot?_t=${ts}`;
-      const tempImg = new Image();
-      tempImg.onload = () => {
-        if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
-        img.src = tempImg.src;
-        img.classList.remove("loading");
-      };
-      tempImg.onerror = () => img.classList.remove("loading");
-      tempImg.src = url;
-      // Update badge
+      // MSE WebSocket streaming (H.264 via ffmpeg, real-time)
+      var currentMSE = _mseMap.get(wrap);
+      if (!currentMSE || currentMSE.stream !== activeStream) {
+        if (wrap.dataset._mseFailed !== "1") {
+          _startMSE(wrap, activeStream);
+        } else {
+          // MSE failed, use snapshot fallback
+          if (video) video.style.display = "none";
+          if (img) { img.style.display = ""; _snapshotFallback(img, activeStream, gallineroId, cam); }
+        }
+      }
       const badge = wrap.querySelector(".seedy-cam-badge");
       if (badge) badge.innerHTML = `<span class="live">● LIVE</span><span>📷 ${cam.name}</span>`;
       return;
     }
 
+    // Not live → stop MSE, show img
+    _stopMSE(wrap);
+    delete wrap.dataset._mseFailed;
+    if (video) video.style.display = "none";
+    if (img) img.style.display = "";
     img.classList.add("loading");
 
     if (mode === "yolo") {
-      // YOLO-only: fast GET endpoint (~50ms inference)
       const url = `${SEEDY_API}/vision/identify/snapshot/${activeStream}/yolo?_t=${ts}`;
       fetch(url)
         .then((r) => {
@@ -632,7 +739,6 @@
         })
         .catch(() => img.classList.remove("loading"));
     } else if (mode === "annotated") {
-      // Full IA: POST (YOLO + Gemini, slower)
       fetch(`${SEEDY_API}/vision/identify/snapshot/${activeStream}/annotated?_t=${ts}`, {
         method: "POST",
       })
@@ -651,6 +757,19 @@
         })
         .catch(() => img.classList.remove("loading"));
     }
+  }
+
+  // Fallback: snapshot polling
+  function _snapshotFallback(img, streamName, gallineroId, cam) {
+    const url = `${SEEDY_API}/ovosfera/stream/${streamName}/snapshot?_t=${Date.now()}`;
+    const tempImg = new Image();
+    tempImg.onload = () => {
+      if (img.src.startsWith("blob:")) URL.revokeObjectURL(img.src);
+      img.src = tempImg.src;
+      img.classList.remove("loading");
+    };
+    tempImg.onerror = () => img.classList.remove("loading");
+    tempImg.src = url;
   }
 
   // ── Fullscreen overlay ──
@@ -706,12 +825,18 @@
         const gid = parseInt(wrap.dataset.gallineroId, 10);
         if (!gid) return;
         const mode = wrap.dataset.mode || "live";
-        // Live: refresh every 2s (snapshot), YOLO: every 4s, IA: every 30s
-        if (mode === "live" || mode === "yolo") {
+        // Live MSE: only poll if MSE failed and using snapshot fallback
+        if (mode === "live" && wrap.dataset._mseFailed === "1") {
+          const cam = CAMERA_MAP[gid];
+          const container = wrap.parentElement;
+          const activeStream = (container && container.dataset.activeStream) || (cam && cam.stream);
+          const img = wrap.querySelector("img");
+          if (activeStream && img) _snapshotFallback(img, activeStream, gid, cam);
+        } else if (mode === "yolo") {
           refreshSnapshot(wrap, gid);
         }
       });
-    }, 2000); // 2s base interval for live, YOLO checked inside
+    }, 2000);
 
     // Slower loop for IA annotated
     setInterval(() => {

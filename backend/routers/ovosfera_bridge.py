@@ -16,7 +16,7 @@ import re
 from datetime import datetime
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, WebSocket
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,14 @@ GALLINERO_CAMERAS = {
         "name": "Gallinero Durrif II",
         "camera": "TP-Link VIGI C340 4K",
     },
+}
+
+# Streams permitidos (whitelist para endpoints basados en nombre de stream)
+ALLOWED_STREAMS = {
+    "gallinero_durrif_1", "gallinero_durrif_1_sub",
+    "gallinero_durrif_2", "gallinero_durrif_2_sub",
+    "sauna_durrif_1", "sauna_durrif_1_sub",
+    "gallinero_durrif_1_web", "gallinero_durrif_2_web", "sauna_durrif_1_web",
 }
 
 
@@ -167,6 +175,118 @@ async def webrtc_offer(gallinero_id: int, request: Request):
             )
     except Exception as e:
         raise HTTPException(503, f"WebRTC signaling failed: {e}")
+
+
+# ── Stream-based endpoints (por nombre de stream, no gallinero) ──
+
+def _validate_stream(stream_name: str):
+    if stream_name not in ALLOWED_STREAMS:
+        raise HTTPException(404, f"Stream '{stream_name}' no disponible")
+
+
+@router.get("/stream/{stream_name}/snapshot")
+async def stream_snapshot(stream_name: str):
+    """JPEG frame de alta resolución desde go2rtc (main stream)."""
+    _validate_stream(stream_name)
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{GO2RTC_URL}/api/frame.jpeg?src={stream_name}")
+            if resp.status_code == 200 and len(resp.content) > 1000:
+                return Response(
+                    content=resp.content,
+                    media_type="image/jpeg",
+                    headers={"Cache-Control": "no-cache, no-store"},
+                )
+    except Exception as e:
+        logger.warning(f"Stream snapshot failed for {stream_name}: {e}")
+    raise HTTPException(503, "No se pudo capturar frame")
+
+
+@router.get("/stream/{stream_name}/mjpeg")
+async def stream_mjpeg(stream_name: str):
+    """MJPEG live stream proxy desde go2rtc — vídeo fluido en cualquier navegador."""
+    _validate_stream(stream_name)
+    # Usar substream si existe (menor ancho de banda para navegador)
+    sub = stream_name + "_sub" if not stream_name.endswith("_sub") else stream_name
+    actual = sub if sub in ALLOWED_STREAMS else stream_name
+
+    async def mjpeg_gen():
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                async with client.stream(
+                    "GET",
+                    f"{GO2RTC_URL}/api/stream.mjpeg?src={actual}",
+                ) as resp:
+                    async for chunk in resp.aiter_bytes(chunk_size=65536):
+                        yield chunk
+        except Exception as e:
+            logger.debug(f"MJPEG stream ended for {stream_name}: {e}")
+
+    return StreamingResponse(
+        mjpeg_gen(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.websocket("/stream/{stream_name}/mse")
+async def stream_mse_proxy(websocket: WebSocket, stream_name: str):
+    """WebSocket proxy: go2rtc MSE stream para vídeo real-time en navegador.
+
+    Protocolo:
+    1. Cliente envía {"type":"mse"} para iniciar
+    2. Servidor devuelve codec info + fragmentos mp4 binarios
+    """
+    import asyncio
+    import websockets as ws_lib
+
+    if stream_name not in ALLOWED_STREAMS:
+        await websocket.close(code=4404)
+        return
+
+    await websocket.accept()
+    go2rtc_ws = GO2RTC_URL.replace("http://", "ws://").replace("https://", "wss://")
+    url = f"{go2rtc_ws}/api/ws?src={stream_name}"
+
+    try:
+        async with ws_lib.connect(url) as upstream:
+            async def client_to_upstream():
+                try:
+                    while True:
+                        msg = await websocket.receive()
+                        if msg.get("type") == "websocket.disconnect":
+                            break
+                        if "text" in msg:
+                            await upstream.send(msg["text"])
+                        elif "bytes" in msg and msg["bytes"]:
+                            await upstream.send(msg["bytes"])
+                except Exception:
+                    pass
+
+            async def upstream_to_client():
+                try:
+                    async for msg in upstream:
+                        if isinstance(msg, bytes):
+                            await websocket.send_bytes(msg)
+                        else:
+                            await websocket.send_text(msg)
+                except Exception:
+                    pass
+
+            tasks = [
+                asyncio.create_task(client_to_upstream()),
+                asyncio.create_task(upstream_to_client()),
+            ]
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for t in pending:
+                t.cancel()
+    except Exception as e:
+        logger.debug(f"MSE proxy error for {stream_name}: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
 
 
 # ── Sincronización aves: Seedy vision → OvoSfera ──

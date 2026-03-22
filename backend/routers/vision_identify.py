@@ -52,6 +52,16 @@ CAMERAS = {
         "yolo_imgsz": 1280,
         "use_tiled": False,
     },
+    "sauna_durrif_1": {
+        "stream": "sauna_durrif_1",
+        "stream_sub": "sauna_durrif_1_sub",
+        "snapshot_url": "http://10.10.10.108/cgi-bin/snapshot.cgi",
+        "snapshot_auth": ("admin", "1234567a"),
+        "name": "Sauna Durrif I (Dahua)",
+        "distant": False,
+        "yolo_imgsz": 1280,
+        "use_tiled": False,
+    },
 }
 
 # Prompt especializado para identificar aves individuales
@@ -230,7 +240,9 @@ _FALLBACK_BREEDS = {
 }
 
 
-async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_url: str = "", force_hires: bool = False) -> bytes | None:
+async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_url: str = "",
+                         snapshot_auth: tuple[str, str] = ("admin", "123456"),
+                         force_hires: bool = False) -> bytes | None:
     """Captura un frame JPEG.
 
     Estrategia:
@@ -256,7 +268,7 @@ async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_
     if snapshot_url:
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get(snapshot_url, auth=httpx.BasicAuth("admin", "123456"))
+                resp = await client.get(snapshot_url, auth=httpx.BasicAuth(*snapshot_auth))
                 if resp.status_code == 200 and len(resp.content) > 1000:
                     return resp.content
         except Exception:
@@ -275,6 +287,17 @@ async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_
     except Exception as e:
         logger.debug(f"Frame capture failed ({stream_key}): {e}")
     return None
+
+
+async def _capture_from_cam(cam: dict, *, use_sub: bool = False, force_hires: bool = False) -> bytes | None:
+    """Helper: captura frame usando la config completa de la cámara."""
+    return await _capture_frame(
+        cam["stream"],
+        use_sub=use_sub,
+        snapshot_url=cam.get("snapshot_url", ""),
+        snapshot_auth=tuple(cam.get("snapshot_auth", ("admin", "123456"))),
+        force_hires=force_hires,
+    )
 
 
 def _detect_with_yolo(frame_bytes: bytes, *, imgsz: int | None = None, use_tiled: bool = False) -> dict | None:
@@ -1105,10 +1128,11 @@ async def _identification_loop():
             # CGI directo para todos los ciclos (~100ms); fallback go2rtc
             # Cámaras lejanas: siempre stream principal (4K) para no perder resolución
             snap_url = cam_config.get("snapshot_url", "")
+            snap_auth = tuple(cam_config.get("snapshot_auth", ("admin", "123456")))
             if is_full_cycle or is_distant:
-                frame = await _capture_frame(cam_config["stream"], snapshot_url=snap_url)
+                frame = await _capture_frame(cam_config["stream"], snapshot_url=snap_url, snapshot_auth=snap_auth)
             else:
-                frame = await _capture_frame(cam_config["stream"], use_sub=True, snapshot_url=snap_url)
+                frame = await _capture_frame(cam_config["stream"], use_sub=True, snapshot_url=snap_url, snapshot_auth=snap_auth)
             if not frame:
                 continue
 
