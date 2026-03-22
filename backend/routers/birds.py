@@ -184,8 +184,8 @@ async def record_sighting(bird_id: str, confidence: float = 0.0, photo_b64: str 
             bird["last_seen"] = datetime.now(timezone.utc).isoformat()
             if confidence > bird.get("confidence", 0):
                 bird["confidence"] = confidence
-            if photo_b64 and confidence > bird.get("confidence", 0):
-                bird["photo_b64"] = photo_b64
+                if photo_b64:
+                    bird["photo_b64"] = photo_b64
             _save_registry()
             return {"status": "ok", "bird_id": bird_id}
     raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")

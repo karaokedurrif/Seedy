@@ -63,8 +63,8 @@ Para CADA ave que veas, devuelve EXACTAMENTE un bloque JSON con:
 {
   "birds": [
     {
-      "breed": "nombre de la raza (Sussex, Bresse, Marans, Orpington, Araucana, Sulmtaler, Andaluza Azul, Pita Pinta, Vorwerk, Castellana Negra, Cruce F1)",
-      "color": "color principal del plumaje en español (blanco, negro, silver, dorado, azul, pardo, rojo, barrado, negro cobrizo, leonado, etc.)",
+      "breed": "nombre de la raza",
+      "color": "color principal del plumaje en español",
       "sex": "male" o "female" o "unknown",
       "confidence": 0.0-1.0,
       "bbox": [x1, y1, x2, y2],
@@ -75,14 +75,30 @@ Para CADA ave que veas, devuelve EXACTAMENTE un bloque JSON con:
   "conditions": "breve descripción del gallinero (luz, actividad)"
 }
 
+RAZAS POSIBLES EN ESTA CABAÑA (solo estas, no inventes otras):
+- Sussex White (armiñada): blanca con RAYAS NEGRAS en cuello (armiñado). NO es igual a Bresse.
+- Sussex Light (Silver): plateada con marcas negras. Gallo grande (4.5kg).
+- Bresse: completamente blanca, SIN rayas en cuello, más pequeña (2kg), patas GRIS AZULADO.
+- Marans: negro cobrizo, reflejos cobrizos en cuello.
+- Araucana: trigueña o negra. Sin cola (rumpless). Huevos azules/verdes.
+- Ameraucana: trigueña, similar a araucana pero con cola.
+- Sulmtaler: trigueño/atigrado (Weizenfarbig). Cresta pequeña, porte elegante.
+- Andaluza Azul: gris azulado uniforme, cresta grande simple.
+- Pita Pinta Asturiana: blanca con muchos puntos/motas negros distribuidos (pinta).
+- Vorwerk: cuerpo leonado/dorado, cuello y cola NEGROS.
+- Cruce F1: fenotipo mixto, color variado.
+
+CLAVES PARA NO CONFUNDIR:
+- Sussex White vs Bresse: Sussex tiene rayas negras en cuello (armiñada), Bresse es blanca pura con patas azuladas.
+- Pita Pinta vs Sussex White: Pita Pinta tiene motas/puntos negros distribuidos por todo el cuerpo (no solo cuello).
+- Vorwerk vs Sulmtaler: Vorwerk tiene cuello/cola negro con cuerpo dorado. Sulmtaler es trigueño atigrado sin contraste tan marcado.
+
 REGLAS:
-- Sé específico con la raza. Si hay varias aves parecidas de la misma raza, lístalas por separado.
-- El campo 'color' es OBLIGATORIO: describe el color/variedad real del plumaje (blanco, negro, silver, dorado, azul, barrado, etc.).
-  Ejemplos: Sussex blanco, Sussex silver (plateado), Marans negro cobrizo, Orpington leonado.
-- bbox: coordenadas normalizadas [0.0-1.0] de la caja que encierra al ave [esquina_sup_izq_x, esquina_sup_izq_y, esquina_inf_der_x, esquina_inf_der_y]. Estima la posición lo mejor posible.
-- Si el sexo es evidente (cresta grande, espolones, cola larga = male; más pequeña y redonda = female), indícalo.
-- Confianza: 0.9+ si la raza es evidente, 0.5-0.8 si razonable, <0.5 si dudosa.
-- Si hay aves pero no se distingue la raza, pon "breed": "Desconocida".
+- El campo 'color' es OBLIGATORIO.
+- bbox: coordenadas normalizadas [0.0-1.0] [x1_sup_izq, y1_sup_izq, x2_inf_der, y2_inf_der].
+- Si el sexo es evidente (cresta grande, cola larga = male; más pequeña = female), indícalo.
+- Confianza: 0.9+ si evidente, 0.5-0.8 si razonable, <0.5 si dudosa.
+- Si no se distingue la raza, pon "breed": "Desconocida".
 - Responde SOLO con el JSON, sin texto adicional."""
 
 # Abreviaturas de color para generar ai_vision_id compactos
@@ -131,10 +147,87 @@ def _build_vision_id(breed: str, color: str, seq: int) -> str:
     color_slug = _COLOR_ABBREV.get(color_low, color_low.split()[0][:4] if color_low else "x")
     return f"{breed_slug}{color_slug}{seq}"
 
+
+# ── OvoSfera breed/color matching ──
+
+_BREED_OVOSFERA_ALIASES = {
+    "f1 (cruce)": ["cruce f1", "cruce", "f1"],
+    "cruce f1": ["f1 (cruce)", "cruce", "f1"],
+    "cruce": ["cruce f1", "f1 (cruce)"],
+    "pita pinta": ["pita pinta asturiana"],
+    "pita pinta asturiana": ["pita pinta"],
+}
+
+_COLOR_OVOSFERA_ALIASES = {
+    "silver": ["light (silver)", "plateado", "plateada"],
+    "dorado": ["gold-black", "gold", "dorada"],
+    "blanco": ["white", "blanca"],
+    "negro cobrizo": ["black copper", "negra cobriza"],
+    "trigueño": ["wheaten (weizenfarbig)", "wheaten", "trigueña"],
+    "variado": ["varied", "variada"],
+    "azul": ["blue"],
+    "negro": ["negra", "black"],
+    "pinta": ["mottled"],
+    # reverse mappings (OvoSfera → census)
+    "light (silver)": ["silver", "plateado"],
+    "gold-black": ["dorado", "gold"],
+    "white": ["blanco", "blanca"],
+    "black copper": ["negro cobrizo"],
+    "wheaten (weizenfarbig)": ["trigueño", "wheaten"],
+}
+
+
+def _match_breed_ovosfera(seedy_breed: str, ovo_breed: str) -> bool:
+    """Check if Seedy breed matches OvoSfera breed (handles aliases)."""
+    a = seedy_breed.lower().strip()
+    b = ovo_breed.lower().strip()
+    if a == b:
+        return True
+    if a in b or b in a:
+        return True
+    return b in _BREED_OVOSFERA_ALIASES.get(a, [])
+
+
+def _match_color_ovosfera(seedy_color: str, ovo_color: str) -> bool:
+    """Check if Seedy color matches OvoSfera color (handles aliases)."""
+    a = seedy_color.lower().strip()
+    b = ovo_color.lower().strip()
+    if a == b:
+        return True
+    if a in b or b in a:
+        return True
+    return b in _COLOR_OVOSFERA_ALIASES.get(a, [])
+
+
 # Estado del loop
 _running = False
 _last_results: dict[str, dict] = {}
 _task: asyncio.Task | None = None
+
+# ── Breed YOLO → Census mapping ──
+# Mapea clase del modelo de razas a (breed, color, sex) del censo
+_BREED_YOLO_TO_CENSUS = {
+    "vorwerk_gallina":         ("Vorwerk",        "dorado",        "female"),
+    "vorwerk_gallo":           ("Vorwerk",        "dorado",        "male"),
+    "sussex_silver_gallina":   ("Sussex",         "silver",        "female"),
+    "sussex_silver_gallo":     ("Sussex",         "silver",        "male"),
+    "sussex_white_gallina":    ("Sussex",         "white",         "female"),
+    "sulmtaler_gallina":       ("Sulmtaler",      "trigueño",      "female"),
+    "sulmtaler_gallo":         ("Sulmtaler",      "trigueño",      "male"),
+    "marans_gallina":          ("Marans",         "negro cobrizo", "female"),
+    "bresse_gallina":          ("Bresse",         "blanco",        "female"),
+    "bresse_gallo":            ("Bresse",         "blanco",        "male"),
+    "andaluza_azul_gallina":   ("Andaluza Azul",  "azul",          "female"),
+    "pita_pinta_gallina":      ("Pita Pinta",     "pinta",         "female"),
+    "araucana_gallina":        ("Araucana",       "trigueño",      "female"),
+    "ameraucana_gallina":      ("Ameraucana",     "trigueño",      "female"),
+}
+
+# Razas que NO están en YOLO → se detectan por descarte del censo
+_FALLBACK_BREEDS = {
+    "F1 (cruce)":       {"color": "variado",   "sexo": "female"},
+    "Araucana (negra)": {"color": "negra",     "sexo": "female"},
+}
 
 
 async def _capture_frame(camera_stream: str, *, use_sub: bool = False, snapshot_url: str = "", force_hires: bool = False) -> bytes | None:
@@ -249,14 +342,15 @@ async def _identify_breeds_gemini(frame_bytes: bytes, gallinero_id: str = "") ->
 
 
 async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "", *, imgsz: int | None = None, use_tiled: bool = False, force_gemini: bool = False) -> dict | None:
-    """Análisis híbrido: YOLO (detección rápida) + Gemini (raza, solo si necesario).
+    """Análisis híbrido: YOLO COCO + Breed YOLO + fallback censo + Gemini.
 
-    Args:
-        imgsz: Resolución YOLO (para cámaras lejanas).
-        use_tiled: Usar detección SAHI por tiles.
-        force_gemini: Ejecutar Gemini incluso si YOLO no detecta nada (para cámaras lejanas).
+    Pipeline:
+      1) YOLO COCO: detección rápida (conteo + bboxes)
+      2) Breed YOLO: clasifica raza de cada ave por crop
+      3) Aves sin breed → fallback por censo (araucana, F1 por descarte)
+      4) Gemini: solo si quedan aves sin identificar o force_gemini
     """
-    # 1) YOLO: detección local (~50ms)
+    # 1) YOLO COCO: detección local (~50ms)
     yolo_result = _detect_with_yolo(frame_bytes, imgsz=imgsz, use_tiled=use_tiled)
     yolo_count = yolo_result["count"] if yolo_result else 0
 
@@ -276,15 +370,57 @@ async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "", *, imgsz: i
         except Exception as e:
             logger.debug(f"Training data save failed: {e}")
 
-    # 3) Gemini: si YOLO detectó aves, o si force_gemini (cámaras lejanas)
+    # 3) Breed YOLO: clasificar raza de cada ave por crop
+    breed_result = None
+    if yolo_count > 0:
+        breed_result = _classify_breeds_yolo(frame_bytes, yolo_result)
+
+    # 4) Si breed YOLO resolvió todas las aves → devolver sin Gemini
+    if breed_result and not force_gemini:
+        identified = [b for b in breed_result if b.get("breed") != "Desconocida"]
+        # Intentar resolver las desconocidas por censo (araucana, F1)
+        if len(identified) < len(breed_result) and gallinero_id:
+            breed_result = _resolve_unknown_by_census(gallinero_id, breed_result)
+            identified = [b for b in breed_result if b.get("breed") != "Desconocida"]
+
+        if len(identified) == len(breed_result):
+            logger.info(
+                f"[Breed YOLO] Todas las aves identificadas sin Gemini: "
+                f"{len(identified)} aves"
+            )
+            return {
+                "birds": breed_result,
+                "total_visible": yolo_count,
+                "conditions": f"Breed YOLO ({yolo_result['inference_ms']:.0f}ms)",
+                "engine": "yolo_breed",
+            }
+
+    # 5) Gemini: si quedan aves sin identificar, o force_gemini
     if yolo_count > 0 or force_gemini:
         gemini_result = await _identify_breeds_gemini(frame_bytes, gallinero_id)
         if gemini_result:
             # Enriquecer con datos YOLO (bboxes más precisos)
             _merge_yolo_gemini(yolo_result, gemini_result)
+
+            # Enriquecer Gemini con breed YOLO donde coincida
+            if breed_result:
+                _merge_breed_yolo_into_gemini(breed_result, gemini_result)
+
+            # Validar contra censo: corregir razas que no existen en la cabaña
+            if gallinero_id:
+                _validate_breeds_against_census(gallinero_id, gemini_result)
+
             return gemini_result
 
-    # Sin aves detectadas por YOLO, o Gemini falló → devolver resultado YOLO básico
+    # Sin aves detectadas por YOLO, o Gemini falló → devolver breed YOLO parcial o YOLO básico
+    if breed_result:
+        return {
+            "birds": breed_result,
+            "total_visible": yolo_count,
+            "conditions": f"Breed YOLO parcial ({yolo_result['inference_ms']:.0f}ms)",
+            "engine": "yolo_breed_partial",
+        }
+
     if yolo_result and yolo_count > 0:
         return {
             "birds": [
@@ -304,6 +440,233 @@ async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "", *, imgsz: i
         }
 
     return None
+
+
+def _classify_breeds_yolo(frame_bytes: bytes, yolo_result: dict) -> list[dict] | None:
+    """Clasifica la raza de cada ave detectada por COCO YOLO usando el modelo de razas.
+
+    Para cada detección de COCO YOLO:
+    1. Crop la zona del ave del frame
+    2. Ejecutar breed YOLO sobre el crop
+    3. Mapear clase breed → (breed, color, sex) del censo
+
+    Returns list of bird dicts compatible con el formato Gemini, o None si no hay breed model.
+    """
+    try:
+        from services.yolo_detector import classify_breed_crop, crop_detections, get_breed_model
+    except ImportError:
+        return None
+
+    if get_breed_model() is None:
+        return None
+
+    poultry = [d for d in yolo_result.get("detections", []) if d.get("category") == "poultry"]
+    if not poultry:
+        return None
+
+    crops = crop_detections(frame_bytes, poultry)
+    if not crops:
+        return None
+
+    birds = []
+    for det, crop_bytes in zip(poultry, crops):
+        breed_pred = classify_breed_crop(crop_bytes)
+
+        if breed_pred and breed_pred["confidence"] >= 0.45:
+            breed_class = breed_pred["breed_class"]
+            census_info = _BREED_YOLO_TO_CENSUS.get(breed_class)
+            if census_info:
+                breed, color, sex = census_info
+                birds.append({
+                    "breed": breed,
+                    "color": color,
+                    "sex": sex,
+                    "confidence": breed_pred["confidence"],
+                    "bbox": det["bbox_norm"],
+                    "distinguishing_features": f"Breed YOLO: {breed_class} ({breed_pred['confidence']:.0%})",
+                    "engine": "yolo_breed",
+                })
+                continue
+
+        # Breed YOLO no pudo clasificar → marcar como Desconocida
+        birds.append({
+            "breed": "Desconocida",
+            "color": "",
+            "sex": "unknown",
+            "confidence": det["confidence"],
+            "bbox": det["bbox_norm"],
+            "distinguishing_features": "Breed YOLO: sin match suficiente",
+            "engine": "yolo_breed_unknown",
+        })
+
+    return birds if birds else None
+
+
+def _resolve_unknown_by_census(gallinero_id: str, birds: list[dict]) -> list[dict]:
+    """Resuelve aves 'Desconocida' cruzando con el censo de la cabaña.
+
+    Si YOLO identificó N aves de razas conocidas, las que quedan sin identificar
+    se asignan por descarte a las razas del censo que no tienen match YOLO
+    (araucana, F1). Se usan las cantidades esperadas del censo.
+    """
+    try:
+        from services.flock_census import get_expected_breeds
+    except ImportError:
+        return birds
+
+    census = get_expected_breeds(gallinero_id)
+    if not census:
+        return birds
+
+    # Contar cuántas de cada raza ya identificó breed YOLO
+    from collections import Counter
+    identified_counts: Counter = Counter()
+    for b in birds:
+        if b["breed"] != "Desconocida":
+            key = (b["breed"].lower(), b["sex"])
+            identified_counts[key] += 1
+
+    # Calcular qué razas del censo NO están cubiertas por breed YOLO
+    unmatched_census = []  # [(breed, color, sex, remaining_count)]
+    for entry in census:
+        raza = entry["raza"]
+        if raza == "Por determinar":
+            continue
+        color = entry["color"]
+        sexo = entry["sexo"]
+        cantidad = entry.get("cantidad", 0)
+
+        # ¿Cuántas de esta raza ya identificó YOLO?
+        key = (raza.lower(), sexo)
+        already = identified_counts.get(key, 0)
+        remaining = max(0, cantidad - already)
+
+        if remaining > 0 and raza in _FALLBACK_BREEDS:
+            for _ in range(remaining):
+                unmatched_census.append((raza, color, sexo))
+
+    # Asignar las desconocidas a las razas unmatched del censo
+    unknown_indices = [i for i, b in enumerate(birds) if b["breed"] == "Desconocida"]
+
+    for idx, unk_i in enumerate(unknown_indices):
+        if idx < len(unmatched_census):
+            raza, color, sexo = unmatched_census[idx]
+            birds[unk_i]["breed"] = raza
+            birds[unk_i]["color"] = color
+            birds[unk_i]["sex"] = sexo
+            birds[unk_i]["distinguishing_features"] = (
+                f"Asignada por descarte del censo ({raza} {color})"
+            )
+            birds[unk_i]["engine"] = "census_fallback"
+
+    return birds
+
+
+def _merge_breed_yolo_into_gemini(breed_birds: list[dict], gemini_result: dict):
+    """Si breed YOLO tiene alta confianza para un ave, sobrescribe la predicción de Gemini."""
+    gemini_birds = gemini_result.get("birds", [])
+    if not gemini_birds or not breed_birds:
+        return
+
+    # Emparejar por bbox overlap (IoU)
+    for bb in breed_birds:
+        if bb.get("engine") != "yolo_breed" or bb["confidence"] < 0.6:
+            continue
+        bb_bbox = bb.get("bbox", [])
+        if len(bb_bbox) != 4:
+            continue
+
+        best_iou = 0
+        best_gb = None
+        for gb in gemini_birds:
+            gb_bbox = gb.get("bbox", [])
+            if len(gb_bbox) != 4:
+                continue
+            iou = _bbox_iou(bb_bbox, gb_bbox)
+            if iou > best_iou:
+                best_iou = iou
+                best_gb = gb
+
+        if best_gb and best_iou > 0.3:
+            # Breed YOLO tiene mayor confianza → sobrescribir
+            if bb["confidence"] > best_gb.get("confidence", 0):
+                best_gb["breed"] = bb["breed"]
+                best_gb["color"] = bb["color"]
+                best_gb["sex"] = bb["sex"]
+                best_gb["confidence"] = bb["confidence"]
+                best_gb["engine"] = "yolo_breed+gemini"
+
+
+def _bbox_iou(a: list[float], b: list[float]) -> float:
+    """IoU entre dos bboxes normalizados [x1,y1,x2,y2]."""
+    x1 = max(a[0], b[0]); y1 = max(a[1], b[1])
+    x2 = min(a[2], b[2]); y2 = min(a[3], b[3])
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0
+
+
+def _validate_breeds_against_census(gallinero_id: str, gemini_result: dict):
+    """Valida las razas identificadas por Gemini contra el censo de la cabaña.
+
+    Si Gemini identifica una raza que no existe en la cabaña, se marca como
+    Desconocida (para no introducir errores en el registro).
+    También corrige nombres cercanos (typos).
+    """
+    try:
+        from services.flock_census import get_all_breeds, get_canonical_breed_name
+    except ImportError:
+        return
+
+    valid_breeds = get_all_breeds()  # set de nombres de raza en lowercase
+    if not valid_breeds:
+        return
+
+    for bird in gemini_result.get("birds", []):
+        breed = bird.get("breed", "")
+        if not breed or breed == "Desconocida":
+            continue
+
+        breed_low = breed.strip().lower()
+
+        # Exact match → ok
+        if breed_low in valid_breeds:
+            continue
+
+        # Partial match: "Sussex Silver" contains "sussex" which is in census
+        partial = None
+        for vb in valid_breeds:
+            if vb in breed_low or breed_low in vb:
+                partial = vb
+                break
+
+        if partial:
+            # Gemini dijo algo más específico que el censo (ej "Sussex Silver" vs "Sussex")
+            # Aceptar como válido, mantener el nombre de Gemini (más específico)
+            continue
+
+        # Fuzzy match (typos)
+        match = None
+        for vb in valid_breeds:
+            if _fuzzy_match(breed_low, vb):
+                match = vb
+                break
+
+        if match:
+            # Corregir al nombre canónico del censo
+            corrected = get_canonical_breed_name(match)
+            logger.debug(f"Census correction: '{breed}' → '{corrected}'")
+            bird["breed"] = corrected
+        else:
+            logger.info(f"[Census] Raza '{breed}' no existe en la cabaña — marcada como Desconocida")
+            bird["breed"] = "Desconocida"
+            bird["confidence"] = min(bird.get("confidence", 0.5), 0.3)
+            bird["distinguishing_features"] = (
+                bird.get("distinguishing_features", "") +
+                f" (Gemini dijo: {breed}, no en censo)"
+            )
 
 
 def _merge_yolo_gemini(yolo_result: dict, gemini_result: dict):
@@ -374,14 +737,18 @@ _STREAM_TO_GALLINERO_ID = {
 }
 
 
-async def _sync_vision_id_to_ovosfera(vision_id: str, breed: str, gallinero_stream: str):
-    """Sincroniza ai_vision_id y gallinero a OvoSfera.
+async def _sync_vision_id_to_ovosfera(
+    vision_id: str, breed: str, color: str, sex: str,
+    gallinero_stream: str, photo_b64: str | None = None,
+):
+    """Sincroniza ai_vision_id, gallinero y foto a OvoSfera.
 
-    Busca un ave de la misma raza sin ai_vision_id asignado,
-    le escribe el vision_id y la asigna al gallinero correcto.
+    Matching: breed (con aliases) + sex. Color como desempate.
+    Foto: sube el crop como data URI si disponible.
+    Gallinero: asigna el nombre (String, no FK).
     """
-    gallinero_name = _STREAM_TO_GALLINERO_NAME.get(gallinero_stream, gallinero_stream)
-    gallinero_ovo_id = _STREAM_TO_GALLINERO_ID.get(gallinero_stream)
+    gallinero_name = _STREAM_TO_GALLINERO_NAME.get(gallinero_stream, "")
+    sex_ovo = "M" if sex == "male" else "H"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves")
@@ -389,36 +756,80 @@ async def _sync_vision_id_to_ovosfera(vision_id: str, breed: str, gallinero_stre
                 return
             aves = resp.json()
 
-            # Primero: ¿ya existe un ave con ESTE vision_id? → ya sincronizada
-            if any(a.get("ai_vision_id") == vision_id for a in aves):
+            # ¿Ya sincronizado? → solo upgradeear foto si falta
+            existing = next((a for a in aves if a.get("ai_vision_id") == vision_id), None)
+            if existing:
+                if photo_b64 and not existing.get("foto"):
+                    await client.put(
+                        f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{existing['id']}",
+                        json={"foto": f"data:image/jpeg;base64,{photo_b64}"},
+                    )
+                    logger.info(f"📸 Photo uploaded for {vision_id} → OvoSfera ave {existing['id']}")
                 return
 
-            # Buscar ave de misma raza sin ai_vision_id (sin importar gallinero,
-            # porque empiezan todas "sin asignar")
+            # Buscar candidatas: match breed + sex, sin ai_vision_id
             candidates = [
                 a for a in aves
-                if a.get("raza", "").lower() == breed.lower()
+                if _match_breed_ovosfera(breed, a.get("raza", ""))
+                and a.get("sexo", "") == sex_ovo
                 and not a.get("ai_vision_id")
             ]
             if not candidates:
-                logger.debug(f"No unassigned OvoSfera ave for breed={breed}")
+                # Fallback: match por breed solo (sin filtro de sex)
+                candidates = [
+                    a for a in aves
+                    if _match_breed_ovosfera(breed, a.get("raza", ""))
+                    and not a.get("ai_vision_id")
+                ]
+
+            if not candidates:
+                logger.debug(f"No unassigned OvoSfera ave for breed={breed} sex={sex_ovo}")
                 return
 
-            ave = candidates[0]
+            # Preferir las que coincidan en color
+            color_match = [
+                a for a in candidates
+                if _match_color_ovosfera(color, a.get("color", ""))
+            ]
+            ave = color_match[0] if color_match else candidates[0]
+
             update_payload = {"ai_vision_id": vision_id}
-            if gallinero_ovo_id:
-                update_payload["gallinero"] = gallinero_ovo_id
+            if gallinero_name:
+                update_payload["gallinero"] = gallinero_name
+            if photo_b64:
+                update_payload["foto"] = f"data:image/jpeg;base64,{photo_b64}"
 
             await client.put(
                 f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{ave['id']}",
                 json=update_payload,
             )
             logger.info(
-                f"Synced '{vision_id}' → OvoSfera ave {ave['id']} ({ave.get('anilla','')}), "
-                f"gallinero={gallinero_name}"
+                f"✅ Synced '{vision_id}' → OvoSfera ave {ave['id']} "
+                f"({ave.get('anilla','')}) raza={ave.get('raza')} "
+                f"gallinero='{gallinero_name}' foto={'SI' if photo_b64 else 'NO'}"
             )
     except Exception as e:
         logger.debug(f"OvoSfera sync failed: {e}")
+
+
+async def _sync_photo_to_ovosfera(vision_id: str, photo_b64: str):
+    """Sube/actualiza foto de un ave ya sincronizada en OvoSfera."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves")
+            if resp.status_code != 200:
+                return
+            aves = resp.json()
+            ave = next((a for a in aves if a.get("ai_vision_id") == vision_id), None)
+            if not ave:
+                return
+            await client.put(
+                f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{ave['id']}",
+                json={"foto": f"data:image/jpeg;base64,{photo_b64}"},
+            )
+            logger.info(f"📸 Photo upgraded: {vision_id} → OvoSfera ave {ave['id']}")
+    except Exception as e:
+        logger.debug(f"Photo sync failed: {e}")
 
 
 def _normalize_to_census(gallinero_id: str, breed: str, color: str, sex: str) -> tuple[str, str, str]:
@@ -477,19 +888,21 @@ def _fuzzy_match(a: str, b: str) -> bool:
     return diffs <= 2
 
 
-def _crop_bird_photo(frame_bytes: bytes, bbox_norm: list[float], padding: float = 0.05) -> str | None:
+def _crop_bird_photo(frame_bytes: bytes, bbox_norm: list[float], padding: float = 0.15,
+                     expected_breed: str = "") -> str | None:
     """Recorta la zona del ave del frame y devuelve JPEG base64.
 
     Args:
         bbox_norm: [x1, y1, x2, y2] normalizadas 0-1
-        padding: margen extra alrededor del bbox (5%)
+        padding: margen extra alrededor del bbox (15% para capturar ave completa)
+        expected_breed: si se indica, valida con breed YOLO que el crop corresponde
     """
     try:
         from PIL import Image
         img = Image.open(io.BytesIO(frame_bytes))
         W, H = img.size
         x1, y1, x2, y2 = bbox_norm
-        # Añadir padding
+        # Añadir padding generoso para capturar ave completa
         pw = (x2 - x1) * padding
         ph = (y2 - y1) * padding
         left = max(0, int((x1 - pw) * W))
@@ -498,6 +911,25 @@ def _crop_bird_photo(frame_bytes: bytes, bbox_norm: list[float], padding: float 
         bottom = min(H, int((y2 + ph) * H))
 
         crop = img.crop((left, top, right, bottom))
+
+        # Validar con breed YOLO si se espera una raza concreta
+        if expected_breed:
+            try:
+                from services.yolo_detector import classify_breed_crop
+                buf_check = io.BytesIO()
+                crop.save(buf_check, format="JPEG", quality=85)
+                breed_pred = classify_breed_crop(buf_check.getvalue())
+                if breed_pred and breed_pred["confidence"] >= 0.35:
+                    predicted = _BREED_YOLO_TO_CENSUS.get(breed_pred["breed_class"], ("", "", ""))[0]
+                    if predicted.lower() != expected_breed.lower():
+                        logger.debug(
+                            f"Photo crop mismatch: expected {expected_breed}, "
+                            f"got {predicted} ({breed_pred['confidence']:.0%}) — skipping"
+                        )
+                        return None
+            except Exception:
+                pass  # Si falla la validación, se usa el crop igualmente
+
         # Resize to max 512px wide keeping aspect
         if crop.width > 512:
             ratio = 512 / crop.width
@@ -531,7 +963,7 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
     1. Normalizar breed/color al censo si coincide (evitar "Marrans" vs "Marans")
     2. Respetar cuotas: si el censo dice 5 Sussex blancas, nunca registrar más de 5
     3. Crop individual de cada ave (usando bbox de Gemini/YOLO)
-    4. Sincronizar con OvoSfera
+    4. Sincronizar con OvoSfera (ai_vision_id, gallinero, foto)
     """
     import httpx
     from collections import Counter
@@ -539,6 +971,7 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
     # Contar cuántas aves de cada (breed, color, sex) ha detectado Gemini
     seen_counts: Counter[tuple[str, str, str]] = Counter()
     bird_bboxes: dict[tuple[str, str, str], list] = {}  # acumular bboxes por grupo
+    bird_confs: dict[tuple[str, str, str], list] = {}   # confianza por grupo
     for bird in detected:
         breed = bird.get("breed", "Desconocida")
         color = bird.get("color", "")
@@ -552,7 +985,9 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
         seen_counts[key] += 1
         if key not in bird_bboxes:
             bird_bboxes[key] = []
+            bird_confs[key] = []
         bird_bboxes[key].append(bird.get("bbox", []))
+        bird_confs[key].append(confidence)
 
     try:
         async with httpx.AsyncClient(timeout=5.0, base_url="http://localhost:8000") as client:
@@ -568,25 +1003,43 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
                 existing = resp.json().get("birds", []) if resp.status_code == 200 else []
                 have_n = len(existing)
 
-                # Actualizar sighting de las que ya tenemos
-                for bird_rec in existing:
+                bboxes = bird_bboxes.get((breed, color, sex), [])
+                confs = bird_confs.get((breed, color, sex), [])
+
+                # Actualizar sighting de las que ya tenemos + upgrade foto
+                for idx, bird_rec in enumerate(existing):
+                    best_conf = max(confs) if confs else 0.5
+                    stored_conf = bird_rec.get("confidence", 0)
+
+                    # Intentar mejorar foto si la confianza es mayor
+                    crop_upgrade = None
+                    if best_conf > stored_conf and best_conf >= 0.7 and frame_bytes:
+                        for bbox in bboxes:
+                            if len(bbox) == 4:
+                                crop_upgrade = _crop_bird_photo(frame_bytes, bbox, expected_breed=breed)
+                                if crop_upgrade:
+                                    break
+
                     await client.post(
                         f"/birds/{bird_rec['bird_id']}/sighting",
-                        params={"confidence": 0.5},
+                        params={"confidence": best_conf},
                     )
+
+                    # Sync foto mejorada a OvoSfera
+                    if crop_upgrade and bird_rec.get("ai_vision_id"):
+                        await _sync_photo_to_ovosfera(bird_rec["ai_vision_id"], crop_upgrade)
 
                 # Cuántas nuevas registrar — respetando cuota
                 new_count = max(0, seen_n - have_n)
                 if quota > 0:
                     new_count = min(new_count, max(0, quota - have_n))
 
-                bboxes = bird_bboxes.get((breed, color, sex), [])
                 for i in range(new_count):
                     # Crop individual si tenemos bbox
                     crop_b64 = None
                     bbox_idx = have_n + i  # index into the group's bboxes
                     if frame_bytes and bbox_idx < len(bboxes) and len(bboxes[bbox_idx]) == 4:
-                        crop_b64 = _crop_bird_photo(frame_bytes, bboxes[bbox_idx])
+                        crop_b64 = _crop_bird_photo(frame_bytes, bboxes[bbox_idx], expected_breed=breed)
 
                     # Fallback: thumbnail del frame completo
                     if not crop_b64 and frame_bytes:
@@ -604,11 +1057,14 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
                         reg_data = reg_resp.json()
                         vision_id = reg_data.get("ai_vision_id", "")
                         logger.info(
-                            f"🐔 New bird: {breed} {color} → {vision_id} "
+                            f"🐔 New bird: {breed} {color} {sex} → {vision_id} "
                             f"in {gallinero} ({have_n + i + 1}/{quota or '∞'})"
                         )
                         if vision_id:
-                            await _sync_vision_id_to_ovosfera(vision_id, breed, gallinero)
+                            await _sync_vision_id_to_ovosfera(
+                                vision_id, breed, color, sex,
+                                gallinero, crop_b64,
+                            )
 
                 if new_count == 0 and existing:
                     logger.debug(
@@ -1023,6 +1479,52 @@ async def full_analysis(gallinero_id: str):
     }
 
 
+# ── Endpoints YOLO estáticos (antes de los parametrizados para evitar conflicto) ──
+
+@router.get("/yolo/stats")
+async def yolo_stats():
+    """Estadísticas del modelo YOLO y dataset de entrenamiento."""
+    try:
+        from services.yolo_detector import get_model_info, get_dataset_stats
+        from services.yolo_trainer import get_dataset_summary
+        return {
+            "model": get_model_info(),
+            "detector_dataset": get_dataset_stats(),
+            "training": get_dataset_summary(),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/yolo/train")
+async def yolo_train(epochs: int = 50, batch: int = 16, imgsz: int = 640):
+    """Lanza fine-tune de YOLO con datos recopilados."""
+    from services.yolo_trainer import train_model
+    return await train_model(epochs=epochs, batch=batch, imgsz=imgsz)
+
+
+@router.post("/yolo/reload")
+async def yolo_reload():
+    """Recarga el modelo YOLO (tras fine-tune nuevo)."""
+    from services.yolo_detector import reload_model, get_model_info
+    reload_model()
+    return {"status": "reloaded", "model": get_model_info()}
+
+
+@router.post("/yolo/reload-breed")
+async def yolo_reload_breed():
+    """Recarga el modelo YOLO de razas (tras entrenar nuevas razas)."""
+    from services.yolo_detector import reload_breed_model, get_breed_model
+    reload_breed_model()
+    model = get_breed_model()
+    return {
+        "status": "reloaded" if model else "no_model",
+        "breed_classes": dict(model.names) if model else {},
+    }
+
+
+# ── Endpoints YOLO específicos ──
+
 @router.post("/yolo/{gallinero_id}")
 async def yolo_detect(gallinero_id: str):
     """Detección rápida YOLO-only (sin Gemini). Conteo + bboxes en <100ms."""
@@ -1089,34 +1591,240 @@ async def yolo_annotated(gallinero_id: str):
     )
 
 
-@router.get("/yolo/stats")
-async def yolo_stats():
-    """Estadísticas del modelo YOLO y dataset de entrenamiento."""
-    try:
-        from services.yolo_detector import get_model_info, get_dataset_stats
-        from services.yolo_trainer import get_dataset_summary
-        return {
-            "model": get_model_info(),
-            "detector_dataset": get_dataset_stats(),
-            "training": get_dataset_summary(),
-        }
-    except Exception as e:
-        return {"error": str(e)}
+# ── Sincronización inteligente con OvoSfera ──
+
+@router.post("/sync_birds/{gallinero_id}")
+async def sync_birds(gallinero_id: str, reset: bool = False):
+    """Sincronización completa: captura, identifica, registra y sincroniza con OvoSfera.
+
+    - reset=true: limpia el registro previo de este gallinero antes de re-identificar.
+    - Captura frame de alta calidad (4K via go2rtc).
+    - YOLO + Gemini: identifica todas las aves visibles.
+    - Registra secuencialmente: primera Vorwerk → vorwerkgold1, segunda → vorwerkgold2...
+    - Sincroniza a OvoSfera: ai_vision_id, gallinero (nombre), foto (crop base64).
+    """
+    if gallinero_id not in CAMERAS:
+        raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
+
+    cleared = 0
+    if reset:
+        from routers.birds import _registry, _save_registry
+        before = len(_registry)
+        _registry[:] = [b for b in _registry if b.get("gallinero") != gallinero_id]
+        _save_registry()
+        cleared = before - len(_registry)
+        logger.info(f"🗑️ Reset {cleared} birds in {gallinero_id}")
+
+        # Limpiar ai_vision_id de aves OvoSfera de este gallinero
+        gallinero_name = _STREAM_TO_GALLINERO_NAME.get(gallinero_id, "")
+        if gallinero_name:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves")
+                    if resp.status_code == 200:
+                        for ave in resp.json():
+                            if ave.get("gallinero") == gallinero_name and ave.get("ai_vision_id"):
+                                await client.put(
+                                    f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{ave['id']}",
+                                    json={"ai_vision_id": None, "foto": None},
+                                )
+            except Exception as e:
+                logger.debug(f"OvoSfera reset cleanup failed: {e}")
+
+    cam = CAMERAS[gallinero_id]
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=True,
+    )
+    if not frame:
+        raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
+
+    analysis = await _analyze_frame(
+        frame, gallinero_id,
+        imgsz=cam.get("yolo_imgsz"),
+        use_tiled=cam.get("use_tiled", False),
+        force_gemini=True,
+    )
+    if not analysis:
+        raise HTTPException(503, "Gemini no pudo analizar el frame")
+
+    detected = analysis.get("birds", [])
+    await _register_or_update_birds(detected, gallinero_id, frame)
+
+    from routers.birds import _registry as reg
+    synced = [b for b in reg if b.get("gallinero") == gallinero_id]
+
+    return {
+        "gallinero": gallinero_id,
+        "camera": cam["name"],
+        "cleared": cleared,
+        "detected": len(detected),
+        "registered": len(synced),
+        "birds": [
+            {
+                "bird_id": b["bird_id"],
+                "breed": b["breed"],
+                "color": b["color"],
+                "sex": b["sex"],
+                "ai_vision_id": b["ai_vision_id"],
+                "has_photo": bool(b.get("photo_b64")),
+            }
+            for b in synced
+        ],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
-@router.post("/yolo/train")
-async def yolo_train(epochs: int = 50, batch: int = 16, imgsz: int = 640):
-    """Lanza fine-tune de YOLO con datos recopilados."""
-    from services.yolo_trainer import train_model
-    return await train_model(epochs=epochs, batch=batch, imgsz=imgsz)
+# ── Monitorización individual de aves ──
+
+@router.get("/bird/{vision_id}/snapshot")
+async def bird_snapshot(vision_id: str):
+    """Captura frame de la cámara del gallinero del ave y la resalta.
+
+    Usa Gemini para encontrar el ave específica en el frame actual,
+    y devuelve un JPEG anotado con solo esa ave resaltada.
+    """
+    from routers.birds import _registry
+    bird = next((b for b in _registry if b.get("ai_vision_id") == vision_id), None)
+    if not bird:
+        raise HTTPException(404, f"Ave {vision_id} no encontrada en registro")
+
+    gallinero_id = bird.get("gallinero", "")
+    if gallinero_id not in CAMERAS:
+        raise HTTPException(404, f"Gallinero {gallinero_id} sin cámara configurada")
+
+    cam = CAMERAS[gallinero_id]
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
+    if not frame:
+        raise HTTPException(503, "No se pudo capturar frame")
+
+    analysis = await _analyze_frame(
+        frame, gallinero_id,
+        imgsz=cam.get("yolo_imgsz"),
+        use_tiled=cam.get("use_tiled", False),
+        force_gemini=is_distant,
+    )
+
+    target_breed = bird.get("breed", "").lower()
+    target_color = bird.get("color", "").lower()
+
+    if analysis:
+        birds = analysis.get("birds", [])
+        matching = [
+            b for b in birds
+            if b.get("breed", "").lower() == target_breed
+            and (b.get("color", "").lower() == target_color or not target_color)
+        ]
+        if matching:
+            annotated = _draw_annotations(frame, matching, gallinero_id)
+            return Response(
+                content=annotated,
+                media_type="image/jpeg",
+                headers={
+                    "X-Bird-Found": "true",
+                    "X-Vision-Id": vision_id,
+                    "X-Breed": bird.get("breed", ""),
+                },
+            )
+
+    return Response(
+        content=frame,
+        media_type="image/jpeg",
+        headers={
+            "X-Bird-Found": "false",
+            "X-Vision-Id": vision_id,
+            "X-Breed": bird.get("breed", ""),
+        },
+    )
 
 
-@router.post("/yolo/reload")
-async def yolo_reload():
-    """Recarga el modelo YOLO (tras fine-tune nuevo)."""
-    from services.yolo_detector import reload_model, get_model_info
-    reload_model()
-    return {"status": "reloaded", "model": get_model_info()}
+@router.get("/bird/ovosfera/{ove_ave_id}/snapshot")
+async def bird_snapshot_by_ovosfera(ove_ave_id: int):
+    """Monitoring por ID de OvoSfera: captura frame y resalta el ave.
+
+    Usado por el inject de OvoSfera para el botón "Cámara IA Vision"
+    en la ficha del ave.
+    """
+    # 1. Obtener datos del ave de OvoSfera
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        resp = await client.get(f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{ove_ave_id}")
+        if resp.status_code != 200:
+            raise HTTPException(404, f"Ave {ove_ave_id} no encontrada en OvoSfera")
+        ove = resp.json()
+
+    target_breed = ove.get("raza", "")
+    target_color = ove.get("color", "")
+    vision_id = ove.get("ai_vision_id", "")
+    gallinero_name = ove.get("gallinero", "")
+
+    # 2. Determinar gallinero stream
+    gallinero_stream = None
+    for stream, name in _STREAM_TO_GALLINERO_NAME.items():
+        if name == gallinero_name:
+            gallinero_stream = stream
+            break
+
+    # Fallback: buscar en registro Seedy
+    if not gallinero_stream and vision_id:
+        from routers.birds import _registry
+        bird = next((b for b in _registry if b.get("ai_vision_id") == vision_id), None)
+        if bird:
+            gallinero_stream = bird.get("gallinero", "")
+
+    # Fallback final: G2 por defecto (12 aves conocidas)
+    if not gallinero_stream or gallinero_stream not in CAMERAS:
+        gallinero_stream = "gallinero_durrif_2"
+
+    cam = CAMERAS[gallinero_stream]
+    is_distant = cam.get("distant", False)
+    frame = await _capture_frame(
+        cam["stream"],
+        snapshot_url=cam.get("snapshot_url", ""),
+        force_hires=is_distant,
+    )
+    if not frame:
+        raise HTTPException(503, "No se pudo capturar frame")
+
+    analysis = await _analyze_frame(
+        frame, gallinero_stream,
+        imgsz=cam.get("yolo_imgsz"),
+        use_tiled=cam.get("use_tiled", False),
+        force_gemini=is_distant,
+    )
+
+    if analysis:
+        birds = analysis.get("birds", [])
+        matching = [
+            b for b in birds
+            if _match_breed_ovosfera(b.get("breed", ""), target_breed)
+        ]
+        if matching:
+            annotated = _draw_annotations(frame, matching, gallinero_stream)
+            return Response(
+                content=annotated,
+                media_type="image/jpeg",
+                headers={
+                    "X-Bird-Found": "true",
+                    "X-Vision-Id": vision_id or "pending",
+                    "X-Breed": target_breed,
+                },
+            )
+
+    return Response(
+        content=frame,
+        media_type="image/jpeg",
+        headers={
+            "X-Bird-Found": "false",
+            "X-Vision-Id": vision_id or "pending",
+            "X-Breed": target_breed,
+        },
+    )
 
 
 # ── Endpoints de tracking ──
