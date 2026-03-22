@@ -750,6 +750,7 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
 _STREAM_TO_GALLINERO_NAME = {
     "gallinero_durrif_1": "Gallinero Durrif I",
     "gallinero_durrif_2": "Gallinero Durrif II",
+    "sauna_durrif_1": "Gallinero Durrif I",
 }
 
 
@@ -912,13 +913,16 @@ def _fuzzy_match(a: str, b: str) -> bool:
 
 
 def _crop_bird_photo(frame_bytes: bytes, bbox_norm: list[float], padding: float = 0.15,
-                     expected_breed: str = "") -> str | None:
-    """Recorta la zona del ave del frame y devuelve JPEG base64.
+                     expected_breed: str = "") -> tuple[str, int, int] | None:
+    """Recorta la zona del ave del frame y devuelve (JPEG base64, width, height).
 
     Args:
         bbox_norm: [x1, y1, x2, y2] normalizadas 0-1
         padding: margen extra alrededor del bbox (15% para capturar ave completa)
         expected_breed: si se indica, valida con breed YOLO que el crop corresponde
+
+    Returns:
+        (base64_str, crop_width, crop_height) o None si falla
     """
     try:
         from PIL import Image
@@ -953,14 +957,14 @@ def _crop_bird_photo(frame_bytes: bytes, bbox_norm: list[float], padding: float 
             except Exception:
                 pass  # Si falla la validación, se usa el crop igualmente
 
-        # Resize to max 512px wide keeping aspect
-        if crop.width > 512:
-            ratio = 512 / crop.width
-            crop = crop.resize((512, int(crop.height * ratio)), Image.LANCZOS)
+        # Resize to max 1024px wide keeping aspect (high quality for review)
+        if crop.width > 1024:
+            ratio = 1024 / crop.width
+            crop = crop.resize((1024, int(crop.height * ratio)), Image.LANCZOS)
 
         buf = io.BytesIO()
-        crop.save(buf, format="JPEG", quality=85)
-        return base64.b64encode(buf.getvalue()).decode()
+        crop.save(buf, format="JPEG", quality=92)
+        return base64.b64encode(buf.getvalue()).decode(), crop.width, crop.height
     except Exception as e:
         logger.debug(f"Crop failed: {e}")
         return None
@@ -1039,8 +1043,9 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
                     if best_conf > stored_conf and best_conf >= 0.7 and frame_bytes:
                         for bbox in bboxes:
                             if len(bbox) == 4:
-                                crop_upgrade = _crop_bird_photo(frame_bytes, bbox, expected_breed=breed)
-                                if crop_upgrade:
+                                crop_result = _crop_bird_photo(frame_bytes, bbox, expected_breed=breed)
+                                if crop_result:
+                                    crop_upgrade = crop_result[0]
                                     break
 
                     await client.post(
@@ -1062,7 +1067,9 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
                     crop_b64 = None
                     bbox_idx = have_n + i  # index into the group's bboxes
                     if frame_bytes and bbox_idx < len(bboxes) and len(bboxes[bbox_idx]) == 4:
-                        crop_b64 = _crop_bird_photo(frame_bytes, bboxes[bbox_idx], expected_breed=breed)
+                        crop_result = _crop_bird_photo(frame_bytes, bboxes[bbox_idx], expected_breed=breed)
+                        if crop_result:
+                            crop_b64 = crop_result[0]
 
                     # Fallback: thumbnail del frame completo
                     if not crop_b64 and frame_bytes:
@@ -1849,6 +1856,162 @@ async def bird_snapshot_by_ovosfera(ove_ave_id: int):
             "X-Breed": target_breed,
         },
     )
+
+
+@router.post("/bird/ovosfera/{ove_ave_id}/capture-photo")
+async def capture_bird_photo(ove_ave_id: int):
+    """Captura una foto nítida de alta calidad del ave usando 4K + YOLO.
+
+    Pipeline:
+    1. Obtiene datos del ave de OvoSfera (raza, gallinero)
+    2. Captura frame 4K desde la cámara del gallinero
+    3. Detecta aves con YOLO + Breed YOLO
+    4. Encuentra el crop de mejor calidad/confianza para la raza target
+    5. Guarda en OvoSfera como foto del ave (hasta 1024px)
+    """
+    # 1. Obtener datos del ave
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        resp = await client.get(f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{ove_ave_id}")
+        if resp.status_code != 200:
+            raise HTTPException(404, f"Ave {ove_ave_id} no encontrada en OvoSfera")
+        ove = resp.json()
+
+    target_breed = ove.get("raza", "")
+    target_color = ove.get("color", "")
+    vision_id = ove.get("ai_vision_id", "")
+    gallinero_name = ove.get("gallinero", "")
+
+    # 2. Determinar cámaras candidatas para este gallinero
+    candidate_streams = []
+    for stream, name in _STREAM_TO_GALLINERO_NAME.items():
+        if name == gallinero_name and stream in CAMERAS:
+            candidate_streams.append(stream)
+    if not candidate_streams:
+        candidate_streams = list(CAMERAS.keys())
+
+    # 3. Probar múltiples capturas en TODAS las cámaras y elegir el mejor crop
+    best_crop = None
+    best_conf = 0.0
+    best_resolution = ""
+    best_crop_area = 0  # pixel area of the crop — bigger = sharper
+    total_birds_seen = 0
+    best_source = ""
+    NUM_ATTEMPTS = 3  # capturar varios frames — las aves se mueven
+
+    for attempt in range(NUM_ATTEMPTS):
+        if attempt > 0:
+            await asyncio.sleep(1.5)  # esperar entre intentos
+
+        for gallinero_stream in candidate_streams:
+            cam = CAMERAS[gallinero_stream]
+            frame = await _capture_frame(
+                cam["stream"],
+                snapshot_url=cam.get("snapshot_url", ""),
+                snapshot_auth=tuple(cam.get("snapshot_auth", ("admin", "123456"))),
+                force_hires=True,
+            )
+            if not frame:
+                continue
+
+            from PIL import Image as PILImage
+            img_temp = PILImage.open(io.BytesIO(frame))
+            W, H = img_temp.size
+            logger.info(
+                f"📷 capture-photo [{attempt+1}/{NUM_ATTEMPTS}]: "
+                f"{gallinero_stream} frame {W}×{H} ({len(frame)} bytes)"
+            )
+
+            # 4. Detectar aves con YOLO
+            imgsz = cam.get("yolo_imgsz", 1280)
+            use_tiled = cam.get("use_tiled", False)
+            yolo_result = _detect_with_yolo(frame, imgsz=imgsz, use_tiled=use_tiled)
+            if not yolo_result or yolo_result["count"] == 0:
+                continue
+            total_birds_seen += yolo_result["count"]
+
+            poultry = [d for d in yolo_result.get("detections", []) if d.get("category") == "poultry"]
+            if not poultry:
+                continue
+
+            # 5. Elegir el ave MÁS GRANDE del frame — a estas distancias la
+            #    clasificación de raza no es fiable, priorizamos nitidez/tamaño.
+            #    Opcionalmente anotamos raza si Breed YOLO la detecta.
+            breed_result = _classify_breeds_yolo(frame, yolo_result)
+            breed_by_bbox = {}
+            if breed_result:
+                for bird in breed_result:
+                    bbox_key = tuple(bird.get("bbox", []))
+                    if len(bbox_key) == 4:
+                        breed_by_bbox[bbox_key] = (
+                            bird.get("breed", ""),
+                            bird.get("confidence", 0),
+                        )
+
+            for det in sorted(
+                poultry,
+                key=lambda d: (d["bbox"][2] - d["bbox"][0]) * (d["bbox"][3] - d["bbox"][1]),
+                reverse=True,
+            ):
+                bbox_norm = det.get("bbox_norm", [])
+                if len(bbox_norm) != 4:
+                    continue
+                det_area = (bbox_norm[2] - bbox_norm[0]) * W * (bbox_norm[3] - bbox_norm[1]) * H
+                if det_area <= best_crop_area and best_crop:
+                    break  # lista ordenada, si este no supera ya no lo hará ninguno
+
+                crop_result = _crop_bird_photo(frame, bbox_norm, padding=0.20, expected_breed="")
+                if crop_result:
+                    best_crop = crop_result[0]
+                    best_crop_area = det_area
+                    best_resolution = f"{crop_result[1]}×{crop_result[2]}"
+                    best_source = gallinero_stream
+                    # Anotar confianza de raza si Breed YOLO la reconoció
+                    breed_info = breed_by_bbox.get(tuple(bbox_norm))
+                    if breed_info and _match_breed_ovosfera(breed_info[0], target_breed):
+                        best_conf = breed_info[1]
+                    else:
+                        best_conf = det.get("confidence", 0.5)
+                    break  # ya tenemos el más grande de este frame
+
+    if not best_crop:
+        if total_birds_seen == 0:
+            return {"success": False, "message": "No se pudo capturar frame de las cámaras o no hay aves visibles"}
+        return {
+            "success": False,
+            "message": f"No se encontró a la raza {target_breed} en el frame ({total_birds_seen} aves detectadas)",
+        }
+
+    # 8. Subir foto a OvoSfera
+    photo_data_uri = f"data:image/jpeg;base64,{best_crop}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.put(
+                f"{OVOSFERA_API}/farms/{OVOSFERA_FARM}/aves/{ove_ave_id}",
+                json={"foto": photo_data_uri},
+            )
+    except Exception as e:
+        logger.warning(f"Photo upload to OvoSfera failed: {e}")
+
+    # 9. También guardar en disco
+    try:
+        from pathlib import Path
+        photo_dir = Path("/app/data/bird_photos")
+        photo_dir.mkdir(parents=True, exist_ok=True)
+        photo_path = photo_dir / f"ovo_{ove_ave_id}.jpg"
+        photo_path.write_bytes(base64.b64decode(best_crop))
+    except Exception:
+        pass
+
+    logger.info(
+        f"📸 Captured photo for OvoSfera ave {ove_ave_id} ({target_breed}): "
+        f"{best_resolution}, conf={best_conf:.0%}, source={best_source}"
+    )
+    return {
+        "success": True,
+        "message": f"{target_breed} capturada ({best_conf:.0%} confianza) desde {best_source}",
+        "resolution": best_resolution,
+        "photo_data_uri": photo_data_uri,
+    }
 
 
 # ── Endpoints de tracking ──

@@ -423,6 +423,38 @@
       border-radius: 4px;
       font-size: 0.95em;
     }
+    /* ── Seedy capture button injected into OvoSfera edit modals ── */
+    .seedy-capture-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.82em;
+      font-weight: 600;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .seedy-capture-btn:hover { opacity: 0.85; }
+    .seedy-capture-btn:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .seedy-capture-status {
+      font-size: 0.75em;
+      color: var(--neutral-400, #9ca3af);
+      margin-top: 4px;
+    }
+    .seedy-photo-zoomable {
+      cursor: zoom-in;
+      transition: transform 0.15s;
+    }
+    .seedy-photo-zoomable:hover {
+      transform: scale(1.05);
+    }
   `;
 
   // ── Inject CSS ──
@@ -1007,7 +1039,7 @@
     document.body.appendChild(overlay);
   }
 
-  // ── Intercept clicks on aves list rows → open modal instead of OvoSfera expand ──
+  // ── Intercept clicks on aves list rows → trigger OvoSfera edit form ──
   function interceptAvesListClicks() {
     if (!isAvesPage() || isAveDetailPage()) return;
     if (document.body.dataset.seedyAvesIntercepted) return;
@@ -1020,16 +1052,33 @@
       var row = e.target.closest("tr[data-id], tr[class*='row'], tbody tr");
       if (!row) return;
 
-      // Don't intercept clicks on action buttons (edit, delete icons)
-      if (e.target.closest("button, a, .seedy-bird-monitor-btn, [class*='action']")) return;
+      // Don't intercept clicks on action buttons (edit, delete, monitor icons)
+      if (e.target.closest("button, a, .seedy-bird-monitor-btn, [class*='action'], svg, path")) return;
       // Don't intercept if clicking on icon buttons in the last column
       var cell = e.target.closest("td");
       if (cell) {
         var cells = Array.from(row.querySelectorAll("td"));
-        if (cells.length > 0 && cell === cells[cells.length - 1]) return; // last column = actions
+        if (cells.length > 0 && cell === cells[cells.length - 1]) return;
       }
 
-      // Extract ave ID from the row
+      // Prevent OvoSfera's default expand behavior
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Find and click the edit (pencil) button in this row's actions column
+      var editBtn = row.querySelector("td:last-child button:first-child, td:last-child a:first-child, [title*='dit'], [title*='ditar'], svg[data-icon*='edit']");
+      if (editBtn) {
+        editBtn.click();
+        return;
+      }
+      // Fallback: find any pencil-like icon/button
+      var actionBtns = row.querySelectorAll("td:last-child button, td:last-child a");
+      if (actionBtns.length > 0) {
+        actionBtns[0].click(); // first action is typically edit
+        return;
+      }
+
+      // Last fallback: extract ID and navigate to detail page
       var aveId = row.dataset.id;
       if (!aveId) {
         var link = row.querySelector("a[href*='/aves/']");
@@ -1039,20 +1088,15 @@
         }
       }
       if (!aveId) {
-        // Try from anilla text (PAL-2026-XXXX format)
         var anilla = row.querySelector("td:first-child");
         if (anilla) {
           var anillaMatch = anilla.textContent.match(/PAL-\d+-(\d+)/);
           if (anillaMatch) aveId = parseInt(anillaMatch[1], 10);
         }
       }
-      if (!aveId) return;
-
-      // Prevent OvoSfera's default expand behavior
-      e.preventDefault();
-      e.stopPropagation();
-
-      openAveModal(aveId);
+      if (aveId) {
+        window.location.href = "/farm/" + SEEDY_FARM + "/aves/" + aveId;
+      }
     }, true); // capture phase to intercept before OvoSfera
   }
 
@@ -1275,6 +1319,125 @@
     }
   }
 
+  // ── Enhance OvoSfera edit modal with Seedy capture + photo zoom ──
+  function enhanceEditModal() {
+    // OvoSfera edit modal: look for the dialog/modal containing "Editar Ave" or photo upload buttons
+    var modals = document.querySelectorAll("[class*='modal'], [class*='dialog'], [role='dialog'], [class*='Modal']");
+    modals.forEach(function (modal) {
+      if (modal.dataset.seedyEnhanced) return;
+
+      // Detect if this is an edit modal (has "Editar" or "Subir foto" text)
+      var text = modal.textContent || "";
+      if (!text.includes("Editar") && !text.includes("Subir foto")) return;
+
+      modal.dataset.seedyEnhanced = "1";
+
+      // 1. Make existing photo zoomable
+      var photos = modal.querySelectorAll("img");
+      photos.forEach(function (img) {
+        if (img.naturalWidth < 20) return; // skip icons
+        if (img.classList.contains("seedy-photo-zoomable")) return;
+        img.classList.add("seedy-photo-zoomable");
+        img.addEventListener("click", function (e) {
+          e.stopPropagation();
+          openFullscreen(img.src, "Foto del ave");
+        });
+      });
+
+      // 2. Find the "Subir foto" button area and add our "Cámara AI-Vision" button
+      var uploadBtns = modal.querySelectorAll("button");
+      var uploadBtn = null;
+      uploadBtns.forEach(function (btn) {
+        if (btn.textContent.includes("Subir foto") || btn.textContent.includes("Cámara AI")) {
+          uploadBtn = btn;
+        }
+      });
+      // Already has our button?
+      if (modal.querySelector(".seedy-capture-btn")) return;
+
+      // Find the ave ID from the form (look for ai_vision_id field or URL)  
+      var aveId = null;
+      var inputs = modal.querySelectorAll("input");
+      inputs.forEach(function (inp) {
+        // Hidden input or value matching PAL pattern or numeric ID
+        if (inp.name === "id" || inp.dataset.id) aveId = inp.value || inp.dataset.id;
+      });
+      // Try to extract from any link/text in the modal containing the anilla
+      if (!aveId) {
+        var anillaMatch = text.match(/PAL-\\d+-(\\d+)/);
+        if (anillaMatch) aveId = parseInt(anillaMatch[1], 10);
+      }
+      // Try from URL if on detail page
+      if (!aveId) {
+        var urlMatch = window.location.pathname.match(/\\/aves\\/(\\d+)/);
+        if (urlMatch) aveId = urlMatch[1];
+      }
+
+      // Find the photo container area
+      var photoArea = uploadBtn ? uploadBtn.parentElement : null;
+      if (!photoArea) {
+        // Try common patterns: div containing "Foto" label
+        var labels = modal.querySelectorAll("label, span, h4, h5, p");
+        labels.forEach(function (lbl) {
+          if (lbl.textContent.includes("Foto") && !photoArea) {
+            photoArea = lbl.parentElement;
+          }
+        });
+      }
+
+      if (photoArea && aveId) {
+        var captureBtn = document.createElement("button");
+        captureBtn.className = "seedy-capture-btn";
+        captureBtn.type = "button";
+        captureBtn.innerHTML = "📸 Captura IA (4K)";
+        captureBtn.title = "Captura una foto nítida del ave usando las cámaras + IA";
+
+        var statusDiv = document.createElement("div");
+        statusDiv.className = "seedy-capture-status";
+
+        captureBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          captureBtn.disabled = true;
+          captureBtn.innerHTML = "⏳ Capturando...";
+          statusDiv.textContent = "Buscando al ave en las cámaras...";
+
+          fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/capture-photo", {
+            method: "POST",
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.success) {
+                statusDiv.textContent = "✅ Foto capturada: " + data.resolution + " — " + data.message;
+                // Update the photo preview in the modal
+                var imgs = modal.querySelectorAll("img");
+                imgs.forEach(function (img) {
+                  if (img.naturalWidth > 20 || img.src.includes("data:image")) {
+                    img.src = data.photo_data_uri;
+                    img.classList.add("seedy-photo-zoomable");
+                  }
+                });
+                captureBtn.innerHTML = "📸 Captura IA (4K)";
+                captureBtn.disabled = false;
+              } else {
+                statusDiv.textContent = "⚠️ " + (data.message || "No se pudo capturar");
+                captureBtn.innerHTML = "📸 Captura IA (4K)";
+                captureBtn.disabled = false;
+              }
+            })
+            .catch(function (err) {
+              statusDiv.textContent = "❌ Error: " + err.message;
+              captureBtn.innerHTML = "📸 Captura IA (4K)";
+              captureBtn.disabled = false;
+            });
+        });
+
+        photoArea.appendChild(captureBtn);
+        photoArea.appendChild(statusDiv);
+      }
+    });
+  }
+
   // ── Init ──
   function init() {
     injectStyles();
@@ -1286,6 +1449,7 @@
     // Watch for SPA navigation and DOM changes
     const observer = new MutationObserver(() => {
       if (!isTargetFarm()) return;
+      enhanceEditModal(); // inject Seedy into any open OvoSfera edit modal
       if (isGallinerosPage()) {
         injectCameras();
       } else if (isDashboardPage()) {
