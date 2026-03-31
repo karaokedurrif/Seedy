@@ -122,6 +122,7 @@ services:
       - CORS_ORIGINS=https://seedy.neofarm.io,https://api.neofarm.io,https://hub.ovosfera.com,http://localhost:3000,http://10.10.10.1:3000,http://10.10.10.1:8000
       - API_KEYS=sk-seedy-local,sk-ovosfera-0040464aeee532c89a9248a8f4667c0a
       - GO2RTC_URL=http://host.docker.internal:1984
+      - SEEDY_BACKEND_URL=https://seedy-api.neofarm.io
       - OVOSFERA_API_URL=https://hub.ovosfera.com/api/ovosfera
       - OVOSFERA_FARM_SLUG=palacio
       - NVIDIA_VISIBLE_DEVICES=all

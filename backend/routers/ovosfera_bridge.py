@@ -28,6 +28,8 @@ router = APIRouter(prefix="/ovosfera", tags=["ovosfera-bridge"])
 OVOSFERA_API = os.environ.get("OVOSFERA_API_URL", "https://hub.ovosfera.com/api/ovosfera")
 OVOSFERA_FARM = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
 GO2RTC_URL = os.environ.get("GO2RTC_URL", "http://localhost:1984")
+# URL pública del backend Seedy — usada para construir URLs absolutas en respuestas API
+SEEDY_BACKEND_URL = os.environ.get("SEEDY_BACKEND_URL", "https://seedy-api.neofarm.io")
 
 # Mapeo gallinero OvoSfera ID → stream go2rtc
 GALLINERO_CAMERAS = {
@@ -80,9 +82,10 @@ async def get_gallineros_with_cameras():
                 "stream": cam["stream"],
                 "stream_sub": cam["stream_sub"],
                 "model": cam["camera"],
-                "snapshot_url": f"/ovosfera/camera/{gid}/snapshot",
-                "webrtc_url": f"{GO2RTC_URL}/api/ws?src={cam['stream']}",
-                "mjpeg_url": f"/ovosfera/camera/{gid}/mjpeg",
+                "snapshot_url": f"{SEEDY_BACKEND_URL}/ovosfera/camera/{gid}/snapshot",
+                "webrtc_url": f"{SEEDY_BACKEND_URL}/ovosfera/camera/{gid}/webrtc",
+                "mse_url": f"{SEEDY_BACKEND_URL}/ovosfera/stream/{cam['stream']}_web/mse",
+                "mjpeg_url": f"{SEEDY_BACKEND_URL}/ovosfera/camera/{gid}/mjpeg",
             }
         result.append(entry)
     return result
