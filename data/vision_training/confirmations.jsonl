@@ -1,0 +1,111 @@
+{"ave_id": 14, "action": "confirm", "breed": "desconocida", "color": "", "sex": "indeterminado", "timestamp": "2026-03-23T06:58:47.720971+00:00"}
+{"ave_id": 11, "action": "confirm", "breed": "desconocida", "color": "", "sex": "indeterminado", "timestamp": "2026-03-23T07:02:57.058183+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:50:29.439026+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:51:26.545476+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:53:13.036263+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Andaluza Azul", "color": "azul", "sex": "female", "timestamp": "2026-03-23T11:53:23.424731+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:53:30.958121+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:54:17.609821+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:54:45.587809+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:54:57.206478+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:55:15.266278+00:00"}
+{"ave_id": 25, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:56:12.460370+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:57:34.155294+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:57:42.349042+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T11:57:49.742083+00:00"}
+{"ave_id": 11, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:10:47.679760+00:00"}
+{"ave_id": 16, "action": "manual_assign", "breed": "Sussex", "color": "silver", "sex": "male", "timestamp": "2026-03-23T13:10:56.255275+00:00"}
+{"ave_id": 15, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:11:07.864441+00:00"}
+{"ave_id": 11, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:11:30.683666+00:00"}
+{"ave_id": 15, "action": "manual_assign", "breed": "Andaluza Azul", "color": "azul", "sex": "female", "timestamp": "2026-03-23T13:11:52.690621+00:00"}
+{"ave_id": 17, "action": "manual_assign", "breed": "Sussex", "color": "silver", "sex": "female", "timestamp": "2026-03-23T13:11:59.728503+00:00"}
+{"ave_id": 3, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:14:07.154731+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:14:17.091445+00:00"}
+{"ave_id": 23, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:14:24.676549+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:14:55.498979+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:15:20.718652+00:00"}
+{"ave_id": 7, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:20:13.425275+00:00"}
+{"ave_id": 7, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:20:31.226748+00:00"}
+{"ave_id": 21, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:20:38.990930+00:00"}
+{"ave_id": 2, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:20:53.217576+00:00"}
+{"ave_id": 7, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:21:05.876438+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:21:33.750889+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "silver", "sex": "female", "timestamp": "2026-03-23T13:22:13.013130+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:22:21.071446+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:22:41.413056+00:00"}
+{"ave_id": 3, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:22:56.155821+00:00"}
+{"ave_id": 8, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:23:04.394741+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:23:31.361298+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:23:37.731616+00:00"}
+{"ave_id": 10, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:24:23.160140+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:24:30.978531+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:24:49.572800+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:25:11.424751+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Andaluza Azul", "color": "azul", "sex": "female", "timestamp": "2026-03-23T13:25:22.941585+00:00"}
+{"ave_id": 3, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:25:45.329538+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:25:53.606028+00:00"}
+{"ave_id": 3, "action": "manual_assign", "breed": "Desconocida", "color": "", "sex": "unknown", "timestamp": "2026-03-23T13:26:19.144178+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Pita Pinta", "color": "pinta", "sex": "female", "timestamp": "2026-03-23T13:26:28.021092+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Andaluza Azul", "color": "azul", "sex": "female", "timestamp": "2026-03-23T13:28:25.708917+00:00"}
+{"ave_id": 22, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "M", "timestamp": "2026-03-23T13:47:59.279231+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T13:48:12.469639+00:00"}
+{"ave_id": 15, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "H", "timestamp": "2026-03-23T13:48:34.127810+00:00"}
+{"ave_id": 21, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T13:48:51.578185+00:00"}
+{"ave_id": 11, "action": "manual_assign", "breed": "Bresse", "color": "White", "sex": "M", "timestamp": "2026-03-23T13:49:16.747738+00:00"}
+{"ave_id": 38, "action": "manual_assign", "breed": "Otra raza", "color": "Sin especificar", "sex": "H", "timestamp": "2026-03-23T13:49:37.792032+00:00"}
+{"ave_id": 11, "action": "manual_assign", "breed": "Bresse", "color": "White", "sex": "M", "timestamp": "2026-03-23T13:50:03.650447+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Andaluza Azul", "color": "Azul", "sex": "H", "timestamp": "2026-03-23T13:50:37.276752+00:00"}
+{"ave_id": 24, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T13:50:45.160859+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:51:22.862227+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T13:51:42.845127+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:51:53.238555+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T13:52:01.981458+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T13:52:20.208865+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T13:52:30.068615+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T13:52:37.492838+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T13:52:57.538776+00:00"}
+{"ave_id": 37, "action": "manual_assign", "breed": "Cruce F1", "color": "Variado", "sex": "H", "timestamp": "2026-03-23T13:53:19.516527+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T13:53:53.672345+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T13:54:03.686648+00:00"}
+{"ave_id": 6, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:54:31.988586+00:00"}
+{"ave_id": 4, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:54:55.993759+00:00"}
+{"ave_id": 20, "action": "manual_assign", "breed": "Pita Pinta Asturiana", "color": "Pinta", "sex": "H", "timestamp": "2026-03-23T13:55:12.602554+00:00"}
+{"ave_id": 12, "action": "manual_assign", "breed": "Bresse", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:55:25.438543+00:00"}
+{"ave_id": 11, "action": "manual_assign", "breed": "Bresse", "color": "White", "sex": "M", "timestamp": "2026-03-23T13:55:34.361721+00:00"}
+{"ave_id": 3, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "H", "timestamp": "2026-03-23T13:56:07.662412+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:56:31.474745+00:00"}
+{"ave_id": 7, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:56:53.578902+00:00"}
+{"ave_id": 11, "action": "manual_assign", "breed": "Bresse", "color": "White", "sex": "M", "timestamp": "2026-03-23T13:57:14.787293+00:00"}
+{"ave_id": 24, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T13:57:35.201782+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:57:56.896418+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T13:58:07.494045+00:00"}
+{"ave_id": 24, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T13:58:14.700306+00:00"}
+{"ave_id": 4, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:59:00.926969+00:00"}
+{"ave_id": 7, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T13:59:11.347747+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T13:59:33.262972+00:00"}
+{"ave_id": 23, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T13:59:47.342942+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T14:00:15.793092+00:00"}
+{"ave_id": 25, "action": "manual_assign", "breed": "Cruce F1", "color": "Variado", "sex": "H", "timestamp": "2026-03-23T14:00:35.964660+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T14:00:51.148809+00:00"}
+{"ave_id": 7, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T14:01:08.083759+00:00"}
+{"ave_id": 38, "action": "manual_assign", "breed": "Otra raza", "color": "Sin especificar", "sex": "H", "timestamp": "2026-03-23T14:01:14.770643+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T14:01:58.778448+00:00"}
+{"ave_id": 24, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T14:02:17.224982+00:00"}
+{"ave_id": 4, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T14:02:55.860734+00:00"}
+{"ave_id": 21, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T14:03:34.931474+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Andaluza Azul", "color": "Azul", "sex": "H", "timestamp": "2026-03-23T14:03:58.990231+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T14:04:13.488038+00:00"}
+{"ave_id": 18, "action": "manual_assign", "breed": "Andaluza Azul", "color": "Azul", "sex": "H", "timestamp": "2026-03-23T14:05:08.986297+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T14:05:37.792204+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T14:05:55.977625+00:00"}
+{"ave_id": 21, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T14:07:17.862305+00:00"}
+{"ave_id": 23, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T14:07:24.572534+00:00"}
+{"ave_id": 9, "action": "manual_assign", "breed": "Araucana", "color": "Trigueña", "sex": "H", "timestamp": "2026-03-23T14:07:33.380355+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T14:07:52.003517+00:00"}
+{"ave_id": 23, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T14:08:02.763691+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T14:16:03.497621+00:00"}
+{"ave_id": 5, "action": "manual_assign", "breed": "Sussex", "color": "White", "sex": "H", "timestamp": "2026-03-23T14:16:10.111870+00:00"}
+{"ave_id": 24, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T14:16:18.183079+00:00"}
+{"ave_id": 14, "action": "manual_assign", "breed": "Sulmtaler", "color": "Wheaten (Weizenfarbig)", "sex": "M", "timestamp": "2026-03-23T14:17:50.575248+00:00"}
+{"ave_id": 23, "action": "manual_assign", "breed": "Vorwerk", "color": "Gold-Black", "sex": "H", "timestamp": "2026-03-23T14:17:56.857860+00:00"}
+{"ave_id": 1, "action": "manual_assign", "breed": "Sussex", "color": "Light (Silver)", "sex": "M", "timestamp": "2026-03-23T14:18:04.637027+00:00"}
