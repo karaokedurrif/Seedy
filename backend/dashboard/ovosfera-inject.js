@@ -622,6 +622,7 @@
 
   // ── MSE WebSocket streaming ──
   var _mseMap = new WeakMap();
+  var _mseRetries = new WeakMap(); // retry counts per wrap element
 
   function _startMSE(wrap, streamName) {
     _stopMSE(wrap);
@@ -651,6 +652,8 @@
 
     ws.onopen = function () {
       ws.send(JSON.stringify({ type: "mse" }));
+      // Reset retries on successful open
+      _mseRetries.delete(wrap);
     };
 
     ws.onmessage = function (ev) {
@@ -689,7 +692,25 @@
     ws.onerror = function () {
       _fallbackToSnapshot(wrap, streamName);
     };
-    ws.onclose = function () {};
+
+    // Reconnect on clean close unless MSE already failed or wrap is removed
+    ws.onclose = function () {
+      if (wrap.dataset._mseFailed === "1") return;
+      if (!document.body.contains(wrap)) return;
+      var retries = (_mseRetries.get(wrap) || 0);
+      if (retries < 3) {
+        _mseRetries.set(wrap, retries + 1);
+        var delay = Math.min(2000 * Math.pow(2, retries), 8000);
+        console.info("[Seedy] MSE closed, retry " + (retries + 1) + "/3 in " + delay + "ms for " + streamName);
+        setTimeout(function () {
+          if (!document.body.contains(wrap)) return;
+          if (wrap.dataset.mode === "live") _startMSE(wrap, streamName);
+        }, delay);
+      } else {
+        console.warn("[Seedy] MSE max retries reached for " + streamName + ", falling back to snapshots");
+        _fallbackToSnapshot(wrap, streamName);
+      }
+    };
 
     _mseMap.set(wrap, { ws: ws, ms: ms, stream: streamName });
   }
@@ -705,6 +726,7 @@
       video.load();
     }
     _mseMap.delete(wrap);
+    _mseRetries.delete(wrap);
   }
 
   function _fallbackToSnapshot(wrap, streamName) {
@@ -1364,12 +1386,12 @@
       });
       // Try to extract from any link/text in the modal containing the anilla
       if (!aveId) {
-        var anillaMatch = text.match(/PAL-\\d+-(\\d+)/);
+        var anillaMatch = text.match(/PAL-\d+-(\d+)/);
         if (anillaMatch) aveId = parseInt(anillaMatch[1], 10);
       }
       // Try from URL if on detail page
       if (!aveId) {
-        var urlMatch = window.location.pathname.match(/\\/aves\\/(\\d+)/);
+        var urlMatch = window.location.pathname.match(/\/aves\/(\d+)/);
         if (urlMatch) aveId = urlMatch[1];
       }
 
@@ -1449,7 +1471,7 @@
     // Watch for SPA navigation and DOM changes
     const observer = new MutationObserver(() => {
       if (!isTargetFarm()) return;
-      enhanceEditModal(); // inject Seedy into any open OvoSfera edit modal
+      try { enhanceEditModal(); } catch (e) { console.warn("[Seedy] enhanceEditModal failed:", e); }
       if (isGallinerosPage()) {
         injectCameras();
       } else if (isDashboardPage()) {
