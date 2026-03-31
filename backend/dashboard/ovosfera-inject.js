@@ -468,11 +468,28 @@
 
   // ── Parse gallinero ID from card ──
   function parseGallineroId(card) {
-    // The card shows "Zona · #ID" in a span
+    // Method 1: look for #N in span text (e.g., "Zona · #2")
     const spans = card.querySelectorAll("span");
     for (const span of spans) {
       const m = span.textContent.match(/#(\d+)/);
       if (m) return parseInt(m[1], 10);
+    }
+    // Method 2: data-id / data-gallinero-id / data-gallinero attributes
+    for (const el of card.querySelectorAll("[data-id],[data-gallinero-id],[data-gallinero]")) {
+      const val = el.dataset.id || el.dataset.gallineroId || el.dataset.gallinero;
+      const n = parseInt(val, 10);
+      if (n > 0) return n;
+    }
+    // Method 3: extract from href links (e.g., /gallineros/2)
+    for (const a of card.querySelectorAll("a[href]")) {
+      const m = (a.getAttribute("href") || "").match(/\/gallineros\/(\d+)/);
+      if (m) return parseInt(m[1], 10);
+    }
+    // Method 4: check the card's own data attributes
+    const cardId = card.dataset.id || card.dataset.gallineroId || card.dataset.gallinero;
+    if (cardId) {
+      const n = parseInt(cardId, 10);
+      if (n > 0) return n;
     }
     return null;
   }
@@ -593,6 +610,8 @@
             if (offlineEl) offlineEl.remove();
             container.dataset.activeStream = c.stream;
             delete wrap.dataset._mseFailed; // reset MSE for new camera
+            delete wrap.dataset._mseStallCount;
+            delete wrap.dataset._lastVideoTime;
             refreshSnapshot(wrap, gallineroId);
           }
         });
@@ -637,6 +656,16 @@
     var ws = new WebSocket(wsUrl);
     ws.binaryType = "arraybuffer";
     var ms = null, sb = null, queue = [];
+    var gotVideoData = false;
+
+    // Fall back to snapshots if no video data arrives within 10 seconds
+    var dataTimeout = setTimeout(function () {
+      if (!gotVideoData && !wrap.dataset._mseFailed) {
+        console.warn("[Seedy] MSE no data in 10s for", streamName, "— fallback to snapshots");
+        try { ws.close(); } catch (e) {}
+        _fallbackToSnapshot(wrap, streamName);
+      }
+    }, 10000);
 
     function appendNext() {
       if (sb && !sb.updating && queue.length > 0) {
@@ -660,6 +689,7 @@
           if (msg.type === "mse") {
             if (typeof MediaSource === "undefined" || !MediaSource.isTypeSupported(msg.value)) {
               console.warn("[Seedy] MSE codec not supported:", msg.value, "— fallback to snapshots");
+              clearTimeout(dataTimeout);
               ws.close();
               _fallbackToSnapshot(wrap, streamName);
               return;
@@ -673,6 +703,7 @@
                 sb.addEventListener("updateend", appendNext);
               } catch (e) {
                 console.warn("[Seedy] SourceBuffer error:", e);
+                clearTimeout(dataTimeout);
                 ws.close();
                 _fallbackToSnapshot(wrap, streamName);
               }
@@ -681,15 +712,31 @@
           }
         } catch (e) { /* ignore parse errors */ }
       } else {
+        if (!gotVideoData) {
+          gotVideoData = true;
+          clearTimeout(dataTimeout);
+        }
         queue.push(ev.data);
         appendNext();
       }
     };
 
     ws.onerror = function () {
+      clearTimeout(dataTimeout);
       _fallbackToSnapshot(wrap, streamName);
     };
-    ws.onclose = function () {};
+
+    // If the WebSocket closes unexpectedly (session still in _mseMap), fall back to snapshots.
+    // _stopMSE deletes the session from _mseMap before calling ws.close(), so intentional
+    // stops won't trigger this fallback.
+    ws.onclose = function () {
+      clearTimeout(dataTimeout);
+      var session = _mseMap.get(wrap);
+      if (session && session.ws === ws && !wrap.dataset._mseFailed) {
+        _mseMap.delete(wrap);
+        _fallbackToSnapshot(wrap, streamName);
+      }
+    };
 
     _mseMap.set(wrap, { ws: ws, ms: ms, stream: streamName });
   }
@@ -749,6 +796,8 @@
     // Not live → stop MSE, show img
     _stopMSE(wrap);
     delete wrap.dataset._mseFailed;
+    delete wrap.dataset._mseStallCount;
+    delete wrap.dataset._lastVideoTime;
     if (video) video.style.display = "none";
     if (img) img.style.display = "";
     img.classList.add("loading");
@@ -844,6 +893,9 @@
             contentDiv.appendChild(camEl);
           }
         }
+      } else {
+        // Fallback: just append to the card directly
+        card.appendChild(camEl);
       }
     });
   }
@@ -857,13 +909,44 @@
         const gid = parseInt(wrap.dataset.gallineroId, 10);
         if (!gid) return;
         const mode = wrap.dataset.mode || "live";
-        // Live MSE: only poll if MSE failed and using snapshot fallback
-        if (mode === "live" && wrap.dataset._mseFailed === "1") {
-          const cam = CAMERA_MAP[gid];
-          const container = wrap.parentElement;
-          const activeStream = (container && container.dataset.activeStream) || (cam && cam.stream);
-          const img = wrap.querySelector("img");
-          if (activeStream && img) _snapshotFallback(img, activeStream, gid, cam);
+        if (mode === "live") {
+          if (wrap.dataset._mseFailed === "1") {
+            // MSE failed — keep polling snapshots as fallback
+            const cam = CAMERA_MAP[gid];
+            const container = wrap.parentElement;
+            const activeStream = (container && container.dataset.activeStream) || (cam && cam.stream);
+            const img = wrap.querySelector("img");
+            if (activeStream && img) _snapshotFallback(img, activeStream, gid, cam);
+          } else {
+            // MSE supposedly running — check for stalled video (frozen frame)
+            const video = wrap.querySelector("video");
+            const session = _mseMap.get(wrap);
+            if (session && video && !video.paused && video.readyState >= 2) {
+              const lastTime = parseFloat(wrap.dataset._lastVideoTime || "0");
+              const now = video.currentTime;
+              if (now === lastTime && now > 0) {
+                // currentTime hasn't advanced — stream stalled, restart MSE
+                const cam = CAMERA_MAP[gid];
+                const container = wrap.parentElement;
+                const activeStream = (container && container.dataset.activeStream) || (cam && cam.stream);
+                if (activeStream) {
+                  const stallCount = (parseInt(wrap.dataset._mseStallCount || "0") + 1);
+                  wrap.dataset._mseStallCount = String(stallCount);
+                  if (stallCount >= 2) {
+                    // Stalled for 2+ ticks (~4s) — stop MSE and fall back to snapshot.
+                    // Delete the stale _mseMap entry here so _fallbackToSnapshot's caller
+                    // doesn't re-enter the stall check on the next tick.
+                    wrap.dataset._mseStallCount = "0";
+                    _mseMap.delete(wrap);
+                    _fallbackToSnapshot(wrap, activeStream);
+                  }
+                }
+              } else {
+                wrap.dataset._mseStallCount = "0";
+              }
+              wrap.dataset._lastVideoTime = String(now);
+            }
+          }
         } else if (mode === "yolo") {
           refreshSnapshot(wrap, gid);
         }
