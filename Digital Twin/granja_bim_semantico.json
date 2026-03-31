@@ -1,0 +1,256 @@
+{
+  "meta": {
+    "name": "Los Capones de Palacio — BIM semántico",
+    "tenant": "palacio",
+    "format_note": "Semantic BIM-lite, not a native IFC file. Fuente de verdad para Digital Twin.",
+    "coordinate_system": {
+      "origin": "south-west corner",
+      "units": "meters",
+      "crs": "EPSG:4326",
+      "lat": 40.91541,
+      "lon": -4.06827,
+      "altitude_m": 1000
+    },
+    "scale_px_per_meter": 40,
+    "canvas_m": { "width": 30.0, "height": 15.0 },
+    "geotwin_id": "Yasg5zxsF_",
+    "version": "2.0",
+    "updated": "2026-03-23"
+  },
+  "levels": [
+    { "id": "L0", "name": "Ground", "elevation_m": 0.0 }
+  ],
+  "elements": [
+    {
+      "id": "SITE-001",
+      "class": "IfcSite",
+      "name": "Parcela piloto",
+      "geometry": { "type": "rect", "x": 0.0, "y": 0.0, "w": 30.0, "h": 15.0 },
+      "properties": { "area_ha": 0.3, "uso": "avicultura heritage + huerto" }
+    },
+    {
+      "id": "MT-001",
+      "class": "IfcGeographicElement",
+      "name": "Muro/Talud con árboles",
+      "geometry": { "type": "rect", "x": 0.5, "y": 13.45, "w": 29.0, "h": 1.05, "z": 0.0, "height": 2.5 },
+      "properties": { "material": "piedra + vegetación", "estimated_height_m": 2.5 }
+    },
+    {
+      "id": "RF-001",
+      "class": "IfcBuildingElementProxy",
+      "name": "Sauna / Referencia lateral",
+      "geometry": { "type": "rect", "x": 0.0, "y": 8.8, "w": 4.25, "h": 4.1, "z": 0.0, "height": 4.0 },
+      "properties": {
+        "material": "madera",
+        "nota": "3.5m (pared este → parque) × 6m (N→S, pared sur fuera del perímetro avícola). 4m alto.",
+        "uso": "refugio nocturno + perchas + ponederos"
+      }
+    },
+    {
+      "id": "Z-GI",
+      "class": "IfcSpace",
+      "name": "Parque Gallinero I",
+      "geometry": {
+        "type": "polygon",
+        "points": [
+          [4.45, 12.85], [24.6, 12.85], [24.6, 7.2],
+          [21.3, 6.45], [8.55, 6.05], [4.45, 8.8]
+        ]
+      },
+      "properties": {
+        "forma": "L/embudo — zona abierta + transición diagonal + pasillo 2.5m",
+        "aves_asignadas": 13,
+        "perimetro_color": "#22c55e"
+      }
+    },
+    {
+      "id": "Z-GII",
+      "class": "IfcSpace",
+      "name": "Parque Gallinero II",
+      "geometry": { "type": "rect", "x": 24.6, "y": 0.8, "w": 4.0, "h": 12.1, "z": 0.0, "height": 0.1 },
+      "properties": {
+        "aves_asignadas": 12,
+        "perimetro_color": "#3b82f6"
+      }
+    },
+    {
+      "id": "COOP-001",
+      "class": "IfcBuildingElementProxy",
+      "name": "Gallinero I (caseta pequeña)",
+      "geometry": { "type": "rect", "x": 22.5, "y": 12.0, "w": 1.5, "h": 0.9, "z": 0.0, "height": 2.0 },
+      "properties": { "material": "madera blanca", "pegado_al_muro": true, "puerta": "sur" }
+    },
+    {
+      "id": "COOP-002",
+      "class": "IfcBuildingElementProxy",
+      "name": "Gallinero II (caseta)",
+      "geometry": { "type": "rect", "x": 25.15, "y": 7.65, "w": 2.0, "h": 2.0, "z": 0.0, "height": 2.0 },
+      "properties": { "material": "madera/metal", "puerta": "sur" }
+    },
+    {
+      "id": "FEN-001",
+      "class": "IfcFence",
+      "name": "Valla principal (roja)",
+      "geometry": {
+        "type": "polyline",
+        "points": [
+          [4.25, 8.8], [8.55, 6.05], [9.35, 10.85],
+          [21.8, 10.1], [24.6, 7.3]
+        ]
+      },
+      "properties": { "material": "malla metálica + postes madera", "estimated_height_m": 1.2 }
+    },
+    {
+      "id": "FEN-002",
+      "class": "IfcFence",
+      "name": "Borde inferior GI",
+      "geometry": {
+        "type": "polyline",
+        "points": [[8.55, 6.05], [20.2, 6.05], [24.6, 6.85]]
+      },
+      "properties": { "material": "malla metálica", "estimated_height_m": 1.2 }
+    },
+    {
+      "id": "CAM-001",
+      "class": "IfcSensor",
+      "name": "Dahua WizSense 4K",
+      "geometry": { "type": "point", "x": 4.25, "y": 8.8, "z": 2.2 },
+      "properties": {
+        "sensor_type": "video",
+        "model": "DH-IPC-HFW2841T-ZS",
+        "ip": "10.10.10.108",
+        "resolution": "3840x2160",
+        "codec": "H.265",
+        "stream_name": "sauna_durrif_1",
+        "heading_deg": 90,
+        "fov_deg": 75,
+        "range_m": 8,
+        "ubicacion": "pared este de la sauna",
+        "microphone": true,
+        "speaker": false
+      }
+    },
+    {
+      "id": "CAM-002",
+      "class": "IfcSensor",
+      "name": "Cam Nueva TP-Link",
+      "geometry": { "type": "point", "x": 24.35, "y": 9.85, "z": 2.2 },
+      "properties": {
+        "sensor_type": "video",
+        "model": "TP-Link VIGI",
+        "ip": "pendiente",
+        "resolution": "3840x2160",
+        "codec": "H.265",
+        "stream_name": null,
+        "heading_deg": 270,
+        "fov_deg": 75,
+        "range_m": 8,
+        "ubicacion": "muro norte cerca de GII",
+        "status": "PENDIENTE INSTALACIÓN"
+      }
+    },
+    {
+      "id": "CAM-003",
+      "class": "IfcSensor",
+      "name": "Vigi GII TP-Link",
+      "geometry": { "type": "point", "x": 26.15, "y": 7.65, "z": 2.0 },
+      "properties": {
+        "sensor_type": "video",
+        "model": "TP-Link VIGI C340",
+        "ip": "10.10.10.10",
+        "resolution": "3840x2160",
+        "codec": "H.265",
+        "stream_name": "gallinero_durrif_2",
+        "heading_deg": 180,
+        "fov_deg": 60,
+        "range_m": 6,
+        "ubicacion": "caseta Gallinero II"
+      }
+    },
+    {
+      "id": "EQ-001",
+      "class": "IfcFurniture",
+      "name": "Bebedero GI",
+      "geometry": { "type": "point", "x": 10.0, "y": 9.5, "z": 0.0 },
+      "properties": { "tipo": "bebedero", "zona": "Parque GI" }
+    },
+    {
+      "id": "EQ-002",
+      "class": "IfcFurniture",
+      "name": "Comedero GI",
+      "geometry": { "type": "point", "x": 13.0, "y": 8.0, "z": 0.0 },
+      "properties": { "tipo": "comedero", "zona": "Parque GI" }
+    },
+    {
+      "id": "EQ-003",
+      "class": "IfcFurniture",
+      "name": "Compostera",
+      "geometry": { "type": "point", "x": 11.0, "y": 7.5, "z": 0.0 },
+      "properties": { "tipo": "compostera", "zona": "Parque GI" }
+    },
+    {
+      "id": "EQ-004",
+      "class": "IfcFurniture",
+      "name": "Bebedero GII",
+      "geometry": { "type": "point", "x": 26.5, "y": 4.5, "z": 0.0 },
+      "properties": { "tipo": "bebedero", "zona": "Parque GII" }
+    },
+    {
+      "id": "EQ-005",
+      "class": "IfcFurniture",
+      "name": "Comedero GII",
+      "geometry": { "type": "point", "x": 26.5, "y": 3.0, "z": 0.0 },
+      "properties": { "tipo": "comedero", "zona": "Parque GII" }
+    },
+    {
+      "id": "VEG-001",
+      "class": "IfcGeographicElement",
+      "name": "Almendro grande central",
+      "geometry": { "type": "point", "x": 8.0, "y": 9.0, "z": 0.0 },
+      "properties": { "species": "almendro", "canopy_radius_m": 3.5 }
+    },
+    {
+      "id": "Z-HUERTO",
+      "class": "IfcSpace",
+      "name": "Huerto (fuera perímetro avícola)",
+      "geometry": { "type": "rect", "x": 4.5, "y": 0.5, "w": 19.0, "h": 5.5 },
+      "properties": { "avicola": false, "uso": "cultivo rotación" }
+    }
+  ],
+  "dynamic_layers": {
+    "animales": {
+      "source": "seedy-backend WebSocket /ws/tracking",
+      "schema": {
+        "id": "ANI-xxx",
+        "anilla": "string",
+        "raza": "string",
+        "x": "float",
+        "y": "float",
+        "state": "enum(active,resting,feeding,alert)",
+        "confidence": "float"
+      },
+      "refresh_hz": 2
+    },
+    "sensores_iot": {
+      "source": "InfluxDB via seedy-backend /api/iot/latest",
+      "schema": {
+        "id": "SEN-xxx",
+        "type": "enum(temp,humidity,lux,co2)",
+        "value": "float",
+        "unit": "string",
+        "zone": "string"
+      },
+      "refresh_s": 30
+    },
+    "alertas": {
+      "source": "MQTT topic palacio/alertas",
+      "schema": {
+        "id": "ALT-xxx",
+        "severity": "enum(info,warning,critical)",
+        "zone": "string",
+        "message": "string",
+        "timestamp": "ISO8601"
+      }
+    }
+  }
+}

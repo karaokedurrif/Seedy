@@ -1,0 +1,20 @@
+element_id,category,family_type,zone,x,y,z,width_m,depth_m,height_m,material,notes
+SITE-001,Site,Boundary,Global,0.0,0.0,0.0,30.0,15.0,0.0,Terrain,Parcela piloto 0.3ha
+MT-001,Topography,Muro/Talud,North Edge,0.5,13.45,0.0,29.0,1.05,2.5,Piedra + vegetación,Franja superior con árboles
+RF-001,Building,Sauna/Referencia,West Edge,0.0,8.8,0.0,4.25,4.1,4.0,Madera,"3.5m pared este (parque) × 6m N→S, 4m alto"
+Z-GI,Zone,Parque GI,Parque GI,4.45,6.05,0.0,20.15,6.8,0.0,Open area,Polígono L/embudo 6 vértices — 13 aves
+Z-GII,Zone,Parque GII,Parque GII,24.6,0.8,0.0,4.0,12.1,0.1,Open area,Rectángulo — 12 aves
+COOP-001,Building,Gallinero I (caseta pequeña),Parque GI,22.5,12.0,0.0,1.5,0.9,2.0,Madera blanca,Pegado al muro norte — puerta al sur
+COOP-002,Building,Gallinero II (caseta),Parque GII,25.15,7.65,0.0,2.0,2.0,2.0,Madera/metal,Puerta al sur
+FEN-001,Fence,Valla principal (roja),GI-GII,4.25,8.8,0.0,,,1.2,Malla metálica + postes madera,Polilínea 5 vértices
+FEN-002,Fence,Borde inferior GI,GI,8.55,6.05,0.0,,,1.2,Malla metálica,Polilínea 3 vértices
+CAM-001,Camera,Dahua WizSense 4K,West (sauna),4.25,8.8,2.2,,,,"DH-IPC-HFW2841T-ZS, 3840×2160 H.265",Pared este sauna — 10.10.10.108 — heading 90° — FOV 75°
+CAM-002,Camera,Cam Nueva TP-Link,East (muro),24.35,9.85,2.2,,,,TP-Link VIGI,Muro norte near GII — PENDIENTE — heading 270° — FOV 75°
+CAM-003,Camera,Vigi GII TP-Link,Parque GII,26.15,7.65,2.0,,,,"TP-Link VIGI C340, 3840×2160 H.265",Caseta GII — 10.10.10.10 — heading 180° — FOV 60°
+EQ-001,Equipment,Bebedero GI,Parque GI,10.0,9.5,0.0,,,,,Bebedero en zona abierta GI
+EQ-002,Equipment,Comedero GI,Parque GI,13.0,8.0,0.0,,,,,Comedero en zona abierta GI
+EQ-003,Equipment,Compostera,Parque GI,11.0,7.5,0.0,,,,,Zona de compostaje
+EQ-004,Equipment,Bebedero GII,Parque GII,26.5,4.5,0.0,,,,,Bebedero en Parque GII
+EQ-005,Equipment,Comedero GII,Parque GII,26.5,3.0,0.0,,,,,Comedero en Parque GII
+VEG-001,Vegetation,Almendro grande,Parque GI,8.0,9.0,0.0,,,,"Almendro, canopy r≈3.5m",Árbol grande central
+Z-HUERTO,Zone,Huerto,Exterior,4.5,0.5,0.0,19.0,5.5,0.0,,Fuera perímetro avícola — cultivo rotación

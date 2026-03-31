@@ -20,6 +20,11 @@ from routers import chat, health, vision, genetics, openai_compat, ingest, birds
 from routers import vision_identify
 from routers import ovosfera_bridge
 from routers import survey
+from routers import bim
+from routers import render
+from routers import bird_3d
+from routers import runtime as runtime_router
+from routers import dron
 from services import embeddings, rag
 from services import gemini_vision
 from services.reranker import warmup as reranker_warmup
@@ -59,11 +64,15 @@ async def lifespan(app: FastAPI):
     # Warmup go2rtc streams (pre-connect RTSP → evita cold start de 5s)
     asyncio.create_task(_warmup_go2rtc_streams())
 
+    # Auto-start bird identification loop — DESACTIVADO hasta validar estrategia quality-first
+    # asyncio.create_task(_auto_start_identification())
+
     logger.info("🌱 Seedy Backend listo")
     yield
 
     # Cleanup
     daily_task.cancel()
+    vision_identify.stop_loop()
     await embeddings.close()
     await gemini_vision.close()
     rag.close()
@@ -83,6 +92,16 @@ async def _daily_update_loop():
             logger.error(f"Error en actualización diaria: {e}")
         # Esperar 24h hasta la siguiente
         await asyncio.sleep(86400)
+
+
+async def _auto_start_identification():
+    """Auto-inicia el loop de identificación de aves tras warmup."""
+    await asyncio.sleep(15)  # esperar a que go2rtc esté listo
+    try:
+        vision_identify.start_loop()
+        logger.info("🐔 Bird identification loop auto-started")
+    except Exception as e:
+        logger.warning(f"Auto-start identification failed: {e}")
 
 
 async def _warmup_go2rtc_streams():
@@ -121,7 +140,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     """
 
     OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models"}
-    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/")
+    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/")
 
     async def dispatch(self, request: Request, call_next):
         if not _valid_keys:
@@ -180,6 +199,18 @@ app.include_router(birds.router)
 app.include_router(vision_identify.router)
 app.include_router(ovosfera_bridge.router)
 app.include_router(survey.router)
+app.include_router(bim.router)
+app.include_router(runtime_router.router)
+app.include_router(render.router)
+app.include_router(bird_3d.router)
+app.include_router(dron.router)
+
+
+# ── Stub: tracking activity feed (returns empty until real YOLO pipeline is connected) ──
+@app.get("/api/tracking/{farm}/latest")
+async def tracking_latest_stub(farm: str):
+    return []
+
 
 # ── Dashboard gallineros (HTML estático) ──
 from fastapi.staticfiles import StaticFiles

@@ -1,0 +1,282 @@
+[
+  {
+    "tool_id": "yolo_detect",
+    "name": "Detección YOLO",
+    "description": "Ejecuta YOLOv8 sobre un frame de cámara para detectar aves, razas, sexos y bboxes",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "camera_id": {"type": "string"},
+        "frame_b64": {"type": "string", "description": "Frame JPEG en base64 (opcional, si no se pasa se captura en vivo)"}
+      },
+      "required": ["camera_id"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "detections": {"type": "array", "items": {"type": "object"}},
+        "count": {"type": "integer"},
+        "inference_ms": {"type": "number"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 4000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "reid_identify",
+    "name": "Re-ID visual",
+    "description": "Identifica individualmente un ave mediante embeddings visuales (Together.ai Qwen3-VL-8B)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "crop_b64": {"type": "string", "description": "Crop JPEG del ave en base64"},
+        "candidate_ids": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["crop_b64"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "bird_id": {"type": "string"},
+        "confidence": {"type": "number"},
+        "alternatives": {"type": "array"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 8000,
+    "cost_tier": "low"
+  },
+  {
+    "tool_id": "rag_query",
+    "name": "Consulta RAG",
+    "description": "Busca en la base documental vectorial (Qdrant) y genera respuesta con el LLM Seedy",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "query": {"type": "string"},
+        "farm_id": {"type": "string"},
+        "collections": {"type": "array", "items": {"type": "string"}}
+      },
+      "required": ["query"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "answer": {"type": "string"},
+        "sources": {"type": "array"},
+        "model_used": {"type": "string"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 15000,
+    "cost_tier": "low"
+  },
+  {
+    "tool_id": "bim_read",
+    "name": "Leer BIM",
+    "description": "Lee los elementos BIM semánticos de una granja (geometría, zonas, edificios, equipamiento)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "farm_id": {"type": "string"},
+        "element_type": {"type": "string", "description": "Filtrar por tipo: zona, edificio, valla, equipamiento"}
+      },
+      "required": ["farm_id"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "elements": {"type": "array"},
+        "count": {"type": "integer"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 2000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "bim_write",
+    "name": "Escribir BIM",
+    "description": "Crea o actualiza un elemento BIM en la granja",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "farm_id": {"type": "string"},
+        "element": {"type": "object"}
+      },
+      "required": ["farm_id", "element"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "element_id": {"type": "string"},
+        "status": {"type": "string"}
+      }
+    },
+    "requires_approval": true,
+    "max_latency_ms": 3000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "influx_write",
+    "name": "Escribir sensor IoT",
+    "description": "Guarda una lectura de sensor en InfluxDB (temp, humedad, NH3, lux, peso, etc.)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "measurement": {"type": "string"},
+        "tags": {"type": "object"},
+        "fields": {"type": "object"},
+        "timestamp": {"type": "string", "format": "date-time"}
+      },
+      "required": ["measurement", "fields"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {"status": {"type": "string"}}
+    },
+    "requires_approval": false,
+    "max_latency_ms": 1000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "alert_create",
+    "name": "Crear alerta",
+    "description": "Genera una alerta en el sistema (sanitaria, térmica, de depredador, etc.)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "farm_id": {"type": "string"},
+        "severity": {"type": "string", "enum": ["info", "warning", "critical"]},
+        "category": {"type": "string"},
+        "message": {"type": "string"},
+        "bird_id": {"type": "string"}
+      },
+      "required": ["farm_id", "severity", "message"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {"alert_id": {"type": "string"}, "notified": {"type": "boolean"}}
+    },
+    "requires_approval": false,
+    "max_latency_ms": 2000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "bird_update",
+    "name": "Actualizar registro ave",
+    "description": "Actualiza datos de un ave en el registro (peso, estado, gallinero, foto, etc.)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "bird_id": {"type": "string"},
+        "updates": {"type": "object"}
+      },
+      "required": ["bird_id", "updates"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {"bird_id": {"type": "string"}, "status": {"type": "string"}}
+    },
+    "requires_approval": false,
+    "max_latency_ms": 2000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "gompertz_fit",
+    "name": "Ajustar curva Gompertz",
+    "description": "Calcula parámetros de la curva de crecimiento Gompertz para un ave o raza con datos reales de peso",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "bird_id": {"type": "string"},
+        "breed": {"type": "string"},
+        "weight_records": {"type": "array", "items": {"type": "object", "properties": {"day": {"type": "integer"}, "weight_kg": {"type": "number"}}}}
+      }
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "A": {"type": "number"},
+        "b": {"type": "number"},
+        "k": {"type": "number"},
+        "r_squared": {"type": "number"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 5000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "twin_update",
+    "name": "Actualizar digital twin",
+    "description": "Inyecta datos en tiempo real al Digital Twin (posiciones, estados, alertas, sensores)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "farm_id": {"type": "string"},
+        "layer": {"type": "string", "description": "animals | sensors | alerts | cameras"},
+        "data": {"type": "array"}
+      },
+      "required": ["farm_id", "layer", "data"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {"updated": {"type": "integer"}, "status": {"type": "string"}}
+    },
+    "requires_approval": false,
+    "max_latency_ms": 1000,
+    "cost_tier": "free"
+  },
+  {
+    "tool_id": "genetics_simulate",
+    "name": "Simular cruce genético",
+    "description": "Simula el resultado de un cruce entre dos aves — calcula COI, heterocigosidad, predicción de rasgos",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "sire_id": {"type": "string"},
+        "dam_id": {"type": "string"},
+        "breed": {"type": "string"}
+      },
+      "required": ["sire_id", "dam_id"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "predicted_coi": {"type": "number"},
+        "heterozygosity": {"type": "number"},
+        "trait_predictions": {"type": "object"},
+        "recommendation": {"type": "string"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 10000,
+    "cost_tier": "low"
+  },
+  {
+    "tool_id": "audio_classify",
+    "name": "Clasificar audio ambiental",
+    "description": "Analiza un fragmento de audio del gallinero para detectar vocalizaciones anormales, estrés, depredadores",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "audio_b64": {"type": "string", "description": "WAV o MP3 en base64"},
+        "barn_id": {"type": "string"}
+      },
+      "required": ["audio_b64"]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "classification": {"type": "string"},
+        "confidence": {"type": "number"},
+        "is_alert": {"type": "boolean"}
+      }
+    },
+    "requires_approval": false,
+    "max_latency_ms": 5000,
+    "cost_tier": "low"
+  }
+]

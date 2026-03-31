@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Gallinero del Palacio — Huevos y Capones Heritage</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --crema: #FFF8F0;
+    --dorado: #8B6914;
+    --verde-musgo: #4A5F3A;
+    --marron: #5C3D2E;
+    --grafito: #1A1A1A;
+  }
+  body { font-family: 'Inter', sans-serif; color: var(--grafito); margin: 0; }
+  h1, h2, h3, h4 { font-family: 'Playfair Display', serif; }
+  .hero-gradient {
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
+  }
+  .card-hover { transition: transform 0.3s; }
+  .card-hover:hover { transform: translateY(-4px); }
+  .scroll-reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s; }
+  .scroll-reveal.visible { opacity: 1; transform: translateY(0); }
+  /* Placeholder hero with gradient when no image */
+  .hero-placeholder {
+    background: linear-gradient(135deg, #4A5F3A 0%, #2d3a24 40%, #5C3D2E 100%);
+  }
+  .breed-card-img {
+    width: 100%; height: 192px; object-fit: cover; border-radius: 12px 12px 0 0;
+  }
+  .product-img-placeholder {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 64px; background: linear-gradient(135deg, #f5f0e8, #e8dfd4);
+  }
+  /* Carousel horizontal scroll */
+  #razas-carousel { scrollbar-width: thin; scrollbar-color: #8B6914 transparent; }
+  #razas-carousel::-webkit-scrollbar { height: 6px; }
+  #razas-carousel::-webkit-scrollbar-thumb { background: #8B6914; border-radius: 3px; }
+  /* Embedded mode: hide our navbar, compact */
+  .embedded .site-navbar { display: none; }
+  .embedded body, .embedded .hero-section { margin-top: 0; }
+</style>
+</head>
+<body class="bg-[var(--crema)]">
+
+<!-- NAVBAR -->
+<nav class="site-navbar fixed top-0 w-full z-50 bg-[var(--crema)]/95 backdrop-blur-sm border-b border-[var(--dorado)]/20">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">🏰</span>
+      <span style="font-family:'Playfair Display',serif" class="text-xl font-semibold text-[var(--grafito)]">
+        El Gallinero del Palacio
+      </span>
+    </div>
+    <div class="hidden md:flex gap-8 text-sm font-medium text-[var(--marron)]">
+      <a href="#productos" class="hover:text-[var(--dorado)] transition">Productos</a>
+      <a href="#razas" class="hover:text-[var(--dorado)] transition">Razas</a>
+      <a href="#nosotros" class="hover:text-[var(--dorado)] transition">Nosotros</a>
+      <a href="#entorno" class="hover:text-[var(--dorado)] transition">Entorno</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero-section relative h-screen hero-placeholder">
+  <div class="hero-gradient absolute inset-0"></div>
+  <div class="relative z-10 h-full flex flex-col justify-end pb-24 px-8 max-w-5xl mx-auto">
+    <h1 class="text-5xl md:text-7xl font-bold text-white leading-tight mb-4">
+      Avicultura heritage<br>en el Real Sitio
+    </h1>
+    <p class="text-xl text-white/80 max-w-2xl mb-8 font-light">
+      Huevos y capones de razas centenarias, criados con ciencia y tradición
+      a 1.000 metros de altitud en La Granja de San Ildefonso.
+    </p>
+    <div class="flex gap-4">
+      <a href="#productos" class="px-8 py-3 bg-[var(--dorado)] text-white rounded-lg text-sm font-medium hover:bg-[var(--dorado)]/90 transition">
+        Ver productos
+      </a>
+      <a href="#razas" class="px-8 py-3 border border-white/40 text-white rounded-lg text-sm font-medium hover:bg-white/10 transition">
+        Conocer las razas
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- PRODUCTOS -->
+<section id="productos" class="py-24 px-6">
+  <div class="max-w-6xl mx-auto">
+    <h2 class="text-4xl font-semibold text-center mb-4 text-[var(--marron)]">Nuestros productos</h2>
+    <p class="text-center text-[var(--marron)]/70 mb-16 max-w-xl mx-auto">
+      Cada ave es seleccionada genéticamente y monitorizada por inteligencia artificial
+      desde el primer día de vida.
+    </p>
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div class="scroll-reveal card-hover bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-56 product-img-placeholder">🥚</div>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-[var(--marron)] mb-2">Huevos Heritage</h3>
+          <p class="text-sm text-[var(--marron)]/70 mb-4">
+            De 8 razas centenarias. Marans chocolate, Bresse crema, Araucana azul verdoso.
+          </p>
+          <span class="text-xs font-medium text-[var(--dorado)] uppercase tracking-wide">Próximamente</span>
+        </div>
+      </div>
+      <div class="scroll-reveal card-hover bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-56 product-img-placeholder">🍗</div>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-[var(--marron)] mb-2">Capón de Selección</h3>
+          <p class="text-sm text-[var(--marron)]/70 mb-4">
+            Mínimo 8 meses de crianza natural. Acabado en épinette. Programa genético F0-F5.
+          </p>
+          <span class="text-xs font-medium text-[var(--dorado)] uppercase tracking-wide">Reservas temporada 2026</span>
+        </div>
+      </div>
+      <div class="scroll-reveal card-hover bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-56 product-img-placeholder">🐣</div>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-[var(--marron)] mb-2">Pollita Heritage</h3>
+          <p class="text-sm text-[var(--marron)]/70 mb-4">
+            Ponedoras de razas puras y cruces seleccionados. Vacunadas y anilladas.
+          </p>
+          <span class="text-xs font-medium text-[var(--dorado)] uppercase tracking-wide">Próximamente</span>
+        </div>
+      </div>
+      <div class="scroll-reveal card-hover bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-56 product-img-placeholder">🍖</div>
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-[var(--marron)] mb-2">Poularde (Pularda)</h3>
+          <p class="text-sm text-[var(--marron)]/70 mb-4">
+            Poulardización artesanal. Infiltración grasa superior. Pieza gourmet de lujo.
+          </p>
+          <span class="text-xs font-medium text-[var(--dorado)] uppercase tracking-wide">Reservas temporada 2026</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RAZAS -->
+<section id="razas" class="py-24 px-6" style="background: rgba(74,95,58,0.05);">
+  <div class="max-w-6xl mx-auto">
+    <h2 class="text-4xl font-semibold text-center mb-16 text-[var(--marron)]">Nuestras razas</h2>
+    <div class="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory" id="razas-carousel">
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#f5f0e8,#e0d8cc);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Bresse Gauloise</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">Francia · Pattes bleues</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">La reina de las gallinas. Carne infiltrada, sabor incomparable. AOC protegida.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Crema</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Mesa + Puesta</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#f5eee4,#e6d9c5);">🐓</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Vorwerk</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">Alemania · Belted</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Raza rara y elegante. Plumaje dorado con collar negro. Doble propósito, excelente forrajeadora.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Crema</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Doble propósito</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#f0ece6,#ddd6ca);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Light Sussex</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">Inglaterra · Columbian</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Clásica inglesa. Blanca con collar negro. Excelente ponedora y madre. Carne de calidad superior.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Tinte rosado</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Mesa + Puesta</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#eae4dc,#d4cbc0);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Marans</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">Francia · Cobre negro</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Famosa por sus huevos chocolate extra-oscuros. Rústica, resistente y muy buscada por coleccionistas.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full" style="background:rgba(92,61,46,0.15);color:var(--marron);">🥚 Chocolate</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Puesta</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#f2ede5,#e2d9cd);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Sulmtaler</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">Austria · Cresta de copete</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Heritage alpina. Plumaje dorado trigueño con pequeña cresta. Excelente carne, rara y valiosa.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Crema</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Mesa</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#eee8e0,#d8d0c5);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Pita Pinta Asturiana</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">España · Moteada</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Autóctona asturiana. Plumaje blanco y negro moteado. Raza en peligro de extinción, recuperada con genética IA.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Crema rosado</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Heritage</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#ebe5dc,#d5cdc2);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Castellana Negra</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">España · Cara blanca</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Autóctona castellana. Plumaje negro brillante con cara blanca. Gran ponedora, huevos blancos grandes.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Blanco</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Puesta</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snap-start shrink-0 w-72 bg-white rounded-xl overflow-hidden shadow-sm">
+        <div class="h-48 flex items-center justify-center text-6xl" style="background:linear-gradient(135deg,#e8e2d8,#d2c9bc);">🐔</div>
+        <div class="p-5">
+          <h3 class="font-semibold text-[var(--marron)]">Andaluza Azul</h3>
+          <p class="text-xs text-[var(--marron)]/60 mt-1">España · Blue laced</p>
+          <p class="text-sm text-[var(--marron)]/70 mt-2">Elegante plumaje azul pizarra. Ponedora prolífica de huevos blancos. Raza mediterránea resistente al calor.</p>
+          <div class="mt-3 flex gap-2">
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--dorado)]/10 text-[var(--dorado)]">🥚 Blanco</span>
+            <span class="text-xs px-2 py-1 rounded-full bg-[var(--verde-musgo)]/10 text-[var(--verde-musgo)]">Puesta</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- NOSOTROS -->
+<section id="nosotros" class="py-24 px-6">
+  <div class="max-w-5xl mx-auto grid md:grid-cols-2 gap-16 items-center">
+    <div class="scroll-reveal">
+      <div class="h-96 rounded-2xl shadow-lg flex items-center justify-center"
+           style="background: linear-gradient(135deg, #4A5F3A 0%, #6b8a55 100%);">
+        <span class="text-8xl opacity-60">🏰</span>
+      </div>
+    </div>
+    <div class="scroll-reveal">
+      <h2 class="text-4xl font-semibold text-[var(--marron)] mb-6">Ciencia y tradición</h2>
+      <p class="text-[var(--marron)]/70 leading-relaxed mb-6">
+        A los pies del Palacio Real de La Granja, entre almendros y prunos centenarios,
+        criamos aves heritage con un programa de selección genética asistido por inteligencia artificial.
+      </p>
+      <ul class="space-y-3 text-sm text-[var(--marron)]/80">
+        <li class="flex gap-3">
+          <span class="text-[var(--dorado)]">◆</span>
+          Identificación visual individual con IA (YOLO + Re-ID)
+        </li>
+        <li class="flex gap-3">
+          <span class="text-[var(--dorado)]">◆</span>
+          Gemelo digital de cada ave con análisis morfológico
+        </li>
+        <li class="flex gap-3">
+          <span class="text-[var(--dorado)]">◆</span>
+          Curva de crecimiento Gompertz personalizada
+        </li>
+        <li class="flex gap-3">
+          <span class="text-[var(--dorado)]">◆</span>
+          Trazabilidad total: del huevo al plato
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- GALERIA ENTORNO -->
+<section id="entorno" class="py-24">
+  <h2 class="text-4xl font-semibold text-center mb-16 text-[var(--marron)]">Nuestro entorno</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div class="h-64 md:h-80 flex items-center justify-center text-5xl" style="background:linear-gradient(135deg,#4A5F3A,#3a4d2d);">🌲</div>
+    <div class="h-64 md:h-80 flex items-center justify-center text-5xl" style="background:linear-gradient(135deg,#5C3D2E,#7a5440);">🏔️</div>
+    <div class="h-64 md:h-80 flex items-center justify-center text-5xl" style="background:linear-gradient(135deg,#8B6914,#a68030);">⛲</div>
+    <div class="h-64 md:h-80 flex items-center justify-center text-5xl" style="background:linear-gradient(135deg,#2d3a24,#4A5F3A);">🌿</div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="bg-[var(--grafito)] text-white/70 py-16 px-6">
+  <div class="max-w-5xl mx-auto grid md:grid-cols-3 gap-12">
+    <div>
+      <span class="text-2xl">🏰</span>
+      <h3 style="font-family:'Playfair Display',serif" class="text-lg font-semibold text-white mt-2">El Gallinero del Palacio</h3>
+      <p class="text-sm mt-2">La Granja de San Ildefonso, Segovia</p>
+      <p class="text-sm">Altitud: 1.000 m</p>
+    </div>
+    <div>
+      <h4 class="text-white font-medium mb-4">Contacto</h4>
+      <p class="text-sm">info@elgallinerodelpalacio.es</p>
+      <p class="text-sm mt-2">Un proyecto NeoFarm</p>
+      <p class="text-sm">hub.ovosfera.com</p>
+    </div>
+    <div>
+      <h4 class="text-white font-medium mb-4">Tecnología</h4>
+      <p class="text-sm">Powered by Seedy AI</p>
+      <p class="text-sm">Visión: YOLOv8 + Qwen3-VL</p>
+      <p class="text-sm">LLM: Seedy v16 (Qwen2.5-14B)</p>
+    </div>
+  </div>
+</footer>
+
+<!-- Scroll reveal animation -->
+<script>
+  var obs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.scroll-reveal').forEach(function(el) { obs.observe(el); });
+
+  // If embedded in OvoSfera (loaded via inject), hide our own navbar
+  if (window.parent !== window || window.__seedyEmbedded) {
+    document.querySelector('.site-navbar').style.display = 'none';
+    document.querySelector('.hero-section').style.marginTop = '0';
+  }
+</script>
+</body>
+</html>

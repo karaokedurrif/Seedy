@@ -3,204 +3,600 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seedy — Plano 2D Gallineros Durrif</title>
+<title>Los Capones de Palacio &mdash; Plano General 2D</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#0a0e14;color:#eee;font-family:'Segoe UI',system-ui,sans-serif}
-  h1{text-align:center;padding:12px;font-size:1.3em;color:#7fdbca}
-  .sub{text-align:center;color:#666;font-size:0.8em;margin-bottom:8px}
-  #container{display:flex;justify-content:center;padding:0 16px 16px}
-  svg{background:#0d1117;border-radius:12px;border:1px solid #1e293b;max-width:100%;height:auto}
-  .legend{position:fixed;bottom:10px;right:10px;background:#0d1117ee;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:0.72em;backdrop-filter:blur(6px)}
-  .legend div{display:flex;align-items:center;gap:6px;margin:3px 0;color:#94a3b8}
-  .legend .sw{width:13px;height:13px;border-radius:3px;border:1px solid #475569}
-  .tip{position:fixed;background:#1e293bee;color:#e2e8f0;padding:8px 12px;border-radius:8px;font-size:0.78em;pointer-events:none;display:none;border:1px solid #475569;z-index:100;max-width:260px;backdrop-filter:blur(4px);line-height:1.4}
+  body{background:#0a0e17;color:#e0e0e0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;overflow:hidden;height:100vh}
+  #header{position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(180deg,rgba(10,14,23,.97),rgba(10,14,23,.8));padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(34,197,94,.3);backdrop-filter:blur(10px)}
+  #header h1{font-size:17px;font-weight:700;background:linear-gradient(135deg,#22c55e,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  #header .sub{font-size:11px;color:#6b7280;margin-top:1px}
+  .ctrls{display:flex;gap:6px;align-items:center}
+  .ctrls button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e0e0e0;padding:5px 12px;border-radius:7px;cursor:pointer;font-size:11px;font-weight:500;transition:.2s}
+  .ctrls button:hover{background:rgba(34,197,94,.2);border-color:#22c55e}
+  .ctrls button.on{background:rgba(34,197,94,.3);border-color:#22c55e;color:#22c55e}
+  .scale-txt{font-size:10px;color:#9ca3af}
+  #wrap{width:100vw;height:100vh;cursor:grab;overflow:hidden;position:relative}
+  #wrap:active{cursor:grabbing}
+  #wrap svg{position:absolute;top:0;left:0}
+  #legend{position:fixed;bottom:14px;left:14px;z-index:100;background:rgba(10,14,23,.92);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 16px;min-width:220px;backdrop-filter:blur(10px);font-size:11px}
+  #legend h3{font-size:12px;font-weight:600;color:#22c55e;margin-bottom:6px}
+  .li{display:flex;align-items:center;gap:7px;margin:3px 0}
+  .lc{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+  #info{position:fixed;bottom:14px;right:14px;z-index:100;background:rgba(10,14,23,.92);border:1px solid rgba(255,255,255,.1);border-radius:11px;padding:12px 16px;min-width:250px;max-width:310px;backdrop-filter:blur(10px);font-size:11px;display:none}
+  #info h3{font-size:13px;font-weight:600;margin-bottom:5px}
+  #info .d{color:#9ca3af;margin:2px 0}
+  #zc{position:fixed;top:60px;right:14px;z-index:100;display:flex;flex-direction:column;gap:3px}
+  #zc button{width:34px;height:34px;border-radius:7px;background:rgba(10,14,23,.9);border:1px solid rgba(255,255,255,.15);color:#e0e0e0;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+  #zc button:hover{background:rgba(34,197,94,.2);border-color:#22c55e}
+  #zlev{text-align:center;font-size:9px;color:#6b7280}
+  .hi:hover{filter:brightness(1.3);cursor:pointer}
+  #compass{position:fixed;top:60px;left:14px;z-index:100;width:46px;height:46px}
+  /* ── Day/Light theme ── */
+  body.day{background:#e8e4df;color:#1a1a1a}
+  body.day #header{background:linear-gradient(180deg,rgba(245,243,240,.97),rgba(245,243,240,.85));border-bottom-color:rgba(34,130,60,.3)}
+  body.day #header .sub{color:#6b7280}
+  body.day .ctrls button{background:rgba(0,0,0,.06);border-color:rgba(0,0,0,.15);color:#333}
+  body.day .ctrls button:hover{background:rgba(34,197,94,.15);border-color:#22c55e}
+  body.day .ctrls button.on{background:rgba(34,197,94,.2);border-color:#22c55e;color:#166534}
+  body.day #legend{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.12);color:#333}
+  body.day #legend h3{color:#166534}
+  body.day #info{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.12);color:#333}
+  body.day #info .d{color:#555}
+  body.day #zc button{background:rgba(255,255,255,.9);border-color:rgba(0,0,0,.15);color:#333}
+  body.day #zc button:hover{background:rgba(34,197,94,.15);border-color:#22c55e}
+  body.day #zlev{color:#666}
+  body.day .scale-txt{color:#666}
+  /* SVG overrides */
+  body.day #muro-bg{fill:#5a8a5a;stroke:#6b9a6b}
 </style>
 </head>
 <body>
-<h1>Los Capones de Palacio &mdash; Plano General</h1>
-<p class="sub">Medidas reales &middot; Escala 1m = 25px</p>
-<div id="container"></div>
-<div class="legend">
-  <div><span class="sw" style="background:#22c55e30;border-color:#22c55e"></span> Gallinero I &mdash; zona principal</div>
-  <div><span class="sw" style="background:#3b82f630;border-color:#3b82f6"></span> Gallinero II &mdash; recinto cerrado</div>
-  <div><span class="sw" style="background:#78716c40;border-color:#78716c"></span> Muro &amp; talud con arboles</div>
-  <div><span class="sw" style="background:#a78bfa25;border-color:#a78bfa"></span> Sauna</div>
-  <div><span class="sw" style="background:#f59e0b40;border-color:#f59e0b"></span> Casetas / habitaculos</div>
-  <div><span class="sw" style="background:#8b1a1a50;border-color:#dc2626"></span> Campo de vision camara</div>
-  <div><span class="sw" style="background:#ef4444"></span> Camara activa (VIGI)</div>
-  <div><span class="sw" style="background:#f59e0b"></span> Camara offline (Dahua)</div>
+<div id="header">
+  <div>
+    <h1>&#x1F414; Los Capones de Palacio &mdash; Plano General</h1>
+    <div class="sub">Medidas reales &middot; Escala 1m = 25px &middot; Digital Twin 2D &middot; 3 c&aacute;maras</div>
+  </div>
+  <div class="ctrls">
+    <button id="b-cam" class="on" onclick="tgl('cam')">&#x1F4F9; C&aacute;maras</button>
+    <button id="b-fov" class="on" onclick="tgl('fov')">&#x1F441; FOV</button>
+    <button id="b-dim" onclick="tgl('dim')">&#x1F4CF; Medidas</button>
+    <button id="b-ave" class="on" onclick="tgl('ave')">&#x1F413; Aves</button>
+    <button id="b-grd" onclick="tgl('grd')">&#x229E; Grid</button>
+    <button id="b-theme" onclick="toggleTheme()">&#x2600; D&iacute;a</button>
+    <span class="scale-txt" id="zt">100%</span>
+  </div>
 </div>
-<div class="tip" id="tip"></div>
+
+<div id="zc">
+  <button onclick="zi()">+</button>
+  <div id="zlev">100%</div>
+  <button onclick="zo()">&minus;</button>
+  <button onclick="rv()" style="font-size:11px;margin-top:3px">&#x27F2;</button>
+</div>
+
+<svg id="compass" viewBox="0 0 50 50">
+  <circle cx="25" cy="25" r="22" fill="rgba(10,14,23,.8)" stroke="rgba(255,255,255,.2)" stroke-width="1"/>
+  <polygon points="25,6 28,20 22,20" fill="#ef4444"/>
+  <polygon points="25,44 22,30 28,30" fill="#6b7280"/>
+  <text x="25" y="15" text-anchor="middle" fill="#ef4444" font-size="8" font-weight="700">N</text>
+  <text x="25" y="43" text-anchor="middle" fill="#6b7280" font-size="7">S</text>
+  <text x="8" y="28" text-anchor="middle" fill="#6b7280" font-size="7">O</text>
+  <text x="42" y="28" text-anchor="middle" fill="#6b7280" font-size="7">E</text>
+</svg>
+
+<div id="wrap">
+<svg id="plan" viewBox="-60 -65 880 500" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <pattern id="gp" width="25" height="25" patternUnits="userSpaceOnUse">
+    <path d="M25 0L0 0 0 25" fill="none" stroke="rgba(255,255,255,.04)" stroke-width=".5"/>
+  </pattern>
+  <filter id="sh"><feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="#000" flood-opacity=".5"/></filter>
+  <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+    <path d="M0,1L6,3L0,5" fill="#64748b"/>
+  </marker>
+  <linearGradient id="gT" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#1a1f10" stop-opacity=".3"/>
+    <stop offset="100%" stop-color="#0f1008" stop-opacity=".45"/>
+  </linearGradient>
+  <!-- Prunus canopy gradient (pink flowers, March in Segovia) -->
+  <radialGradient id="prunus" cx="50%" cy="40%" r="50%">
+    <stop offset="0%" stop-color="#F0B0CC" stop-opacity=".85"/>
+    <stop offset="70%" stop-color="#E8A0BF" stop-opacity=".65"/>
+    <stop offset="100%" stop-color="#D88EAE" stop-opacity=".4"/>
+  </radialGradient>
+  <!-- Soil/dirt texture for parque areas -->
+  <pattern id="soilPat" width="8" height="8" patternUnits="userSpaceOnUse">
+    <rect width="8" height="8" fill="#2a1f10" opacity=".12"/>
+    <circle cx="2" cy="3" r=".6" fill="#3a2f1a" opacity=".15"/>
+    <circle cx="6" cy="7" r=".4" fill="#3a2f1a" opacity=".1"/>
+  </pattern>
+  <!-- Chicken silhouette symbol -->
+  <symbol id="chicken" viewBox="0 0 20 20">
+    <ellipse cx="10" cy="13" rx="6" ry="4.5" fill="currentColor"/>
+    <circle cx="14" cy="8" r="3" fill="currentColor"/>
+    <path d="M16,6 C17,4 18,5 17,6" fill="#CC3333"/>
+    <circle cx="15" cy="7.5" r=".7" fill="#1a1a1a"/>
+    <path d="M17,8 L19,8.5 L17,9" fill="#E8B030"/>
+    <line x1="8" y1="17" x2="7" y2="20" stroke="#D4A017" stroke-width=".8"/>
+    <line x1="12" y1="17" x2="13" y2="20" stroke="#D4A017" stroke-width=".8"/>
+  </symbol>
+  <!-- Rooster silhouette symbol (with tail feathers) -->
+  <symbol id="rooster" viewBox="0 0 20 20">
+    <ellipse cx="10" cy="13" rx="6" ry="4.5" fill="currentColor"/>
+    <circle cx="14" cy="8" r="3" fill="currentColor"/>
+    <path d="M16,5 C18,3 19,4 17.5,6" fill="#CC3333"/>
+    <path d="M15,5 C16,3 17,2 16,5" fill="#CC3333"/>
+    <circle cx="15" cy="7.5" r=".7" fill="#1a1a1a"/>
+    <path d="M17,8 L19.5,8.5 L17,9.2" fill="#E8B030"/>
+    <path d="M4,12 C1,10 0,8 3,11" fill="currentColor"/>
+    <path d="M4,13 C0,12 -1,9 3,12" fill="currentColor"/>
+    <line x1="8" y1="17" x2="7" y2="20" stroke="#D4A017" stroke-width=".8"/>
+    <line x1="12" y1="17" x2="13" y2="20" stroke="#D4A017" stroke-width=".8"/>
+  </symbol>
+</defs>
+
+<!-- ════════ GRID ════════ -->
+<g id="l-grd" style="display:none">
+  <rect x="-60" y="-65" width="880" height="500" fill="url(#gp)"/>
+  <g fill="none" stroke="rgba(255,255,255,.07)" stroke-width=".5" stroke-dasharray="2,4">
+    <line x1="0" y1="-40" x2="0" y2="400"/><line x1="125" y1="-40" x2="125" y2="400"/>
+    <line x1="250" y1="-40" x2="250" y2="400"/><line x1="375" y1="-40" x2="375" y2="400"/>
+    <line x1="500" y1="-40" x2="500" y2="400"/><line x1="625" y1="-40" x2="625" y2="400"/>
+    <line x1="750" y1="-40" x2="750" y2="400"/>
+    <line x1="-30" y1="0" x2="800" y2="0"/><line x1="-30" y1="125" x2="800" y2="125"/>
+    <line x1="-30" y1="250" x2="800" y2="250"/><line x1="-30" y1="375" x2="800" y2="375"/>
+  </g>
+  <g font-size="8" fill="rgba(255,255,255,.18)" text-anchor="middle">
+    <text x="0" y="-44">0m</text><text x="125" y="-44">5m</text><text x="250" y="-44">10m</text>
+    <text x="375" y="-44">15m</text><text x="500" y="-44">20m</text><text x="625" y="-44">25m</text>
+    <text x="750" y="-44">30m</text>
+  </g>
+</g>
+
+<!-- ════════ MURO NORTE 30m ════════ -->
+<rect id="muro-bg" x="-10" y="-28" width="770" height="38" rx="3" fill="#1a2e1a" stroke="#2d5a2d" stroke-width="1" opacity=".8"/>
+<g opacity=".5">
+  <circle cx="30" cy="-10" r="15" fill="#1e3a1e"/><circle cx="90" cy="-14" r="18" fill="#1e3a1e"/>
+  <circle cx="155" cy="-8" r="13" fill="#234a23"/><circle cx="225" cy="-13" r="17" fill="#1e3a1e"/>
+  <circle cx="305" cy="-10" r="15" fill="#234a23"/><circle cx="380" cy="-15" r="19" fill="#1e3a1e"/>
+  <circle cx="455" cy="-9" r="14" fill="#234a23"/><circle cx="530" cy="-14" r="18" fill="#1e3a1e"/>
+  <circle cx="610" cy="-10" r="15" fill="#234a23"/><circle cx="685" cy="-15" r="18" fill="#1e3a1e"/>
+  <circle cx="740" cy="-8" r="12" fill="#234a23"/>
+</g>
+<text x="375" y="2" text-anchor="middle" font-size="9" fill="#4ade80" font-weight="600" letter-spacing="3">MURO CON TALUD Y &Aacute;RBOLES &mdash; 30m</text>
+
+<!-- ════════ TERRAIN ════════ -->
+<rect x="0" y="10" width="750" height="380" rx="0" fill="url(#gT)"/>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  PARQUE GALLINERO I (perimetro ROJO)               -->
+<!--  Forma: zona abierta 6m junto a sauna              -->
+<!--  + transicion 6m + pasillo 2.5m a lo largo muro    -->
+<!-- ════════════════════════════════════════════════════ -->
+<polygon points="111,64 615,64 615,205 532,224 214,234 111,165"
+  fill="rgba(239,68,68,.04)" stroke="#ef4444" stroke-width="2.5"
+  class="hi" onclick="si('pGI')"/>
+<!-- Relleno sutil zona abierta (L-shape west) -->
+<polygon points="111,64 350,64 214,234 111,165"
+  fill="rgba(34,197,94,.03)" stroke="none"/>
+<!-- Etiqueta -->
+<text x="200" y="150" text-anchor="middle" font-size="13" fill="#22c55e" font-weight="700" opacity=".35">PARQUE</text>
+<text x="200" y="167" text-anchor="middle" font-size="13" fill="#22c55e" font-weight="700" opacity=".35">GALLINERO I</text>
+<text x="450" y="100" text-anchor="middle" font-size="8" fill="#ef4444" opacity=".3">zona estrecha → transici&oacute;n diagonal</text>
+<!-- ════════ VALLA PRINCIPAL interna (roja, 5 vertices) ════════ -->
+<polyline points="106,165 214,234 234,114 545,132 615,202"
+  fill="none" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="6,3" opacity=".45"/>
+
+<!-- ════════ SAUNA (3.5m E-O x 6m N-S, 4m alto) ════════ -->
+<!-- Pared este (6m) da al parque GI. Pared sur sale del perimetro -->
+<g class="hi" onclick="si('sauna')" filter="url(#sh)">
+  <!-- Cuerpo principal -->
+  <rect x="0" y="12" width="87" height="150" rx="4" fill="#5c3a1e" stroke="#8B6914" stroke-width="2"/>
+  <rect x="0" y="12" width="87" height="150" rx="4" fill="rgba(92,58,30,.5)"/>
+  <!-- Ventana (pared este) -->
+  <rect x="72" y="45" width="15" height="25" rx="2" fill="rgba(135,206,235,.15)" stroke="#8B6914" stroke-width=".8"/>
+  <!-- Puerta (pared sur, fuera del perimetro) -->
+  <rect x="28" y="140" width="30" height="22" rx="2" fill="rgba(74,46,21,.8)" stroke="#8B6914" stroke-width="1.2"/>
+  <line x1="43" y1="140" x2="43" y2="162" stroke="#6B4914" stroke-width=".5"/>
+  <!-- Techo a dos aguas (cumbrera N-S) -->
+  <line x1="0" y1="12" x2="-6" y2="90" stroke="#6B4914" stroke-width="1.5" opacity=".5"/>
+  <line x1="87" y1="12" x2="93" y2="90" stroke="#6B4914" stroke-width="1.5" opacity=".5"/>
+  <!-- Etiqueta vertical -->
+  <text x="44" y="100" text-anchor="middle" font-size="15" fill="#f59e0b" font-weight="700"
+    transform="rotate(-90,44,100)">SAUNA</text>
+  <text x="44" y="135" text-anchor="middle" font-size="6.5" fill="#f59e0b" opacity=".7">3.5m &times; 6m</text>
+</g>
+<!-- Indicador: pared sur fuera del perimetro -->
+<text x="44" y="175" text-anchor="middle" font-size="5.5" fill="#6b7280" opacity=".5">(fuera del per&iacute;metro)</text>
+
+
+
+
+
+<!-- ════════ GALLINERO I CASETA (ex-hab2, 1.5m x 0.9m, pegado al muro) ════════ -->
+<g class="hi" onclick="si('galI')" filter="url(#sh)">
+  <rect x="530" y="12" width="37" height="22" rx="2" fill="#dbd7cf" stroke="#bbb" stroke-width="1.2"/>
+  <rect x="530" y="12" width="37" height="22" rx="2" fill="rgba(200,196,190,.45)"/>
+  <!-- Mini techo -->
+  <line x1="530" y1="12" x2="548" y2="8" stroke="#8a8a8a" stroke-width="1"/>
+  <line x1="548" y1="8" x2="567" y2="12" stroke="#8a8a8a" stroke-width="1"/>
+  <!-- Puerta sur -->
+  <rect x="542" y="27" width="10" height="7" rx="1" fill="rgba(180,175,168,.7)" stroke="#999" stroke-width=".6"/>
+  <text x="548" y="24" text-anchor="middle" font-size="7" fill="#22c55e" font-weight="700">GI</text>
+</g>
+<text x="548" y="43" text-anchor="middle" font-size="5.5" fill="#22c55e" opacity=".5">Gallinero I</text>
+
+<!-- ════════ COMPOSTERO (en zona abierta del parque GI) ════════ -->
+<g class="hi" onclick="si('comp')" opacity=".55">
+  <rect x="155" y="55" width="40" height="28" rx="3" fill="none" stroke="#8B6914" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="175" y="73" text-anchor="middle" font-size="6.5" fill="#8B6914">compostero</text>
+</g>
+
+<!-- ════════ VALLA SEPARADORA (N-S, entre GI y GII) ════════ -->
+<g class="hi" onclick="si('valla')">
+    <line x1="585" y1="10" x2="585" y2="280" stroke="#ef4444" stroke-width="2" stroke-dasharray="7,3" opacity=".4"/>
+  <g fill="#8B4513" opacity=".7">
+    <rect x="582" y="30" width="6" height="10" rx="1"/>
+    <rect x="582" y="80" width="6" height="10" rx="1"/>
+    <rect x="582" y="130" width="6" height="10" rx="1"/>
+    <rect x="582" y="180" width="6" height="10" rx="1"/>
+    <rect x="582" y="230" width="6" height="10" rx="1"/>
+  </g>
+  <text x="598" y="130" font-size="9" fill="#ef4444" font-weight="600" opacity=".5"
+    transform="rotate(90,598,130)">VALLA</text>
+</g>
+
+<!-- ════════ CASETA GALLINERO II (~2.5m x 2m, puerta al SUR) ════════ -->
+<g class="hi" onclick="si('galII')" filter="url(#sh)">
+  <rect x="605" y="12" width="62" height="50" rx="3" fill="#dbd7cf" stroke="#bbb" stroke-width="1.5"/>
+  <rect x="605" y="12" width="62" height="50" rx="3" fill="rgba(200,196,190,.45)"/>
+  <!-- Ventana -->
+  <rect x="612" y="22" width="16" height="11" rx="1" fill="rgba(135,206,235,.12)" stroke="#999" stroke-width=".7"/>
+  <!-- Puerta sur -->
+  <rect x="643" y="42" width="16" height="20" rx="2" fill="rgba(180,175,168,.8)" stroke="#999" stroke-width="1"/>
+  <!-- Techo -->
+  <polygon points="602,12 636,4 670,12" fill="#8a8a8a" stroke="#666" stroke-width="1"/>
+  <!-- Etiqueta -->
+  <rect x="608" y="26" width="52" height="13" rx="3" fill="rgba(59,130,246,.15)"/>
+  <text x="634" y="36" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700">GALL. II</text>
+</g>
+
+<!-- ════════ PARQUE GALLINERO II (azul, ~3m x 8m) ════════ -->
+<rect x="595" y="64" width="75" height="200" rx="3"
+  fill="rgba(59,130,246,.04)" stroke="#3b82f6" stroke-width="2.5" stroke-dasharray="8,4"
+  class="hi" onclick="si('pGII')"/>
+<!-- Hatch interior -->
+<g opacity=".06" stroke="#3b82f6" stroke-width=".4">
+  <line x1="595" y1="64" x2="670" y2="164"/><line x1="595" y1="114" x2="670" y2="214"/>
+  <line x1="595" y1="164" x2="670" y2="264"/><line x1="615" y1="64" x2="670" y2="114"/>
+  <line x1="635" y1="64" x2="670" y2="89"/>
+  <line x1="595" y1="214" x2="650" y2="264"/>
+</g>
+<text x="632" y="155" text-anchor="middle" font-size="12" fill="#3b82f6" font-weight="700" opacity=".4">PARQUE</text>
+<text x="632" y="170" text-anchor="middle" font-size="12" fill="#3b82f6" font-weight="700" opacity=".4">GII</text>
+<text x="632" y="185" text-anchor="middle" font-size="7" fill="#3b82f6" opacity=".25">~3m &times; 8m</text>
+<!-- Tunel/arco -->
+<ellipse cx="632" cy="230" rx="18" ry="20" fill="none" stroke="#4a5568" stroke-width="1" stroke-dasharray="3,3" opacity=".35"/>
+<text x="632" y="234" text-anchor="middle" font-size="6" fill="#4a5568">t&uacute;nel</text>
+
+<!-- ════════ HUERTO (FUERA de perimetros, zona sur/oeste) ════════ -->
+<g class="hi" onclick="si('huerto')">
+  <rect x="0" y="175" width="580" height="190" rx="3" fill="rgba(101,67,33,.05)" stroke="#8B6914" stroke-width="1.2" stroke-dasharray="6,3"/>
+  <!-- Bancales -->
+  <rect x="20" y="200" width="65" height="22" rx="2" fill="none" stroke="#8B6914" stroke-width=".5" opacity=".35"/>
+  <rect x="20" y="235" width="65" height="22" rx="2" fill="none" stroke="#8B6914" stroke-width=".5" opacity=".35"/>
+  <rect x="100" y="200" width="65" height="22" rx="2" fill="none" stroke="#8B6914" stroke-width=".5" opacity=".35"/>
+  <rect x="100" y="235" width="65" height="22" rx="2" fill="none" stroke="#8B6914" stroke-width=".5" opacity=".35"/>
+  <rect x="180" y="200" width="65" height="22" rx="2" fill="none" stroke="#8B6914" stroke-width=".5" opacity=".35"/>
+  <rect x="180" y="235" width="65" height="22" rx="2" fill="none" stroke="#8B6914" stroke-width=".5" opacity=".35"/>
+  <text x="290" y="270" text-anchor="middle" font-size="18" fill="#8B6914" font-weight="700" opacity=".25">HUERTO</text>
+  <text x="290" y="290" text-anchor="middle" font-size="7" fill="#8B6914" opacity=".2">Fuera del per&iacute;metro &mdash; sin acceso gallinas</text>
+</g>
+
+<!-- ════════ PRUNUS TREES along muro (pink flowers, March) ════════ -->
+<g opacity=".75">
+  <circle cx="50" cy="-8" r="18" fill="url(#prunus)"/>
+  <circle cx="50" cy="-8" r="3" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="130" cy="-12" r="22" fill="url(#prunus)"/>
+  <circle cx="130" cy="-12" r="3.5" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="225" cy="-8" r="16" fill="url(#prunus)"/>
+  <circle cx="225" cy="-8" r="2.5" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="335" cy="-10" r="20" fill="url(#prunus)"/>
+  <circle cx="335" cy="-10" r="3" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="430" cy="-6" r="15" fill="url(#prunus)"/>
+  <circle cx="430" cy="-6" r="2.5" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="530" cy="-12" r="19" fill="url(#prunus)"/>
+  <circle cx="530" cy="-12" r="3" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="630" cy="-8" r="14" fill="url(#prunus)"/>
+  <circle cx="630" cy="-8" r="2.5" fill="#5C3D2E" opacity=".5"/>
+  <circle cx="710" cy="-10" r="17" fill="url(#prunus)"/>
+  <circle cx="710" cy="-10" r="3" fill="#5C3D2E" opacity=".5"/>
+</g>
+<!-- ════════ Almendro grande (green canopy, next to sauna) ════════ -->
+<circle cx="115" cy="0" r="25" fill="#2D6B2D" opacity=".35"/>
+<circle cx="115" cy="0" r="3.5" fill="#5C3D2E" opacity=".4"/>
+<!-- ════════ Small trees inside parque GI ════════ -->
+<circle cx="200" cy="38" r="14" fill="#2D5A2D" opacity=".25"/>
+<circle cx="310" cy="30" r="10" fill="#2D5A2D" opacity=".2"/>
+<circle cx="460" cy="35" r="11" fill="#2D5A2D" opacity=".18"/>
+
+<!-- ════════ BEBEDEROS / COMEDEROS ════════ -->
+<g opacity=".6">
+  <!-- Bebedero GI (zona abierta) -->
+  <circle cx="170" cy="40" r="5" fill="none" stroke="#06b6d4" stroke-width="1.3"/>
+  <circle cx="170" cy="40" r="2" fill="#06b6d4" opacity=".3"/>
+  <text x="170" y="52" text-anchor="middle" font-size="5.5" fill="#06b6d4">bebedero</text>
+  <!-- Comedero GI (zona abierta) -->
+  <rect x="220" y="65" width="10" height="10" rx="5" fill="none" stroke="#f59e0b" stroke-width="1"/>
+  <text x="225" y="85" text-anchor="middle" font-size="5.5" fill="#f59e0b">comedero</text>
+  <!-- Bebedero GII -->
+  <circle cx="632" cy="120" r="5" fill="none" stroke="#06b6d4" stroke-width="1.3"/>
+  <circle cx="632" cy="120" r="2" fill="#06b6d4" opacity=".3"/>
+  <text x="632" y="133" text-anchor="middle" font-size="5.5" fill="#06b6d4">bebedero</text>
+  <!-- Comedero GII -->
+  <rect x="625" y="195" width="10" height="10" rx="5" fill="none" stroke="#f59e0b" stroke-width="1"/>
+  <text x="630" y="215" text-anchor="middle" font-size="5.5" fill="#f59e0b">comedero</text>
+</g>
+
+<!-- ════════ CAMERA FOV (3 camaras) ════════ -->
+<g id="l-fov">
+  <!-- Dahua (en pared este sauna, mirando E/SE hacia parque GI) -->
+  <polygon points="87,90 280,20 240,162" fill="#f59e0b" fill-opacity=".06" stroke="#f59e0b" stroke-width=".5" stroke-dasharray="4,4" opacity=".6"/>
+  <!-- Cam Nueva (en muro cerca GII, mirando O/SO hacia sauna) -->
+  <polygon points="570,14 250,70 380,145" fill="#a855f7" fill-opacity=".06" stroke="#a855f7" stroke-width=".5" stroke-dasharray="4,4" opacity=".5"/>
+  <!-- Vigi GII (desde caseta GII, mirando S al parque GII) -->
+  <polygon points="640,64 600,250 670,250" fill="#3b82f6" fill-opacity=".06" stroke="#3b82f6" stroke-width=".5" stroke-dasharray="4,4" opacity=".6"/>
+</g>
+
+<!-- ════════ CAMERAS (solo 3) ════════ -->
+<g id="l-cam">
+  <!-- Cam Dahua (pared este de la sauna, mirando E/SE) -->
+  <g class="hi" onclick="si('cDahua')">
+    <circle cx="90" cy="90" r="8" fill="#1f2937" stroke="#f59e0b" stroke-width="2"/>
+    <text x="90" y="94" text-anchor="middle" font-size="9">&#x1F4F9;</text>
+    <text x="108" y="86" text-anchor="start" font-size="7" fill="#f59e0b" font-weight="600">Dahua</text>
+    <text x="108" y="95" text-anchor="start" font-size="5" fill="#f59e0b" opacity=".6">sauna_durrif_1</text>
+  </g>
+  <!-- Cam Nueva (en muro cerca de GII, mirando O hacia sauna) -->
+  <g class="hi" onclick="si('cNew')">
+    <circle cx="570" cy="14" r="8" fill="#1f2937" stroke="#a855f7" stroke-width="2"/>
+    <text x="570" y="18" text-anchor="middle" font-size="9">&#x1F4F9;</text>
+    <text x="560" y="-4" text-anchor="middle" font-size="7" fill="#a855f7" font-weight="600">Cam Nueva</text>
+    <text x="560" y="-13" text-anchor="middle" font-size="5" fill="#a855f7" opacity=".6">TP-Link nueva</text>
+    <circle cx="578" cy="7" r="3" fill="#ef4444" opacity=".8">
+      <animate attributeName="opacity" values=".8;.2;.8" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  <!-- Cam Vigi GII (en caseta GII, mirando S al parque) -->
+  <g class="hi" onclick="si('cVG2')">
+    <circle cx="640" cy="64" r="8" fill="#1f2937" stroke="#3b82f6" stroke-width="2"/>
+    <text x="640" y="68" text-anchor="middle" font-size="9">&#x1F4F9;</text>
+    <text x="680" y="60" text-anchor="start" font-size="7" fill="#3b82f6" font-weight="600">Vigi GII</text>
+    <text x="680" y="69" text-anchor="start" font-size="5" fill="#3b82f6" opacity=".6">gallinero_durrif_2</text>
+  </g>
+</g>
+
+<!-- ════════ ANIMALS (SVG chicken icons by breed) ════════ -->
+<g id="l-ave">
+  <!-- GI birds (dentro del polígono rojo) -->
+  <g class="hi" onclick="si('P11')">
+    <use href="#rooster" x="132" y="28" width="16" height="16" color="#FFFFF0" opacity=".8"/>
+    <text x="140" y="50" text-anchor="middle" font-size="5" fill="#FFFFF0" font-weight="600">Bresse ♂</text>
+  </g>
+  <g class="hi" onclick="si('P02')">
+    <use href="#chicken" x="192" y="42" width="12" height="12" color="#F5F5F0" opacity=".55"/>
+    <text x="198" y="58" text-anchor="middle" font-size="4" fill="#bbb">Sussex</text>
+  </g>
+  <use href="#chicken" x="244" y="30" width="11" height="11" color="#DAA520" opacity=".5"/>
+  <use href="#chicken" x="174" y="62" width="11" height="11" color="#5C3317" opacity=".5"/>
+  <use href="#chicken" x="314" y="28" width="10" height="10" color="#C19A6B" opacity=".45"/>
+  <use href="#chicken" x="374" y="24" width="10" height="10" color="#6B8BA4" opacity=".4"/>
+  <use href="#chicken" x="434" y="26" width="10" height="10" color="#2F1B14" opacity=".4"/>
+  <use href="#chicken" x="494" y="22" width="10" height="10" color="#F5F5F0" opacity=".35"/>
+  <use href="#chicken" x="124" y="118" width="11" height="11" color="#FFFFF0" opacity=".45"/>
+  <use href="#chicken" x="164" y="132" width="10" height="10" color="#DAA520" opacity=".4"/>
+  <use href="#chicken" x="204" y="88" width="10" height="10" color="#5C3317" opacity=".4"/>
+  <use href="#chicken" x="144" y="88" width="10" height="10" color="#C19A6B" opacity=".45"/>
+  <use href="#chicken" x="104" y="58" width="10" height="10" color="#F5F5F0" opacity=".45"/>
+
+  <!-- GII birds (dentro parque GII azul) -->
+  <g class="hi" onclick="si('P01')">
+    <use href="#rooster" x="600" y="84" width="16" height="16" color="#F5F5F0" opacity=".9"/>
+    <text x="608" y="106" text-anchor="middle" font-size="5" fill="#fff" font-weight="600">PAL-01</text>
+  </g>
+  <use href="#chicken" x="624" y="126" width="12" height="12" color="#FFFFF0" opacity=".6"/>
+  <use href="#chicken" x="639" y="148" width="12" height="12" color="#5C3317" opacity=".55"/>
+  <use href="#chicken" x="604" y="163" width="12" height="12" color="#6B8BA4" opacity=".5"/>
+  <g class="hi" onclick="si('P22')">
+    <use href="#rooster" x="632" y="130" width="15" height="15" color="#DAA520" opacity=".85"/>
+    <text x="640" y="152" text-anchor="middle" font-size="5" fill="#f59e0b" font-weight="600">Vorwerk</text>
+  </g>
+  <use href="#chicken" x="599" y="188" width="10" height="10" color="#708090" opacity=".5"/>
+  <use href="#chicken" x="639" y="198" width="10" height="10" color="#C19A6B" opacity=".5"/>
+  <use href="#rooster" x="614" y="173" width="12" height="12" color="#DAA520" opacity=".55"/>
+  <use href="#chicken" x="644" y="178" width="10" height="10" color="#2F1B14" opacity=".5"/>
+  <use href="#chicken" x="606" y="218" width="10" height="10" color="#F5F5F0" opacity=".4"/>
+  <use href="#chicken" x="639" y="228" width="10" height="10" color="#FFFFF0" opacity=".4"/>
+  <use href="#chicken" x="619" y="208" width="10" height="10" color="#5C3317" opacity=".45"/>
+  <use href="#chicken" x="604" y="140" width="10" height="10" color="#C19A6B" opacity=".45"/>
+</g>
+
+<!-- ════════ DIMENSION LINES ════════ -->
+<g id="l-dim" style="display:none">
+  <!-- 30m total muro -->
+  <line x1="0" y1="-42" x2="750" y2="-42" stroke="#64748b" stroke-width=".8" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="375" y="-46" text-anchor="middle" font-size="9" fill="#64748b" font-weight="600">30m</text>
+  <!-- Sauna 3.5m ancho -->
+  <line x1="0" y1="170" x2="87" y2="170" stroke="#f59e0b" stroke-width=".5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="44" y="180" text-anchor="middle" font-size="7" fill="#f59e0b">3.5m</text>
+  <!-- Sauna 6m alto planta -->
+  <line x1="-12" y1="12" x2="-12" y2="162" stroke="#f59e0b" stroke-width=".5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="-25" y="90" font-size="7" fill="#f59e0b">6m</text>
+  <!-- Zona abierta 6m -->
+  <line x1="87" y1="168" x2="237" y2="168" stroke="#ef4444" stroke-width=".5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="162" y="178" text-anchor="middle" font-size="7" fill="#ef4444">6m zona abierta</text>
+  <!-- Pasillo 2.5m -->
+  <line x1="400" y1="78" x2="400" y2="12" stroke="#ef4444" stroke-width=".5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="415" y="48" font-size="7" fill="#ef4444">2.5m</text>
+  <!-- GII parque ancho -->
+  <line x1="595" y1="270" x2="670" y2="270" stroke="#3b82f6" stroke-width=".5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="632" y="282" text-anchor="middle" font-size="7" fill="#3b82f6">~3m</text>
+  <!-- GII parque alto -->
+  <line x1="676" y1="64" x2="676" y2="264" stroke="#3b82f6" stroke-width=".5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="690" y="164" font-size="7" fill="#3b82f6">~8m</text>
+  <!-- Gallinero I caseta -->
+  <line x1="530" y1="38" x2="567" y2="38" stroke="#9ca3af" stroke-width=".4"/>
+  <text x="548" y="48" text-anchor="middle" font-size="6" fill="#9ca3af">1.5m</text>
+</g>
+
+<!-- ════════ SCALE BAR ════════ -->
+<g transform="translate(10,400)">
+  <line x1="0" y1="0" x2="125" y2="0" stroke="#fff" stroke-width="1.3"/>
+  <line x1="0" y1="-4" x2="0" y2="4" stroke="#fff" stroke-width="1"/>
+  <line x1="125" y1="-4" x2="125" y2="4" stroke="#fff" stroke-width="1"/>
+  <line x1="62.5" y1="-3" x2="62.5" y2="3" stroke="#fff" stroke-width=".5"/>
+  <text x="0" y="13" font-size="7.5" fill="#9ca3af">0</text>
+  <text x="58" y="13" font-size="7.5" fill="#9ca3af">2.5m</text>
+  <text x="117" y="13" font-size="7.5" fill="#9ca3af">5m</text>
+</g>
+
+<!-- ════════ BORDER ════════ -->
+<rect x="-10" y="-28" width="770" height="420" rx="4" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+
+</svg>
+</div>
+
+<!-- LEGEND -->
+<div id="legend">
+  <h3>Leyenda</h3>
+  <div class="li"><div class="lc" style="background:#ef4444"></div> Per&iacute;metro Parque GI</div>
+  <div class="li"><div class="lc" style="background:#3b82f6"></div> Per&iacute;metro Parque GII</div>
+  <div class="li"><div class="lc" style="background:#5c3a1e"></div> Sauna (madera)</div>
+  <div class="li"><div class="lc" style="background:#dbd7cf"></div> Casetas</div>
+  <div class="li"><div class="lc" style="background:#8B6914"></div> Huerto</div>
+  <div class="li"><div class="lc" style="border:2px solid #f59e0b;width:11px;height:11px"></div> Cam Dahua</div>
+  <div class="li"><div class="lc" style="border:2px solid #a855f7;width:11px;height:11px"></div> Cam Nueva</div>
+  <div class="li"><div class="lc" style="border:2px solid #3b82f6;width:11px;height:11px"></div> Cam Vigi GII</div>
+  <div class="li"><div class="lc" style="background:#06b6d4"></div> Bebedero</div>
+  <div class="li"><div class="lc" style="background:#f59e0b;border-radius:50%"></div> Comedero</div>
+  <div class="li" style="margin-top:6px;color:#6b7280;font-size:10px">25 aves &middot; 3 c&aacute;maras &middot; ~300m&sup2;</div>
+</div>
+
+<!-- INFO PANEL -->
+<div id="info">
+  <button onclick="document.getElementById('info').style.display='none'" style="float:right;background:none;border:none;color:#6b7280;cursor:pointer;font-size:13px">&#x2715;</button>
+  <h3 id="it"></h3><div id="ic"></div>
+</div>
 
 <script>
-var S=25, PAD=50, W=32, H=18;
-var svgW=W*S+PAD*2, svgH=H*S+PAD*2;
-var tx=function(x){return PAD+x*S};
-var ty=function(y){return PAD+(H-y)*S};
-function pts(a){return a.map(function(p){return tx(p[0])+','+ty(p[1])}).join(' ')}
-function r(x,y,w,h){return 'x="'+tx(x)+'" y="'+ty(y+h)+'" width="'+w*S+'" height="'+h*S+'"'}
+var wrap=document.getElementById('wrap'),svg=document.getElementById('plan');
+var vb={x:-60,y:-65,w:880,h:500},pan=false,sx,sy;
 
-var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-svg.setAttribute('viewBox','0 0 '+svgW+' '+svgH);
-svg.setAttribute('width',svgW);
-svg.setAttribute('height',svgH);
-var d='';
-
-// defs
-d+='<defs>';
-d+='<marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,1 L6,3 L0,5" fill="#555"/></marker>';
-d+='</defs>';
-
-// Grid
-for(var i=0;i<=W;i++){d+='<line x1="'+tx(i)+'" y1="'+ty(-1)+'" x2="'+tx(i)+'" y2="'+ty(H)+'" stroke="#151d28" stroke-width="0.5"/>';if(i%5===0)d+='<text x="'+tx(i)+'" y="'+ty(-0.5)+'" fill="#334155" font-size="9" text-anchor="middle">'+i+'m</text>'}
-for(var j=0;j<=H;j++){d+='<line x1="'+tx(-1)+'" y1="'+ty(j)+'" x2="'+tx(W)+'" y2="'+ty(j)+'" stroke="#151d28" stroke-width="0.5"/>';if(j%5===0)d+='<text x="'+tx(-0.8)+'" y="'+(ty(j)+3)+'" fill="#334155" font-size="9" text-anchor="end">'+j+'m</text>'}
-
-// ═══════════════════════════════════════
-// MURO NORTE (30m, y=14..15.5)
-// ═══════════════════════════════════════
-d+='<rect '+r(0,14,30,1.5)+' fill="#78716c" fill-opacity="0.18" stroke="#78716c" stroke-width="1.5" data-tip="Muro de piedra con talud&#10;30m de largo, ~1.5m alto&#10;Arboles en la parte superior"/>';
-d+='<text x="'+tx(15)+'" y="'+ty(14.7)+'" fill="#78716c" font-size="9" text-anchor="middle" letter-spacing="2">MURO CON TALUD Y ARBOLES &mdash; 30m</text>';
-for(i=0;i<15;i++){var cx=1+i*2;d+='<circle cx="'+tx(cx)+'" cy="'+ty(15.3)+'" r="'+S*0.6+'" fill="#22c55e" fill-opacity="0.12" stroke="#22c55e" stroke-opacity="0.3" stroke-width="0.5"/>'}
-
-// ═══════════════════════════════════════
-// PROPERTY BOUNDARY (perimeter fence)
-// ═══════════════════════════════════════
-var perim=[[0,0],[0,14],[30,14],[30,0],[25,0],[25,6],[15,0]];
-d+='<polygon points="'+pts(perim)+'" fill="none" stroke="#06b6d4" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.4" stroke-linejoin="round"/>';
-
-// ═══════════════════════════════════════
-// GALLINERO I — zona principal (verde)
-// Zona grande entre sauna y G II, pegada al muro
-// ═══════════════════════════════════════
-var g1=[[0,8],[0,14],[25,14],[25,8]];
-d+='<polygon points="'+pts(g1)+'" fill="#22c55e" fill-opacity="0.06" stroke="#22c55e" stroke-width="1.5" stroke-linejoin="round" data-tip="Gallinero I — Zona principal&#10;Recinto principal de cria&#10;~150m2 | 13 aves (censo)&#10;Incluye sauna + pasillo + patio"/>';
-
-// G I labels
-d+='<text x="'+tx(12)+'" y="'+ty(12.3)+'" fill="#22c55e" font-size="18" text-anchor="middle" font-weight="bold" opacity="0.35">G I</text>';
-d+='<text x="'+tx(6)+'" y="'+ty(10.5)+'" fill="#22c55e" font-size="13" text-anchor="middle" font-weight="bold" opacity="0.25">G I</text>';
-
-// ═══════════════════════════════════════
-// GALLINERO II — recinto cerrado (derecha)
-// ═══════════════════════════════════════
-var g2=[[25,0],[25,14],[30,14],[30,0]];
-d+='<polygon points="'+pts(g2)+'" fill="#3b82f6" fill-opacity="0.05" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" data-tip="Gallinero II — Recinto cerrado&#10;5m x 14m vallado&#10;12 aves (censo)&#10;Caseta elevada + parque"/>';
-
-// G II label
-d+='<text x="'+tx(27.5)+'" y="'+ty(10)+'" fill="#3b82f6" font-size="13" text-anchor="middle" font-weight="bold" opacity="0.5">G II</text>';
-d+='<text x="'+tx(27.5)+'" y="'+ty(9.3)+'" fill="#3b82f6" font-size="9" text-anchor="middle" opacity="0.35">12 aves</text>';
-
-// G I/G II separator fence
-d+='<line x1="'+tx(25)+'" y1="'+ty(0)+'" x2="'+tx(25)+'" y2="'+ty(14)+'" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6 3" opacity="0.5" data-tip="Valla separadora G I / G II"/>';
-
-// ═══════════════════════════════════════
-// HUERTO (zona inferior — sin gallinas)
-// ═══════════════════════════════════════
-var huerto=[[0,0],[0,8],[25,8],[25,6],[15,0]];
-d+='<polygon points="'+pts(huerto)+'" fill="#1a2e1a" fill-opacity="0.15" stroke="none"/>';
-d+='<text x="'+tx(10)+'" y="'+ty(5)+'" fill="#4b5563" font-size="12" text-anchor="middle" font-weight="bold">HUERTO</text>';
-d+='<text x="'+tx(10)+'" y="'+ty(4.2)+'" fill="#374151" font-size="8" text-anchor="middle">aqui no entran gallinas</text>';
-d+='<text x="'+tx(10)+'" y="'+ty(3.5)+'" fill="#374151" font-size="8" text-anchor="middle">salvo alguna que se escapa</text>';
-
-// ═══════════════════════════════════════
-// SAUNA (edificio, esquina NO)
-// ═══════════════════════════════════════
-d+='<rect '+r(0,8,3.5,6)+' fill="#a78bfa" fill-opacity="0.10" stroke="#a78bfa" stroke-width="1.8" rx="2" data-tip="Sauna&#10;3.5m x 6m | Edificio madera&#10;Camara Dahua al lado"/>';
-d+='<text x="'+tx(1.75)+'" y="'+ty(11.2)+'" fill="#a78bfa" font-size="12" text-anchor="middle" font-weight="bold">SAUNA</text>';
-d+='<text x="'+tx(1.75)+'" y="'+ty(10.4)+'" fill="#a78bfa" font-size="8" text-anchor="middle" opacity="0.5">3.5 x 6m</text>';
-
-// ═══════════════════════════════════════
-// CASETAS / HABITACULOS
-// ═══════════════════════════════════════
-// Caseta 1: hace esquina con la sauna (pegada al muro)
-d+='<rect '+r(3.5,13,1.5,1)+' fill="#22c55e" fill-opacity="0.25" stroke="#22c55e" stroke-width="1.5" rx="2" data-tip="Habitaculo 1 (G I)&#10;Hace esquina con la sauna&#10;Pegado al muro&#10;~1.5 x 1m"/>';
-
-// Caseta 2: cerca del habitaculo del G II (pegada al muro)
-d+='<rect '+r(21,13,2,1.2)+' fill="#22c55e" fill-opacity="0.25" stroke="#22c55e" stroke-width="1.5" rx="2" data-tip="Habitaculo 2 (G I)&#10;Cerca del recinto G II&#10;Pegado al muro&#10;~2 x 1.2m"/>';
-
-// Caseta G II (elevada) — dentro del recinto
-d+='<rect '+r(25.5,11.5,3.5,2.5)+' fill="#22c55e" fill-opacity="0.25" stroke="#22c55e" stroke-width="1.5" rx="2" data-tip="Caseta Gallinero II&#10;Estructura con tejado&#10;Caseta elevada 1.5x2m&#10;Tejado 3.5x2.5m"/>';
-d+='<text x="'+tx(27.25)+'" y="'+ty(12.6)+'" fill="#22c55e" font-size="7" text-anchor="middle" opacity="0.5">caseta G II</text>';
-
-// ═══════════════════════════════════════
-// COMEDEROS / BEBEDEROS (pequeños iconos)
-// ═══════════════════════════════════════
-[[7,12,'Comedero G1'],[10,11,'Comedero G1'],[15,10,'Bebedero G1'],[27,8,'Comedero G2'],[28.5,9,'Bebedero G2']].forEach(function(c){
-  d+='<rect '+r(c[0]-0.2,c[1]-0.2,0.4,0.4)+' fill="#475569" fill-opacity="0.4" stroke="#64748b" stroke-width="0.5" rx="1" data-tip="'+c[2]+'"/>';
-});
-
-// ═══════════════════════════════════════
-// G I/Huerto internal fence
-// ═══════════════════════════════════════
-d+='<line x1="'+tx(3.5)+'" y1="'+ty(8)+'" x2="'+tx(25)+'" y2="'+ty(8)+'" stroke="#ffffff" stroke-width="1.8" opacity="0.3" data-tip="Valla interna G I / Huerto"/>';
-
-// ═══════════════════════════════════════
-// CAMERAS + FOV CONES
-// ═══════════════════════════════════════
-function drawCam(cx,cy,aimX,aimY,fovDeg,reachM,label,tip,color,offline){
-  var px=tx(cx),py=ty(cy);
-  var angle=Math.atan2(-(aimY-cy),aimX-cx);
-  var hf=(fovDeg/2)*Math.PI/180;
-  var rm=reachM*S;
-  var a1=-angle-hf, a2=-angle+hf;
-  // FOV cone fill — dark maroon
-  d+='<polygon points="'+px+','+py+' '+(px+rm*Math.cos(a1))+','+(py+rm*Math.sin(a1))+' '+(px+rm*Math.cos(a2))+','+(py+rm*Math.sin(a2))+'" fill="#7f1d1d" fill-opacity="0.18" stroke="#dc2626" stroke-width="0.5" stroke-dasharray="4 2" opacity="0.8"/>';
-  // Camera dot
-  d+='<circle cx="'+px+'" cy="'+py+'" r="7" fill="'+(offline?'#f59e0b':'#ef4444')+'" stroke="#fff" stroke-width="2" data-tip="'+tip+'"/>';
-  d+='<text x="'+px+'" y="'+(py+3)+'" fill="#fff" font-size="7" text-anchor="middle" font-weight="bold">'+(offline?'D':'V')+'</text>';
-  // Label
-  d+='<text x="'+px+'" y="'+(py-12)+'" fill="'+(offline?'#f59e0b':'#ef4444')+'" font-size="9" text-anchor="middle" font-weight="bold">'+label+'</text>';
-  if(offline) d+='<text x="'+px+'" y="'+(py-3-22)+'" fill="#f59e0b88" font-size="7" text-anchor="middle">(offline)</text>';
+// Embed mode: hide chrome when loaded inside iframe (?embed=1)
+var isEmbed = new URLSearchParams(window.location.search).has('embed');
+if (isEmbed) {
+  var hdr = document.getElementById('header');
+  var leg = document.getElementById('legend');
+  var zcc = document.getElementById('zc');
+  var comp = document.getElementById('compass');
+  if (hdr) hdr.style.display = 'none';
+  if (leg) leg.style.display = 'none';
+  if (zcc) zcc.style.display = 'none';
+  if (comp) comp.style.display = 'none';
 }
 
-// Camara Sauna (Dahua) — al lado de la sauna, mirando SE dentro de G I — NO CONECTADA
-drawCam(3, 11, 15, 5, 100, 10, 'Cam. Sauna', 'Camara Dahua (Sauna)\nAl lado de la sauna\nMira hacia G I\nNO CONECTADA AUN', '#f59e0b', true);
+function uv(){
+  svg.setAttribute('viewBox',vb.x+' '+vb.y+' '+vb.w+' '+vb.h);
+  var p=Math.round(880/vb.w*100);
+  document.getElementById('zlev').textContent=p+'%';
+  document.getElementById('zt').textContent=p+'%';
+}
 
-// Camara Nueva (VIGI G1, 10.10.10.11) — lateral del edificio G II, mirando hacia la sauna
-drawCam(25, 12, 3.5, 11, 100, 18, 'Cam. Nueva', 'VIGI C340 — G1\n10.10.10.11\nLateral edificio G II\nMira hacia la sauna (~20m)', '#ef4444', false);
+wrap.onmousedown=function(e){
+  if(e.target.closest('.hi')||e.target.closest('button'))return;
+  pan=true;sx=e.clientX;sy=e.clientY;
+};
+wrap.onmousemove=function(e){
+  if(!pan)return;
+  vb.x-=(e.clientX-sx)*(vb.w/wrap.clientWidth);
+  vb.y-=(e.clientY-sy)*(vb.h/wrap.clientHeight);
+  sx=e.clientX;sy=e.clientY;uv();
+};
+wrap.onmouseup=wrap.onmouseleave=function(){pan=false};
 
-// Camara G II (VIGI G2, 10.10.10.10) — dentro de G II, apuntando al recinto
-drawCam(27.5, 13.5, 27.5, 5, 100, 8, 'Cam. G II', 'VIGI C340 — G2\n10.10.10.10\nDentro del recinto G II\nApuntando al parque sur', '#ef4444', false);
-
-// ═══════════════════════════════════════
-// DIMENSION LINES
-// ═══════════════════════════════════════
-// 30m top
-d+='<line x1="'+tx(0)+'" y1="'+ty(16)+'" x2="'+tx(30)+'" y2="'+ty(16)+'" stroke="#475569" stroke-width="0.8" marker-start="url(#arr)" marker-end="url(#arr)"/>';
-d+='<text x="'+tx(15)+'" y="'+ty(16.3)+'" fill="#64748b" font-size="9" text-anchor="middle">~30m</text>';
-
-// Sauna 6m
-d+='<line x1="'+tx(-1)+'" y1="'+ty(8)+'" x2="'+tx(-1)+'" y2="'+ty(14)+'" stroke="#475569" stroke-width="0.8" marker-start="url(#arr)" marker-end="url(#arr)"/>';
-d+='<text x="'+tx(-1.7)+'" y="'+ty(11)+'" fill="#64748b" font-size="8" text-anchor="middle">6m</text>';
-
-// G II 5m
-d+='<line x1="'+tx(25)+'" y1="'+ty(-0.8)+'" x2="'+tx(30)+'" y2="'+ty(-0.8)+'" stroke="#475569" stroke-width="0.8" marker-start="url(#arr)" marker-end="url(#arr)"/>';
-d+='<text x="'+tx(27.5)+'" y="'+ty(-1.2)+'" fill="#64748b" font-size="8" text-anchor="middle">5m</text>';
-
-// ═══════════════════════════════════════
-// TITLE + COMPASS
-// ═══════════════════════════════════════
-d+='<text x="'+svgW/2+'" y="22" fill="#7fdbca" font-size="12" text-anchor="middle">Los Capones de Palacio &mdash; Plano General (escala 1:1 en metros)</text>';
-
-// North compass
-d+='<g transform="translate('+(svgW-40)+',50)">';
-d+='<polygon points="0,-18 -5,0 5,0" fill="#475569"/>';
-d+='<polygon points="0,-18 0,0 5,0" fill="#334155"/>';
-d+='<text x="0" y="14" fill="#64748b" font-size="10" text-anchor="middle" font-weight="bold">N</text>';
-d+='</g>';
-
-svg.innerHTML=d;
-document.getElementById('container').appendChild(svg);
-
-// Tooltip
-var tip=document.getElementById('tip');
-svg.addEventListener('mousemove',function(e){
-  var el=e.target;
-  var t=el.getAttribute('data-tip')||(el.closest&&el.closest('[data-tip]')&&el.closest('[data-tip]').getAttribute('data-tip'));
-  if(t){tip.innerHTML=t.replace(/\n/g,'<br>');tip.style.display='block';tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-30)+'px'}
-  else tip.style.display='none';
+wrap.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var f=e.deltaY>0?1.1:.9,nw=vb.w*f,nh=vb.h*f;
+  if(nw<150||nw>3500)return;
+  var mx=e.clientX/wrap.clientWidth,my=e.clientY/wrap.clientHeight;
+  vb.x+=(vb.w-nw)*mx;vb.y+=(vb.h-nh)*my;
+  vb.w=nw;vb.h=nh;uv();
 });
-svg.addEventListener('mouseleave',function(){tip.style.display='none'});
+
+var ltd=0;
+wrap.addEventListener('touchstart',function(e){
+  if(e.touches.length===1){pan=true;sx=e.touches[0].clientX;sy=e.touches[0].clientY}
+  else if(e.touches.length===2){ltd=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)}
+});
+wrap.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  if(e.touches.length===1&&pan){
+    var dx=(e.touches[0].clientX-sx)*(vb.w/wrap.clientWidth);
+    var dy=(e.touches[0].clientY-sy)*(vb.h/wrap.clientHeight);
+    vb.x-=dx;vb.y-=dy;sx=e.touches[0].clientX;sy=e.touches[0].clientY;uv();
+  }else if(e.touches.length===2){
+    var d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    var f=ltd/d,nw=vb.w*f,nh=vb.h*f;
+    if(nw>150&&nw<3500){vb.x+=(vb.w-nw)*.5;vb.y+=(vb.h-nh)*.5;vb.w=nw;vb.h=nh;uv()}
+    ltd=d;
+  }
+},{passive:false});
+wrap.addEventListener('touchend',function(){pan=false});
+
+function zi(){var f=.8,nw=vb.w*f,nh=vb.h*f;vb.x+=(vb.w-nw)*.5;vb.y+=(vb.h-nh)*.5;vb.w=nw;vb.h=nh;uv()}
+function zo(){var f=1.25,nw=vb.w*f,nh=vb.h*f;vb.x+=(vb.w-nw)*.5;vb.y+=(vb.h-nh)*.5;vb.w=nw;vb.h=nh;uv()}
+function rv(){vb={x:-60,y:-65,w:880,h:500};uv()}
+function tgl(n){
+  var e=document.getElementById('l-'+n),b=document.getElementById('b-'+n);
+  if(!e)return;var v=e.style.display!=='none';
+  e.style.display=v?'none':'';if(b)b.classList.toggle('on',!v);
+}
+function toggleTheme(){
+  var d=document.body.classList.toggle('day');
+  document.getElementById('b-theme').innerHTML=d?'&#x1F319; Noche':'&#x2600; D\u00eda';
+  var gT=document.getElementById('gT');
+  if(gT){var s=gT.querySelectorAll('stop');
+    s[0].setAttribute('stop-color',d?'#c9b896':'#1a1f10');s[0].setAttribute('stop-opacity',d?'.5':'.3');
+    s[1].setAttribute('stop-color',d?'#b8a880':'#0f1008');s[1].setAttribute('stop-opacity',d?'.6':'.45');}
+  var gp=document.getElementById('gp');
+  if(gp){var p=gp.querySelector('path');if(p)p.setAttribute('stroke',d?'rgba(0,0,0,.06)':'rgba(255,255,255,.04)');}
+  var cc=document.getElementById('compass');
+  if(cc){var ci=cc.querySelector('circle');
+    ci.setAttribute('fill',d?'rgba(255,255,255,.85)':'rgba(10,14,23,.8)');
+    ci.setAttribute('stroke',d?'rgba(0,0,0,.15)':'rgba(255,255,255,.2)');}
+}
+
+var I={
+  sauna:{t:'&#x1F3E0; Sauna',h:'<div class="d">Edificio madera 3.5m &times; 6m (planta), 4m alto</div><div class="d">Pared este (6m) da al Parque GI</div><div class="d">Pared sur (3.5m) da a zona exterior (fuera per&iacute;metro)</div><div class="d">C&aacute;mara Dahua en pared este</div><div class="d">Refugio nocturno + perchas + ponederos</div>'},
+  galI:{t:'&#x1F3E0; Gallinero I (Caseta)',h:'<div class="d">Caseta peque&ntilde;a 1.5m &times; 0.9m, 2m alto</div><div class="d">Pegado al muro norte, puerta al SUR</div>'},
+  galII:{t:'&#x1F3E0; Gallinero II (Caseta)',h:'<div class="d">Caseta ~2.5m &times; 2m, puerta al SUR</div><div class="d">14 aves: Sussex, Vorwerk, Sulmtaler, Marans, Araucana, Andaluza, Pita Pinta, F1</div><div class="d">OvoSfera ID: 3 &middot; C&aacute;mara Vigi GII</div>'},
+  pGI:{t:'&#x1F33F; Parque Gallinero I',h:'<div class="d">Per&iacute;metro rojo &mdash; forma de L/embudo</div><div class="d">Zona abierta 6m &times; 6m junto a la sauna</div><div class="d">Pasillo 2.5m ancho corriendo a lo largo del muro</div><div class="d">Desde v&eacute;rtice sauna hasta Gallinero II</div><div class="d">13 aves asignadas</div>'},
+  pGII:{t:'&#x1F33F; Parque Gallinero II',h:'<div class="d">~3m &times; 8m &mdash; zona cerrada con malla met&aacute;lica</div><div class="d">T&uacute;nel/arco, bebedero + comedero</div><div class="d">12 aves asignadas</div>'},
+  valla:{t:'&#x1F534; Valla separadora',h:'<div class="d">Malla met&aacute;lica con postes de madera</div><div class="d">Separa Parque GI de Parque GII (N-S)</div>'},
+  huerto:{t:'&#x1F331; Huerto',h:'<div class="d">Bancales elevados de madera</div><div class="d">FUERA del per&iacute;metro rojo y azul</div><div class="d">Sin acceso para gallinas</div>'},
+
+  comp:{t:'&#x267B; Compostero',h:'<div class="d">Zona de compostaje en la zona abierta del Parque GI</div>'},
+  cDahua:{t:'&#x1F4F9; Cam Dahua',h:'<div class="d">DH-IPC-HFW2841T-ZS &middot; 4K/8MP</div><div class="d">Stream: sauna_durrif_1 &middot; Auth: digest</div><div class="d">Micr&oacute;fono &#x2705; &middot; Altavoz &#x274C;</div><div class="d">Posici&oacute;n: pared ESTE de la sauna (6m)</div><div class="d">Vista: E/SE hacia el Parque GI</div>'},
+  cNew:{t:'&#x1F4F9; Cam Nueva (PENDIENTE)',h:'<div class="d">TP-Link VIGI (nueva) &middot; Sobre el muro cerca de GII</div><div class="d">Vista: O/SO hacia la sauna</div><div class="d">No llega a ver la sauna directamente</div><div class="d">&#x1F534; PENDIENTE INSTALACI&Oacute;N</div>'},
+  cVG2:{t:'&#x1F4F9; Cam Vigi GII',h:'<div class="d">TP-Link VIGI C340 &middot; 4K &middot; 10.10.10.10</div><div class="d">Stream: gallinero_durrif_2</div><div class="d">Desde caseta GII, mirando S al parque GII</div><div class="d">Mejor c&aacute;mara para identificaci&oacute;n individual</div>'},
+  P01:{t:'&#x1F413; PAL-2026-0001 &mdash; Sussex Gallo',h:'<div class="d">Sussex Silver &#x2642; &middot; ~5kg</div><div class="d">Gallinero II &middot; Auto-ID: &#x2705; 98%</div>'},
+  P22:{t:'&#x1F413; PAL-2026-0022 &mdash; Vorwerk Gallo',h:'<div class="d">Vorwerk &#x2642; &middot; Cuerpo dorado, cuello/cola negro</div><div class="d">Gallinero II &middot; Auto-ID: &#x2705; 98%</div>'},
+  P11:{t:'&#x1F413; PAL-2026-0011 &mdash; Bresse Gallo',h:'<div class="d">Bresse &#x2642; &middot; Blanco puro, patas gris-azulado</div><div class="d">Gallinero I</div>'}
+};
+function si(k){var i=I[k];if(!i)return;document.getElementById('it').innerHTML=i.t;document.getElementById('ic').innerHTML=i.h;document.getElementById('info').style.display='block'}
+
+function rs(){svg.style.width=wrap.clientWidth+'px';svg.style.height=wrap.clientHeight+'px'}
+window.onresize=rs;rs();
 </script>
 </body>
 </html>

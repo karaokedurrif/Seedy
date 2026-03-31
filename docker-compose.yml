@@ -131,6 +131,9 @@ services:
       - YOLO_BREED_MODEL=/app/yolo_models/seedy_breeds_best.pt
       - YOLO_DATA_DIR=/app/yolo_dataset
       - YOLO_MODELS_DIR=/app/yolo_models
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
+      - DRONE_BRIDGE_URL=http://192.168.20.102:9090
     volumes:
       - ./backend:/app
       - ./genetics:/app/genetics:ro
@@ -141,6 +144,7 @@ services:
       - yolo_models:/app/yolo_models
       - hf_cache:/root/.cache/huggingface
       - ./backend/dashboard:/app/dashboard:ro
+      - "./Digital Twin:/app/bim"
     deploy:
       resources:
         reservations:
@@ -194,6 +198,26 @@ services:
     container_name: cloudflared
     restart: unless-stopped
     command: tunnel run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - seedy-backend
+      - open-webui
+      - grafana
+    networks:
+      - ai_default
+
+  # ── Caddy Local (split-horizon HTTPS bypass CF) ────
+  # Cuando /etc/hosts apunta *.neofarm.io a la IP local,
+  # este Caddy termina TLS y reenvía a los servicios Docker.
+  caddy-local:
+    image: caddy:2-alpine
+    container_name: caddy-local
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/etc/caddy/certs:ro
+      - caddy_data:/data
     depends_on:
       - seedy-backend
       - open-webui
@@ -349,6 +373,7 @@ volumes:
   yolo_models:
   hf_cache:
   openedai_voices:
+  caddy_data:
 
 networks:
   ai_default:

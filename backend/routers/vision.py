@@ -29,6 +29,11 @@ from models.schemas import (
 
 logger = logging.getLogger(__name__)
 
+try:
+    from runtime.logger import log_agent_run
+except ImportError:
+    log_agent_run = None
+
 router = APIRouter(prefix="/vision", tags=["vision"])
 
 # ─── In-memory stores (en producción: InfluxDB via MQTT) ──────
@@ -43,6 +48,7 @@ def _trim(buffer: list, max_size: int = _MAX_BUFFER):
     """Mantiene el buffer acotado."""
     if len(buffer) > max_size:
         del buffer[: len(buffer) - max_size]
+
 
 
 def _try_publish_mqtt(topic: str, payload: dict):
@@ -99,6 +105,19 @@ async def receive_vision_event(event: VisionEvent):
         f"Vision event {event_id}: cam={event.camera_id} "
         f"dets={len(event.detections)} inference={event.inference_ms:.1f}ms"
     )
+
+    if log_agent_run:
+        log_agent_run(
+            task_type="vision",
+            expert_used="expert_vision",
+            model_used="yolov8s",
+            tools_invoked=["yolo_detect"],
+            input_summary=f"cam={event.camera_id} farm={event.farm_id}",
+            output_summary=f"{len(event.detections)} detections, {alerts} alerts",
+            latency_ms=int(event.inference_ms),
+            confidence=max((d.confidence for d in event.detections), default=0.0),
+            tenant_id=event.farm_id or "palacio",
+        )
 
     return VisionEventResponse(
         status="ok",

@@ -3,405 +3,1137 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seedy — Digital Twin 3D Gallineros Durrif</title>
+<title>Digital Twin 3D — Los Capones de Palacio</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#0a0e14;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif}
-  canvas{display:block}
-  #hud{position:fixed;top:10px;left:10px;color:#c8d6e5;font-size:0.85em;background:rgba(13,17,23,0.92);padding:10px 14px;border-radius:10px;border:1px solid #1e293b;z-index:10;backdrop-filter:blur(8px)}
-  #hud h2{font-size:1.1em;margin-bottom:6px;color:#7fdbca}
-  #hud .stat{color:#64748b;font-size:0.8em;margin:2px 0}
-  #controls{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);color:#64748b;font-size:0.72em;background:rgba(13,17,23,0.88);padding:6px 14px;border-radius:6px;border:1px solid #1e293b;backdrop-filter:blur(6px)}
-  #north{position:fixed;top:10px;right:10px;width:60px;height:60px;z-index:10}
-  #info{position:fixed;top:80px;right:10px;color:#c8d6e5;font-size:0.8em;background:rgba(13,17,23,0.95);padding:10px;border-radius:8px;border:1px solid #1e293b;display:none;max-width:220px;z-index:10;backdrop-filter:blur(8px)}
+  body{background:#0a0e17;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh}
+  #c{width:100vw;height:100vh;display:block}
+  #hud{position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(180deg,rgba(10,14,23,.95),rgba(10,14,23,.7));padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(34,197,94,.3);backdrop-filter:blur(10px)}
+  #hud h1{font-size:16px;font-weight:700;background:linear-gradient(135deg,#22c55e,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  #hud .sub{font-size:10px;color:#6b7280}
+  .btn-bar{display:flex;gap:5px;flex-wrap:wrap}
+  .btn-bar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#e0e0e0;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500;transition:.2s}
+  .btn-bar button:hover{background:rgba(34,197,94,.2);border-color:#22c55e}
+  .btn-bar button.on{background:rgba(34,197,94,.25);border-color:#22c55e;color:#22c55e}
+  #layers{position:fixed;top:55px;right:14px;z-index:100;background:rgba(10,14,23,.9);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;backdrop-filter:blur(10px);font-size:11px}
+  #layers h3{font-size:11px;color:#22c55e;margin-bottom:5px}
+  #layers label{display:flex;align-items:center;gap:6px;margin:3px 0;cursor:pointer}
+  #layers input{accent-color:#22c55e}
+  #info{position:fixed;bottom:14px;right:14px;z-index:100;background:rgba(10,14,23,.9);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 16px;min-width:220px;backdrop-filter:blur(10px);font-size:11px;display:none}
+  #info h3{font-size:13px;font-weight:600;margin-bottom:4px}
+  #info .d{color:#9ca3af;margin:2px 0}
+  #loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;color:#22c55e;font-size:16px;font-weight:600}
+  #status{position:fixed;bottom:14px;left:14px;z-index:100;font-size:10px;color:#6b7280}
+  #sim-bar{position:fixed;top:55px;left:14px;z-index:100;background:rgba(10,14,23,.9);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;backdrop-filter:blur(10px);font-size:11px;display:none;min-width:240px}
+  #sim-bar h3{font-size:11px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  #sim-bar .sim-mode{display:flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.1);margin-bottom:8px}
+  #sim-bar .sim-mode button{flex:1;padding:4px 6px;font-size:9px;font-weight:600;border:none;cursor:pointer;background:rgba(255,255,255,.04);color:#9ca3af;transition:.15s}
+  #sim-bar .sim-mode button.active{background:rgba(245,158,11,.25);color:#f59e0b}
+  #sim-bar .sim-ctrl{margin:6px 0}
+  #sim-bar .sim-ctrl label{display:block;font-size:10px;color:#6b7280;margin-bottom:2px}
+  #sim-bar .sim-ctrl input[type=range]{width:100%;accent-color:#f59e0b}
+  #sim-bar .sim-ctrl .val{font-size:10px;color:#f59e0b;float:right}
+  .sim-play{display:flex;gap:4px;margin-top:8px}
+  .sim-play button{flex:1;padding:4px;border-radius:4px;border:none;cursor:pointer;font-size:10px;font-weight:600;transition:.15s}
+  .sim-play .play{background:rgba(34,197,94,.2);color:#22c55e}
+  .sim-play .pause{background:rgba(245,158,11,.2);color:#f59e0b}
+  .sim-play .reset{background:rgba(239,68,68,.15);color:#ef4444}
+  #sim-indicator{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:200;background:rgba(245,158,11,.9);color:#000;padding:4px 14px;border-radius:6px;font-size:11px;font-weight:700;display:none}
 </style>
 </head>
 <body>
 <div id="hud">
-  <h2>Digital Twin 3D</h2>
-  <div class="stat">Los Capones de Palacio</div>
-  <div class="stat">G1: 13 aves | G2: 12 aves</div>
-  <div class="stat" id="fps"></div>
+  <div>
+    <h1>🐔 Los Capones de Palacio — Digital Twin 3D</h1>
+    <div class="sub">Three.js · Geometría desde BIM JSON · 3 cámaras</div>
+  </div>
+  <div class="btn-bar">
+    <button onclick="setCamMode('orbit')" id="b-orbit" class="on">🌐 Orbit</button>
+    <button onclick="setCamMode('iso')" id="b-iso">📐 Isométrica</button>
+    <button onclick="setCamMode('top')" id="b-top">⬇ Planta</button>
+    <button onclick="setCamMode('fps')" id="b-fps">🚶 WASD</button>
+    <button onclick="setCamMode('pov',0)" id="b-pov0">📹 Dahua</button>
+    <button onclick="setCamMode('pov',1)" id="b-pov1">📹 Nueva</button>
+    <button onclick="setCamMode('pov',2)" id="b-pov2">📹 Vigi II</button>
+    <span style="width:1px;height:18px;background:rgba(255,255,255,.15);margin:0 4px"></span>
+    <button onclick="toggleSimMode()" id="b-sim" style="color:#f59e0b;border-color:rgba(245,158,11,.3)">🧪 Simulación</button>
+  </div>
 </div>
-<svg id="north" viewBox="0 0 60 60"><polygon points="30,5 23,28 37,28" fill="#475569"/><polygon points="30,5 30,28 37,28" fill="#334155"/><text x="30" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#64748b">N</text></svg>
-<div id="controls">Rotar: click+arrastrar | Zoom: scroll | Mover: click derecho</div>
-<div id="info"></div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+<div id="sim-indicator">🧪 MODO SIMULACIÓN</div>
 
+<div id="sim-bar">
+  <h3 style="color:#f59e0b">🧪 Simulación</h3>
+  <div class="sim-mode">
+    <button class="active" onclick="setSimType('meteo')">🌧️ Meteo</button>
+    <button onclick="setSimType('bio')">🦠 Bioseg.</button>
+    <button onclick="setSimType('expand')">🏗️ Expan.</button>
+    <button onclick="setSimType('finance')">💰 Finan.</button>
+  </div>
+  <div id="sim-meteo-panel">
+    <div class="sim-ctrl"><label>Temperatura (°C) <span class="val" id="v-temp">8</span></label><input type="range" min="-10" max="40" value="8" oninput="simParams.temp=+this.value;document.getElementById('v-temp').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Lluvia (mm/h) <span class="val" id="v-rain">0</span></label><input type="range" min="0" max="50" value="0" oninput="simParams.rain=+this.value;document.getElementById('v-rain').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Viento (km/h) <span class="val" id="v-wind">5</span></label><input type="range" min="0" max="80" value="5" oninput="simParams.wind=+this.value;document.getElementById('v-wind').textContent=this.value"></div>
+  </div>
+  <div id="sim-bio-panel" style="display:none">
+    <div class="sim-ctrl"><label>Tasa transmisión (R0) <span class="val" id="v-r0">2.5</span></label><input type="range" min="0" max="10" step="0.1" value="2.5" oninput="simParams.r0=+this.value;document.getElementById('v-r0').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Periodo incubación (d) <span class="val" id="v-incub">3</span></label><input type="range" min="1" max="14" value="3" oninput="simParams.incubation=+this.value;document.getElementById('v-incub').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Mortalidad (%) <span class="val" id="v-mort">5</span></label><input type="range" min="0" max="50" value="5" oninput="simParams.mortality=+this.value;document.getElementById('v-mort').textContent=this.value"></div>
+  </div>
+  <div id="sim-expand-panel" style="display:none">
+    <div style="font-size:10px;color:#9ca3af;padding:4px 0">Click en el terreno para colocar un nuevo gallinero fantasma</div>
+    <div class="sim-ctrl"><label>Ancho (m) <span class="val" id="v-ew">3</span></label><input type="range" min="1" max="10" step="0.5" value="3" oninput="simParams.expandW=+this.value;document.getElementById('v-ew').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Largo (m) <span class="val" id="v-ed">3</span></label><input type="range" min="1" max="10" step="0.5" value="3" oninput="simParams.expandD=+this.value;document.getElementById('v-ed').textContent=this.value"></div>
+  </div>
+  <div id="sim-finance-panel" style="display:none">
+    <div class="sim-ctrl"><label>Coste pienso (€/mes) <span class="val" id="v-feed">150</span></label><input type="range" min="50" max="500" value="150" oninput="simParams.feedCost=+this.value;document.getElementById('v-feed').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Precio capón (€/ud) <span class="val" id="v-price">35</span></label><input type="range" min="10" max="80" value="35" oninput="simParams.caponPrice=+this.value;document.getElementById('v-price').textContent=this.value"></div>
+    <div class="sim-ctrl"><label>Huevos/día <span class="val" id="v-eggs">8</span></label><input type="range" min="0" max="30" value="8" oninput="simParams.eggsDay=+this.value;document.getElementById('v-eggs').textContent=this.value"></div>
+  </div>
+  <div class="sim-play">
+    <button class="play" onclick="simPlay()">▶ Play</button>
+    <button class="pause" onclick="simPause()">⏸ Pausa</button>
+    <button class="reset" onclick="simReset()">🔄 Reset</button>
+  </div>
+</div>
+
+<div id="layers">
+  <h3>Capas</h3>
+  <label><input type="checkbox" checked onchange="tglLayer('terreno',this.checked)"> Terreno</label>
+  <label><input type="checkbox" checked onchange="tglLayer('zonas',this.checked)"> Zonas</label>
+  <label><input type="checkbox" checked onchange="tglLayer('edificios',this.checked)"> Edificios</label>
+  <label><input type="checkbox" checked onchange="tglLayer('vallas',this.checked)"> Vallas</label>
+  <label><input type="checkbox" checked onchange="tglLayer('equipamiento',this.checked)"> Equipamiento</label>
+  <label><input type="checkbox" checked onchange="tglLayer('camaras',this.checked)"> Cámaras + FOV</label>
+  <label><input type="checkbox" checked onchange="tglLayer('animales',this.checked)"> Animales</label>
+  <label><input type="checkbox" onchange="tglLayer('sensores',this.checked)"> Sensores IoT</label>
+  <label><input type="checkbox" onchange="tglLayer('alertas',this.checked)"> Alertas</label>
+  <label><input type="checkbox" onchange="tglLayer('trayectorias',this.checked)"> Trayectorias</label>
+</div>
+
+<div id="fps-hint" style="position:fixed;bottom:50%;left:50%;transform:translateX(-50%);z-index:150;background:rgba(10,14,23,.9);border:1px solid #22c55e;border-radius:8px;padding:10px 18px;font-size:12px;color:#22c55e;display:none;pointer-events:none">Click para capturar ratón · WASD mover · Espacio subir · Shift bajar · ESC salir</div>
+
+<div id="info">
+  <button onclick="this.parentElement.style.display='none'" style="float:right;background:none;border:none;color:#6b7280;cursor:pointer;font-size:13px">✕</button>
+  <h3 id="it"></h3><div id="ic"></div>
+</div>
+
+<div id="loading">⏳ Cargando BIM...</div>
+<div id="status"></div>
+
+<canvas id="c"></canvas>
+
+<!-- Three.js from CDN (r147 = last version with classic script support) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   DIGITAL TWIN 3D — Los Capones de Palacio (v2)
+   Geometría paramétrica desde BIM JSON + fallback inline
+   Estética profesional: casetas con tejado, prunos en flor,
+   gallinas como sprites por raza, iluminación cálida
+   Three.js r147 (last version with classic script support)
+   ══════════════════════════════════════════════════════════════ */
+
+const BIM_URL = '/api/bim/palacio';
+
+// ── BIM Fallback inline (fuente de verdad completa) ──
+const BIM_FALLBACK = {
+  "meta":{"name":"Los Capones de Palacio — BIM semántico","tenant":"palacio","coordinate_system":{"origin":"south-west corner","units":"meters"},"scale_px_per_meter":40,"canvas_m":{"width":30,"height":15},"version":"2.0"},
+  "elements":[
+    {"id":"SITE-001","class":"IfcSite","name":"Parcela piloto","geometry":{"type":"rect","x":0,"y":0,"w":30,"h":15},"properties":{"area_ha":0.3}},
+    {"id":"MT-001","class":"IfcGeographicElement","name":"Muro/Talud con árboles","geometry":{"type":"rect","x":0.5,"y":13.45,"w":29,"h":1.05,"z":0,"height":2.5},"properties":{"material":"piedra + vegetación","estimated_height_m":2.5}},
+    {"id":"RF-001","class":"IfcBuildingElementProxy","name":"Sauna / Referencia lateral","geometry":{"type":"rect","x":0,"y":8.8,"w":4.25,"h":4.1,"z":0,"height":4},"properties":{"material":"madera","uso":"refugio nocturno + perchas + ponederos"}},
+    {"id":"Z-GI","class":"IfcSpace","name":"Parque Gallinero I","geometry":{"type":"polygon","points":[[4.45,12.85],[24.6,12.85],[24.6,7.2],[21.3,6.45],[8.55,6.05],[4.45,8.8]]},"properties":{"forma":"L/embudo","aves_asignadas":13,"perimetro_color":"#22c55e"}},
+    {"id":"Z-GII","class":"IfcSpace","name":"Parque Gallinero II","geometry":{"type":"rect","x":24.6,"y":0.8,"w":4,"h":12.1,"z":0,"height":0.1},"properties":{"aves_asignadas":12,"perimetro_color":"#3b82f6"}},
+    {"id":"COOP-001","class":"IfcBuildingElementProxy","name":"Gallinero I (caseta pequeña)","geometry":{"type":"rect","x":22.5,"y":12,"w":1.5,"h":0.9,"z":0,"height":2},"properties":{"material":"madera blanca","pegado_al_muro":true,"puerta":"sur"}},
+    {"id":"COOP-002","class":"IfcBuildingElementProxy","name":"Gallinero II (caseta)","geometry":{"type":"rect","x":25.15,"y":7.65,"w":2,"h":2,"z":0,"height":2},"properties":{"material":"madera/metal","puerta":"sur"}},
+    {"id":"FEN-001","class":"IfcFence","name":"Valla principal (roja)","geometry":{"type":"polyline","points":[[4.25,8.8],[8.55,6.05],[9.35,10.85],[21.8,10.1],[24.6,7.3]]},"properties":{"material":"malla metálica + postes madera","estimated_height_m":1.2}},
+    {"id":"FEN-002","class":"IfcFence","name":"Borde inferior GI","geometry":{"type":"polyline","points":[[8.55,6.05],[20.2,6.05],[24.6,6.85]]},"properties":{"material":"malla metálica","estimated_height_m":1.2}},
+    {"id":"CAM-001","class":"IfcSensor","name":"Dahua WizSense 4K","geometry":{"type":"point","x":4.25,"y":8.8,"z":2.2},"properties":{"sensor_type":"video","model":"DH-IPC-HFW2841T-ZS","stream_name":"sauna_durrif_1","heading_deg":90,"fov_deg":75,"range_m":8}},
+    {"id":"CAM-002","class":"IfcSensor","name":"Cam Nueva TP-Link","geometry":{"type":"point","x":24.35,"y":9.85,"z":2.2},"properties":{"sensor_type":"video","heading_deg":270,"fov_deg":75,"range_m":8,"status":"PENDIENTE"}},
+    {"id":"CAM-003","class":"IfcSensor","name":"Vigi GII TP-Link","geometry":{"type":"point","x":26.15,"y":7.65,"z":2},"properties":{"sensor_type":"video","model":"TP-Link VIGI C340","stream_name":"gallinero_durrif_2","heading_deg":180,"fov_deg":60,"range_m":6}},
+    {"id":"EQ-001","class":"IfcFurniture","name":"Bebedero GI","geometry":{"type":"point","x":10,"y":9.5,"z":0},"properties":{"tipo":"bebedero","zona":"Parque GI"}},
+    {"id":"EQ-002","class":"IfcFurniture","name":"Comedero GI","geometry":{"type":"point","x":13,"y":8,"z":0},"properties":{"tipo":"comedero","zona":"Parque GI"}},
+    {"id":"EQ-003","class":"IfcFurniture","name":"Compostera","geometry":{"type":"point","x":11,"y":7.5,"z":0},"properties":{"tipo":"compostera","zona":"Parque GI"}},
+    {"id":"EQ-004","class":"IfcFurniture","name":"Bebedero GII","geometry":{"type":"point","x":26.5,"y":4.5,"z":0},"properties":{"tipo":"bebedero","zona":"Parque GII"}},
+    {"id":"EQ-005","class":"IfcFurniture","name":"Comedero GII","geometry":{"type":"point","x":26.5,"y":3,"z":0},"properties":{"tipo":"comedero","zona":"Parque GII"}},
+    {"id":"VEG-001","class":"IfcGeographicElement","name":"Almendro grande central","geometry":{"type":"point","x":8,"y":9,"z":0},"properties":{"species":"almendro","canopy_radius_m":3.5}},
+    {"id":"Z-HUERTO","class":"IfcSpace","name":"Huerto (fuera perímetro avícola)","geometry":{"type":"rect","x":4.5,"y":0.5,"w":19,"h":5.5},"properties":{"avicola":false,"uso":"cultivo rotación"}}
+  ]
+};
+
+// ── Fallback bird positions (census-based) ──
+const FALLBACK_BIRDS = [
+  {id:"PAL-01",breed:"Bresse",sex:"F",x:8.0,y:9.5},
+  {id:"PAL-02",breed:"Sussex",sex:"F",x:10.5,y:10.2},
+  {id:"PAL-03",breed:"Vorwerk",sex:"M",x:7.2,y:8.8},
+  {id:"PAL-04",breed:"Vorwerk",sex:"F",x:12.0,y:9.0},
+  {id:"PAL-05",breed:"Marans",sex:"F",x:9.8,y:11.0},
+  {id:"PAL-06",breed:"Sulmtaler",sex:"F",x:14.0,y:8.5},
+  {id:"PAL-07",breed:"Sulmtaler",sex:"M",x:15.5,y:9.8},
+  {id:"PAL-08",breed:"Andaluza",sex:"F",x:11.0,y:7.5},
+  {id:"PAL-09",breed:"Pita Pinta",sex:"F",x:13.5,y:10.5},
+  {id:"PAL-10",breed:"Bresse",sex:"M",x:6.5,y:9.0},
+  {id:"PAL-11",breed:"Sussex",sex:"M",x:16.5,y:12.0},
+  {id:"PAL-12",breed:"Marans",sex:"F",x:18.0,y:11.5},
+  {id:"PAL-13",breed:"Bresse",sex:"F",x:20.0,y:10.8},
+  {id:"PAL-21",breed:"Vorwerk",sex:"F",x:26.0,y:5.0},
+  {id:"PAL-22",breed:"Vorwerk",sex:"M",x:26.8,y:3.5},
+  {id:"PAL-23",breed:"Sussex",sex:"F",x:25.5,y:6.0},
+  {id:"PAL-24",breed:"Marans",sex:"F",x:27.0,y:4.5},
+  {id:"PAL-25",breed:"Bresse",sex:"F",x:26.5,y:2.5},
+  {id:"PAL-26",breed:"Andaluza",sex:"F",x:25.8,y:5.5},
+  {id:"PAL-27",breed:"Sulmtaler",sex:"F",x:27.2,y:8.0},
+  {id:"PAL-28",breed:"Araucana",sex:"F",x:26.0,y:9.5},
+  {id:"PAL-29",breed:"Pita Pinta",sex:"F",x:25.2,y:7.0},
+  {id:"PAL-30",breed:"Sussex",sex:"F",x:27.5,y:10.5},
+  {id:"PAL-31",breed:"Bresse",sex:"F",x:26.3,y:11.0},
+  {id:"PAL-32",breed:"Marans",sex:"F",x:27.0,y:1.5},
+];
+
+// ── Breed color palette ──
+const BREED_COLORS = {
+  'Sussex':0xF5F5F0,'Bresse':0xFFFFF0,'Vorwerk':0xDAA520,
+  'Marans':0x5C3317,'Sulmtaler':0xC19A6B,'Andaluza':0x6B8BA4,
+  'Pita Pinta':0x2F1B14,'Araucana':0x708090
+};
+
+// ── Scene setup ──
+const canvas = document.getElementById('c');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0d1117);
-scene.fog = new THREE.FogExp2(0x0d1117, 0.008);
+scene.background = new THREE.Color(0xC5D8E8); // cielo azul claro
+scene.fog = new THREE.FogExp2(0xC5D8E8, 0.008);
 
-const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 200);
-camera.position.set(15, 24, 35);
-camera.lookAt(15, 0, 8);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-document.body.appendChild(renderer.domElement);
+renderer.toneMappingExposure = 1.2;
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(15, 0, 8);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(15, 20, 25);
+camera.lookAt(15, 0, 7.5);
+
+// ── Sky gradient sphere ──
+(function addSkyGradient() {
+  const skyGeo = new THREE.SphereGeometry(90, 32, 16);
+  const skyMat = new THREE.ShaderMaterial({
+    uniforms: {
+      topColor: { value: new THREE.Color(0x87CEEB) },
+      bottomColor: { value: new THREE.Color(0xE8E0D8) },
+    },
+    vertexShader: 'varying vec3 vWP; void main(){ vWP=(modelMatrix*vec4(position,1.0)).xyz; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+    fragmentShader: 'uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vWP; void main(){ float h=normalize(vWP).y; gl_FragColor=vec4(mix(bottomColor,topColor,max(h,0.0)),1.0); }',
+    side: THREE.BackSide,
+    depthWrite: false,
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+})();
+
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.set(15, 0, 7.5);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.maxPolarAngle = Math.PI / 2.1;
+controls.maxPolarAngle = Math.PI/2.1;
+controls.update();
 
-// ── LIGHTS — warm golden hour ──
-scene.add(new THREE.AmbientLight(0x8899bb, 0.35));
-const sun = new THREE.DirectionalLight(0xffeedd, 2.0);
-sun.position.set(-10, 30, 25);
+// ── Lighting (warm morning sunlight) ──
+scene.add(new THREE.AmbientLight(0xFFF5E6, 0.6));
+const sun = new THREE.DirectionalLight(0xFFF0D0, 0.9);
+sun.position.set(15, 20, 10);
 sun.castShadow = true;
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 35;
+sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -5;
 sun.shadow.mapSize.set(2048, 2048);
-const sc = sun.shadow.camera;
-sc.left=-40; sc.right=40; sc.top=25; sc.bottom=-5; sc.near=1; sc.far=80;
-sun.shadow.bias = -0.001;
 scene.add(sun);
-scene.add(new THREE.HemisphereLight(0x6688cc, 0x443322, 0.5));
-// Back-fill
-const fill = new THREE.DirectionalLight(0x6688aa, 0.3);
-fill.position.set(30, 10, -10); scene.add(fill);
+scene.add(new THREE.HemisphereLight(0x87CEEB, 0x5C7A3D, 0.4));
 
-// ── HELPERS ──
-function box(x, z, w, d, h, color, y0=0, opts={}) {
-  const mat = new THREE.MeshStandardMaterial({color, roughness:opts.roughness||0.85, metalness:opts.metalness||0});
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-  m.position.set(x+w/2, y0+h/2, z+d/2);
-  m.castShadow = true; m.receiveShadow = true;
-  if (opts.name) m.userData = {name:opts.name, info:opts.info||''};
-  scene.add(m); return m;
+// ── Layer groups ──
+const layers = {};
+['terreno','zonas','edificios','vallas','equipamiento','camaras','animales','sensores','alertas','trayectorias'].forEach(n => {
+  layers[n] = new THREE.Group();
+  layers[n].name = n;
+  scene.add(layers[n]);
+});
+
+// ── Materials ──
+const M = {
+  ground:     new THREE.MeshStandardMaterial({color:0x4A7C3F, roughness:0.95}),
+  groundDirt: new THREE.MeshStandardMaterial({color:0x8B7355, roughness:0.9}),
+  muro:       new THREE.MeshStandardMaterial({color:0x8B8B6B, roughness:0.85}),
+  muroVeg:    new THREE.MeshStandardMaterial({color:0x3D6B3D, roughness:0.8}),
+  sauna:      new THREE.MeshStandardMaterial({color:0x8B7355, roughness:0.75}),
+  saunaRoof:  new THREE.MeshStandardMaterial({color:0x5C4033, roughness:0.7}),
+  coopWood:   new THREE.MeshStandardMaterial({color:0xD4A76A, roughness:0.6}),
+  coopWhite:  new THREE.MeshStandardMaterial({color:0xE8E4DA, roughness:0.55}),
+  roof:       new THREE.MeshStandardMaterial({color:0x5C4033, roughness:0.7}),
+  door:       new THREE.MeshStandardMaterial({color:0x3D2B1F, roughness:0.7}),
+  glass:      new THREE.MeshStandardMaterial({color:0x87CEEB, transparent:true, opacity:0.5, roughness:0.2}),
+  fence:      new THREE.MeshStandardMaterial({color:0x8B6914, roughness:0.8}),
+  wire:       new THREE.LineBasicMaterial({color:0xA0522D, linewidth:2}),
+  wireGreen:  new THREE.LineBasicMaterial({color:0x558855, linewidth:1}),
+  zoneGI:     new THREE.MeshStandardMaterial({color:0x4CAF50, transparent:true, opacity:0.06, side:THREE.DoubleSide}),
+  zoneGII:    new THREE.MeshStandardMaterial({color:0x2196F3, transparent:true, opacity:0.06, side:THREE.DoubleSide}),
+  huerto:     new THREE.MeshStandardMaterial({color:0x8B5E3C, transparent:true, opacity:0.08, side:THREE.DoubleSide}),
+  trunk:      new THREE.MeshStandardMaterial({color:0x5C3D2E, roughness:0.9}),
+  canopyGreen:new THREE.MeshStandardMaterial({color:0x2D6B2D, roughness:0.8}),
+  canopyPink: new THREE.MeshStandardMaterial({color:0xE8A0BF, transparent:true, opacity:0.85, roughness:0.7}),
+  cam:        new THREE.MeshStandardMaterial({color:0x333333, roughness:0.3, metalness:0.6}),
+  fovD:       new THREE.MeshBasicMaterial({color:0xf59e0b, transparent:true, opacity:0.06, side:THREE.DoubleSide}),
+  fovN:       new THREE.MeshBasicMaterial({color:0xa855f7, transparent:true, opacity:0.06, side:THREE.DoubleSide}),
+  fovV:       new THREE.MeshBasicMaterial({color:0x3b82f6, transparent:true, opacity:0.06, side:THREE.DoubleSide}),
+  eq:         new THREE.MeshStandardMaterial({color:0x4682B4, roughness:0.4, metalness:0.3}),
+  eqY:        new THREE.MeshStandardMaterial({color:0xCD853F, roughness:0.5}),
+  bancal:     new THREE.MeshStandardMaterial({color:0x8B6914, roughness:0.8}),
+  bancalSoil: new THREE.MeshStandardMaterial({color:0x3D2B1F, roughness:0.95}),
+  bancalPlant:new THREE.MeshStandardMaterial({color:0x228B22, roughness:0.8}),
+};
+
+// ── BIM→3D coord conversion ──
+function j2t(jx, jy, jz) {
+  return new THREE.Vector3(jx, jz || 0, 15 - jy);
 }
 
-// ══════════════════════════════════
-// GROUND — layered for realism
-// ══════════════════════════════════
-const gnd = new THREE.Mesh(
-  new THREE.PlaneGeometry(65, 45, 32, 32),
-  new THREE.MeshStandardMaterial({color:0x2a1f14, roughness:1})
-);
-gnd.rotation.x=-Math.PI/2; gnd.position.set(15,-0.02,8); gnd.receiveShadow=true; scene.add(gnd);
+// ═══════════════════════════════════════════════════════
+// PROFESSIONAL GEOMETRY BUILDERS
+// ═══════════════════════════════════════════════════════
 
-// G I ground (terra)
-const g1g = new THREE.Mesh(new THREE.PlaneGeometry(25,6), new THREE.MeshStandardMaterial({color:0x3d2f1e, roughness:1}));
-g1g.rotation.x=-Math.PI/2; g1g.position.set(12.5,0.001,11); g1g.receiveShadow=true; scene.add(g1g);
+function createCoop(el, wallMat, roofMat) {
+  const g = el.geometry;
+  const w = g.w, d = g.h, h = g.height || 2;
+  const group = new THREE.Group();
+  const wallH = h * 0.7;
 
-// G II ground
-const g2g = new THREE.Mesh(new THREE.PlaneGeometry(5,14), new THREE.MeshStandardMaterial({color:0x352c1a, roughness:1}));
-g2g.rotation.x=-Math.PI/2; g2g.position.set(27.5,0.001,7); g2g.receiveShadow=true; scene.add(g2g);
+  // Walls
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), wallMat);
+  const pos = j2t(g.x + w/2, g.y + d/2, wallH/2);
+  walls.position.copy(pos);
+  walls.castShadow = true;
+  walls.receiveShadow = true;
+  group.add(walls);
 
-// Huerto ground (darker earth)
-const hg = new THREE.Mesh(new THREE.PlaneGeometry(25,8), new THREE.MeshStandardMaterial({color:0x1f1a12, roughness:1}));
-hg.rotation.x=-Math.PI/2; hg.position.set(12.5,0.0005,4); hg.receiveShadow=true; scene.add(hg);
+  // Gabled roof (two-slope)
+  const roofH = h * 0.35;
+  const overhang = 0.15;
+  const roofShape = new THREE.Shape();
+  roofShape.moveTo(-w/2 - overhang, 0);
+  roofShape.lineTo(0, roofH);
+  roofShape.lineTo(w/2 + overhang, 0);
+  roofShape.closePath();
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, {depth: d + overhang*2, bevelEnabled: false});
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(pos.x, wallH, pos.z + d/2 + overhang);
+  roof.rotation.x = 0;
+  roof.castShadow = true;
+  group.add(roof);
 
-// Patchwork grass spots in G I
-for (let i = 0; i < 20; i++) {
-  const gx = 4+Math.random()*20, gz = 8.5+Math.random()*5;
-  const gs = 0.5+Math.random()*1.5;
-  const gp = new THREE.Mesh(
-    new THREE.CircleGeometry(gs, 8),
-    new THREE.MeshStandardMaterial({color:0x2d4a1a+Math.floor(Math.random()*0x0a1508), roughness:1, transparent:true, opacity:0.3})
-  );
-  gp.rotation.x=-Math.PI/2; gp.position.set(gx, 0.003, gz); scene.add(gp);
+  // Door (on south-facing side = +z in Three.js)
+  const doorW = Math.min(w * 0.3, 0.4);
+  const doorH = Math.min(wallH * 0.6, 0.6);
+  const doorGeo = new THREE.PlaneGeometry(doorW, doorH);
+  const door = new THREE.Mesh(doorGeo, M.door);
+  door.position.set(pos.x, doorH/2, pos.z + d/2 + 0.01);
+  group.add(door);
+
+  // Porthole window
+  const circGeo = new THREE.CircleGeometry(0.12, 12);
+  const porthole = new THREE.Mesh(circGeo, M.glass);
+  porthole.position.set(pos.x - w/4, wallH * 0.7, pos.z + d/2 + 0.01);
+  group.add(porthole);
+
+  group.userData = {id: el.id, name: el.name, props: el.properties};
+  return group;
 }
 
-// ══════════════════════════════════
-// MURO CON TALUD Y ARBOLES (30m)
-// ══════════════════════════════════
-// Individual stones
-for (let x = -0.2; x < 30.2; x += 0.35+Math.random()*0.25) {
-  for (let row = 0; row < 3; row++) {
-    const sw = 0.25+Math.random()*0.3;
-    const sh = 0.35+Math.random()*0.2;
-    const c = new THREE.Color().setHSL(0.08+Math.random()*0.04, 0.15+Math.random()*0.1, 0.25+Math.random()*0.15);
-    box(x, 14, sw, 0.7, sh, c.getHex(), row*0.45, {roughness:0.95});
-  }
-}
-// Talud (earth mound)
-const taludGeo = new THREE.BoxGeometry(32,0.8,1.8);
-const taludMat = new THREE.MeshStandardMaterial({color:0x3d3020, roughness:1});
-const talud = new THREE.Mesh(taludGeo, taludMat);
-talud.position.set(15,0.35,15.4); talud.receiveShadow=true; scene.add(talud);
+function createSauna(el) {
+  const g = el.geometry;
+  const w = g.w, d = g.h, h = g.height || 4;
+  const group = new THREE.Group();
+  const wallH = h * 0.75;
 
-// Trees on muro
-function addTree(x, z, tH, cR) {
+  // Walls
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, d), M.sauna);
+  const pos = j2t(g.x + w/2, g.y + d/2, wallH/2);
+  walls.position.copy(pos);
+  walls.castShadow = true;
+  walls.receiveShadow = true;
+  group.add(walls);
+
+  // Gabled roof
+  const roofH = h * 0.3;
+  const roofShape = new THREE.Shape();
+  roofShape.moveTo(-w/2 - 0.2, 0);
+  roofShape.lineTo(0, roofH);
+  roofShape.lineTo(w/2 + 0.2, 0);
+  roofShape.closePath();
+  const roofGeo = new THREE.ExtrudeGeometry(roofShape, {depth: d + 0.4, bevelEnabled: false});
+  const roof = new THREE.Mesh(roofGeo, M.saunaRoof);
+  roof.position.set(pos.x, wallH, pos.z + d/2 + 0.2);
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Door
+  const door = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.5), M.door);
+  door.position.set(pos.x, 0.75, pos.z + d/2 + 0.01);
+  group.add(door);
+
+  // Window (east-facing = -x direction)
+  const window = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.6), M.glass);
+  window.rotation.y = Math.PI/2;
+  window.position.set(pos.x + w/2 + 0.01, wallH * 0.55, pos.z);
+  group.add(window);
+
+  group.userData = {id: el.id, name: el.name, props: el.properties};
+  return group;
+}
+
+function createAlmendroTree(el) {
+  const pos = j2t(el.geometry.x, el.geometry.y, 0);
+  const r = el.properties?.canopy_radius_m || 3;
+  const group = new THREE.Group();
   // Trunk
-  const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.14, tH, 6),
-    new THREE.MeshStandardMaterial({color:0x3a2510, roughness:0.9})
-  );
-  trunk.position.set(x, tH/2+1.2, z); trunk.castShadow=true; scene.add(trunk);
-  // Crown layers
-  const g = 0x1a3a0a+Math.floor(Math.random()*0x102010);
-  for (let i = 0; i < 3; i++) {
-    const cr = cR*(1-i*0.2);
-    const s = new THREE.Mesh(
-      new THREE.SphereGeometry(cr, 7, 5),
-      new THREE.MeshStandardMaterial({color:g+i*0x050800, roughness:0.75})
-    );
-    s.position.set(x+(Math.random()-0.5)*0.3, tH*0.6+1.2+i*cR*0.5, z+(Math.random()-0.5)*0.3);
-    s.castShadow=true; scene.add(s);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 3, 8), M.trunk);
+  trunk.position.set(pos.x, 1.5, pos.z);
+  trunk.castShadow = true;
+  group.add(trunk);
+  // Green canopy — irregular icosahedron with vertex noise
+  const canopyGeo = new THREE.IcosahedronGeometry(r, 2);
+  const posAttr = canopyGeo.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const nx = posAttr.getX(i), ny = posAttr.getY(i), nz = posAttr.getZ(i);
+    const noise = 0.85 + Math.random() * 0.3;
+    posAttr.setXYZ(i, nx * noise, ny * noise, nz * noise);
   }
-}
-for (let i = 0; i < 15; i++) addTree(1+i*2+Math.random()*0.5, 15.5+Math.random()*0.3, 2+Math.random()*1.5, 0.9+Math.random()*0.5);
-// Extra trees inside G1
-addTree(5, 12.5, 3, 1.5);
-addTree(10, 11, 2.5, 1.2);
-
-// ══════════════════════════════════
-// SAUNA (x=0-3.5, z=8-14) — madera rústica
-// ══════════════════════════════════
-// Log walls
-for (let row = 0; row < 8; row++) {
-  const y0 = row * 0.32;
-  const c = 0x7a5a30 + Math.floor(Math.random()*0x101008);
-  box(0, 8, 3.5, 0.12, 0.3, c, y0, {roughness:0.9}); // front
-  box(0, 13.88, 3.5, 0.12, 0.3, c, y0); // back
-  box(0, 8, 0.12, 6, 0.3, c, y0); // left
-  box(3.38, 8, 0.12, 6, 0.3, c, y0); // right
-}
-// Roof
-const sRoof = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.12, 6.8), new THREE.MeshStandardMaterial({color:0x4a3520, roughness:0.7}));
-sRoof.position.set(1.75, 2.7, 11); sRoof.rotation.z=0.07; sRoof.castShadow=true; scene.add(sRoof);
-// Ridge
-const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 6.8), new THREE.MeshStandardMaterial({color:0x3a2510, roughness:0.8}));
-ridge.position.set(1.75, 2.78, 11); scene.add(ridge);
-// Door
-box(2.5, 8, 0.7, 0.05, 1.8, 0x4a2a10, 0, {name:'Sauna', info:'Edificio madera 3.5x6m'});
-// Window
-box(1.0, 8, 0.5, 0.05, 0.4, 0x446688, 1.3);
-
-// ══════════════════════════════════
-// GALLINERO II — Caseta elevada (x=25-30, z=11-14)
-// ══════════════════════════════════
-// Walls — white washed concrete
-const g2WallColor = 0xccccbb;
-box(25, 11.5, 4, 0.15, 3, g2WallColor, 0, {roughness:0.9}); // back (north)
-box(25, 11.5, 0.15, 2.5, 3, g2WallColor, 0); // left
-box(28.85, 11.5, 0.15, 2.5, 3, g2WallColor, 0); // right
-box(25, 11.35, 1.5, 0.15, 1.2, g2WallColor, 0); // front half-wall L
-box(28, 11.35, 1, 0.15, 1.2, g2WallColor, 0); // front half-wall R
-// Corrugated metal roof
-const g2Roof = new THREE.Mesh(
-  new THREE.BoxGeometry(4.5, 0.1, 3.2),
-  new THREE.MeshStandardMaterial({color:0x3a3a3a, roughness:0.35, metalness:0.65})
-);
-g2Roof.position.set(27, 3.15, 12.75); g2Roof.rotation.z=-0.05; g2Roof.castShadow=true; scene.add(g2Roof);
-// Elevated caseta inside
-box(25.5, 12, 1.5, 2, 1.8, 0xb0944a, 0.5, {name:'Caseta G II', info:'1.5x2m — elevada\nNidos arriba / descanso debajo'});
-
-// ══════════════════════════════════
-// CASETAS G I (pegadas al muro)
-// ══════════════════════════════════
-// Caseta 1: esquina con la sauna
-box(3.5, 13, 1.5, 1, 1.0, 0xb09040, 0, {name:'Habitaculo 1', info:'Esquina sauna — 1.5x1m\nPegado al muro'});
-const cs1r = new THREE.Mesh(new THREE.BoxGeometry(1.8,0.08,1.3), new THREE.MeshStandardMaterial({color:0x5a4020, roughness:0.7}));
-cs1r.position.set(4.25,1.05,13.5); cs1r.rotation.z=-0.06; cs1r.castShadow=true; scene.add(cs1r);
-
-// Caseta 2: cerca del habitaculo de G II
-box(21, 13, 2, 1.2, 1.2, 0xb09040, 0, {name:'Habitaculo 2', info:'Cerca de G II — 2x1.2m\nPegado al muro'});
-const cs2r = new THREE.Mesh(new THREE.BoxGeometry(2.3,0.08,1.5), new THREE.MeshStandardMaterial({color:0x5a4020, roughness:0.7}));
-cs2r.position.set(22,1.25,13.6); cs2r.rotation.z=-0.06; cs2r.castShadow=true; scene.add(cs2r);
-
-// ══════════════════════════════════
-// HUERTO — Bancales
-// ══════════════════════════════════
-for (let i = 0; i < 5; i++) {
-  // Wood frame
-  box(6+i*2.5, 3.5, 2.0, 3.5, 0.35, 0x5a3a1a);
-  // Soil inside
-  box(6.05+i*2.5, 3.55, 1.9, 3.4, 0.32, 0x2a1e10, 0.05);
-  // Green plant strip
-  const p = new THREE.Mesh(
-    new THREE.BoxGeometry(1.85, 0.12, 3.3),
-    new THREE.MeshStandardMaterial({color:0x2a5a1a+Math.floor(Math.random()*0x0a1508), roughness:0.7})
-  );
-  p.position.set(7+i*2.5, 0.42, 5.25); p.castShadow=true; scene.add(p);
+  posAttr.needsUpdate = true;
+  canopyGeo.computeVertexNormals();
+  const canopy = new THREE.Mesh(canopyGeo, M.canopyGreen);
+  canopy.position.set(pos.x, 3.5 + r*0.3, pos.z);
+  canopy.castShadow = true;
+  group.add(canopy);
+  group.userData = {id: el.id, name: el.name};
+  return group;
 }
 
-// ══════════════════════════════════
-// FENCING — wire mesh with posts
-// ══════════════════════════════════
-function fence(pts, h, color) {
-  color = color || 0x555555;
-  for (let i = 0; i < pts.length-1; i++) {
-    const [x1,z1]=pts[i], [x2,z2]=pts[i+1];
-    const dx=x2-x1, dz=z2-z1, len=Math.sqrt(dx*dx+dz*dz);
-    const angle=Math.atan2(dx,dz);
-    // Wire panel
-    const panel = new THREE.Mesh(
-      new THREE.PlaneGeometry(len, h),
-      new THREE.MeshStandardMaterial({color, transparent:true, opacity:0.12, side:THREE.DoubleSide, roughness:0.6, metalness:0.3})
-    );
-    panel.position.set((x1+x2)/2, h/2, (z1+z2)/2);
-    panel.rotation.y=angle; scene.add(panel);
-    // Wire lines
-    for (let w = 0; w < 4; w++) {
-      const wire = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.005, 0.005, len, 3),
-        new THREE.MeshStandardMaterial({color:0x888888, metalness:0.4})
-      );
-      wire.rotation.z=Math.PI/2; wire.rotation.y=-angle+Math.PI/2;
-      wire.position.set((x1+x2)/2, 0.2+w*h/4, (z1+z2)/2); scene.add(wire);
-    }
-    // Posts
-    const n = Math.max(2, Math.ceil(len/2));
-    for (let p = 0; p <= n; p++) {
-      const t=p/n;
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.04, h+0.15, 4),
-        new THREE.MeshStandardMaterial({color:0x555555, metalness:0.3})
-      );
-      post.position.set(x1+dx*t, h/2, z1+dz*t); post.castShadow=true; scene.add(post);
-    }
+function createPrunusTree(x, y, trunkH, canopyR) {
+  trunkH = trunkH || 2.5;
+  canopyR = canopyR || 1.5;
+  const pos = j2t(x, y, 0);
+  const group = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, trunkH, 6), M.trunk);
+  trunk.position.set(pos.x, trunkH/2, pos.z);
+  trunk.castShadow = true;
+  group.add(trunk);
+  // Pink canopy — irregular icosahedron (flores de prunus, marzo)
+  const canopyGeo = new THREE.IcosahedronGeometry(canopyR, 1);
+  const posAttr = canopyGeo.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const nx = posAttr.getX(i), ny = posAttr.getY(i), nz = posAttr.getZ(i);
+    const noise = 0.8 + Math.random() * 0.4;
+    posAttr.setXYZ(i, nx * noise, ny * noise * 0.7, nz * noise);
   }
+  posAttr.needsUpdate = true;
+  canopyGeo.computeVertexNormals();
+  const canopy = new THREE.Mesh(canopyGeo, M.canopyPink);
+  canopy.position.set(pos.x, trunkH + canopyR*0.6, pos.z);
+  canopy.castShadow = true;
+  group.add(canopy);
+  return group;
 }
-// Property boundary
-fence([[0,0],[0,14]], 1.5);
-fence([[0,0],[15,0],[25,0],[30,0]], 1.5);
-fence([[30,0],[30,14]], 1.5);
-// G I/G II separator (yellow)
-fence([[25,0],[25,14]], 1.5, 0xaa9933);
-// G I/Huerto fence
-fence([[3.5,8],[25,8]], 1.2);
 
-// ══════════════════════════════════
-// CAMERAS — correct positions
-// ══════════════════════════════════
-function addCam(x, y, z, aimX, aimZ, label, isOffline) {
-  // Camera body
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: isOffline ? 0x888866 : 0xeeeeee,
-    roughness:0.3, metalness:0.2
+function createMuro(el) {
+  const g = el.geometry;
+  const w = g.w, d = g.h, h = g.height || 2.5;
+  const pos = j2t(g.x + w/2, g.y + d/2, h/2);
+  const group = new THREE.Group();
+
+  // Stone wall base
+  const base = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.7, d), M.muro);
+  base.position.set(pos.x, h * 0.35, pos.z);
+  base.receiveShadow = true;
+  group.add(base);
+
+  // Vegetation on top
+  const veg = new THREE.Mesh(new THREE.BoxGeometry(w, h * 0.35, d * 1.5), M.muroVeg);
+  veg.position.set(pos.x, h * 0.82, pos.z);
+  veg.castShadow = true;
+  group.add(veg);
+
+  // Prunus trees scattered along the muro
+  const prunusPositions = [2, 5, 9, 13, 17, 21, 25, 28];
+  prunusPositions.forEach(px => {
+    const tree = createPrunusTree(px, 13.8, 2 + Math.random()*1.5, 1 + Math.random()*0.8);
+    group.add(tree);
   });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.15), bodyMat);
-  body.position.set(x, y, z); body.castShadow=true;
-  body.userData = {name:label, info:label + (isOffline ? '\nNO CONECTADA' : '\nVIGI C340 4K — 3840x2160')};
-  // Point camera toward aim
-  body.lookAt(new THREE.Vector3(aimX, y, aimZ));
-  scene.add(body);
-  // Lens
-  const lens = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.06, 0.08, 0.08, 8),
-    new THREE.MeshStandardMaterial({color:0x222222, roughness:0.2, metalness:0.5})
-  );
-  lens.rotation.x=Math.PI/2;
-  lens.position.copy(body.position);
-  const dir = new THREE.Vector3(aimX-x,0,aimZ-z).normalize().multiplyScalar(0.12);
-  lens.position.add(dir); scene.add(lens);
-  // LED
-  const led = new THREE.Mesh(
-    new THREE.SphereGeometry(0.04, 6, 6),
-    new THREE.MeshBasicMaterial({color: isOffline ? 0x886600 : 0xff2200})
-  );
-  led.position.set(x, y+0.14, z); led.userData={isLed:true, offline:isOffline}; scene.add(led);
-  // FOV cone on ground
-  var dist = isOffline ? 8 : (label.indexOf('Nueva')>=0 ? 16 : 7);
-  var angle = Math.atan2(aimZ-z, aimX-x), half=(100/2)*Math.PI/180;
-  var fovPts = [
-    new THREE.Vector3(x, 0.04, z),
-    new THREE.Vector3(x+dist*Math.cos(angle-half), 0.04, z+dist*Math.sin(angle-half)),
-    new THREE.Vector3(x+dist*Math.cos(angle+half), 0.04, z+dist*Math.sin(angle+half)),
-  ];
-  var fovGeo = new THREE.BufferGeometry().setFromPoints(fovPts);
-  fovGeo.setIndex([0,1,2]); fovGeo.computeVertexNormals();
-  var fovColor = isOffline ? 0xaa8800 : 0xcc2222;
-  scene.add(new THREE.Mesh(fovGeo, new THREE.MeshBasicMaterial({
-    color:fovColor, transparent:true, opacity:isOffline?0.04:0.06, side:THREE.DoubleSide
-  })));
-  // Label sprite
-  var cv=document.createElement('canvas'); cv.width=512; cv.height=80;
-  var ctx=cv.getContext('2d');
-  ctx.fillStyle=isOffline?'#f59e0b':'#ef4444';
-  ctx.font='bold 28px sans-serif'; ctx.textAlign='center';
-  var shortLabel=label.replace(/\s*\(.*\)/,'');
-  ctx.fillText(shortLabel, 256, 45);
-  if(isOffline){ctx.font='18px sans-serif';ctx.fillStyle='#f59e0b88';ctx.fillText('(offline)',256,70)}
-  var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true}));
-  sp.position.set(x,y+0.6,z); sp.scale.set(3,0.5,1); scene.add(sp);
+
+  group.userData = {id: el.id, name: el.name, props: el.properties};
+  return group;
 }
 
-// Cam Sauna (Dahua) — al lado de la sauna, mirando SE — NO CONECTADA
-addCam(3, 2.3, 11, 15, 5, 'Cam. Sauna (Dahua)', true);
-
-// Cam Nueva (VIGI G1, 10.10.10.11) — lateral edificio G II, mirando OESTE hacia sauna
-addCam(25, 2.5, 12, 3.5, 11, 'Cam. Nueva (VIGI G1)', false);
-
-// Cam G II (VIGI G2, 10.10.10.10) — dentro de G II, apuntando al parque sur
-addCam(27.5, 2.5, 13.5, 27.5, 5, 'Cam. G II (VIGI G2)', false);
-
-// ══════════════════════════════════
-// LABELS
-// ══════════════════════════════════
-function addLabel(text, x, y, z, color) {
-  var cv=document.createElement('canvas'); cv.width=512; cv.height=96;
-  var ctx=cv.getContext('2d'); ctx.fillStyle=color;
-  ctx.font='bold 32px sans-serif'; ctx.textAlign='center'; ctx.fillText(text,256,60);
-  var sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true}));
-  sp.position.set(x,y,z); sp.scale.set(6,1.2,1); scene.add(sp);
+function createZonePlane(el, mat) {
+  const g = el.geometry;
+  if (g.type === 'rect') {
+    const geo = new THREE.PlaneGeometry(g.w, g.h);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2;
+    const pos = j2t(g.x + g.w/2, g.y + g.h/2, 0.02);
+    mesh.position.copy(pos);
+    mesh.userData = {id: el.id, name: el.name};
+    return mesh;
+  }
+  if (g.type === 'polygon') {
+    const shape = new THREE.Shape();
+    g.points.forEach((p, i) => {
+      const v = j2t(p[0], p[1], 0);
+      if (i === 0) shape.moveTo(v.x, -v.z); else shape.lineTo(v.x, -v.z);
+    });
+    shape.closePath();
+    const geo = new THREE.ShapeGeometry(shape);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI/2;
+    mesh.position.y = 0.02;
+    mesh.userData = {id: el.id, name: el.name};
+    return mesh;
+  }
 }
-addLabel('GALLINERO I', 12, 5, 11, '#22c55e60');
-addLabel('GALLINERO II', 27.5, 5, 7, '#3b82f660');
-addLabel('SAUNA', 1.75, 4, 11, '#a78bfa60');
-addLabel('HUERTO', 12, 2.5, 4, '#78716c60');
-addLabel('Muro con talud y arboles', 15, 4.5, 15.5, '#78716c50');
 
-// ══════════════════════════════════
-// RAYCASTER
-// ══════════════════════════════════
-const raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2();
-const infoDiv = document.getElementById('info');
-renderer.domElement.addEventListener('click', function(e){
-  mouse.x=(e.clientX/innerWidth)*2-1;
-  mouse.y=-(e.clientY/innerHeight)*2+1;
+function createFenceLine(el, mat) {
+  const pts = el.geometry.points.map(p => j2t(p[0], p[1], 0.6));
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const line = new THREE.Line(geo, mat);
+  const group = new THREE.Group();
+  group.add(line);
+  // Wire mesh effect: add second line at different height
+  const pts2 = el.geometry.points.map(p => j2t(p[0], p[1], 0.3));
+  group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2), mat));
+  const pts3 = el.geometry.points.map(p => j2t(p[0], p[1], 0.9));
+  group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts3), mat));
+  // Posts
+  const postGeo = new THREE.CylinderGeometry(0.04, 0.06, 1.2, 6);
+  pts.forEach(p => {
+    const post = new THREE.Mesh(postGeo, M.fence);
+    post.position.set(p.x, 0.6, p.z);
+    post.castShadow = true;
+    group.add(post);
+  });
+  group.userData = {id: el.id, name: el.name};
+  return group;
+}
+
+function createCamera3D(el, fovMat) {
+  const g = el.geometry;
+  const pos = j2t(g.x, g.y, g.z || 2);
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), M.cam);
+  body.position.copy(pos);
+  body.castShadow = true;
+  group.add(body);
+  const heading = (el.properties?.heading_deg || 0) * Math.PI / 180;
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 8), M.cam);
+  lens.rotation.z = Math.PI/2;
+  lens.position.set(pos.x + Math.cos(heading)*0.2, pos.y, pos.z - Math.sin(heading)*0.2);
+  group.add(lens);
+  const fov = (el.properties?.fov_deg || 60) * Math.PI / 180;
+  const range = el.properties?.range_m || 6;
+  const coneGeo = new THREE.ConeGeometry(Math.tan(fov/2)*range, range, 16, 1, true);
+  const cone = new THREE.Mesh(coneGeo, fovMat);
+  cone.rotation.x = -Math.PI/2;
+  cone.rotation.z = -heading + Math.PI/2;
+  cone.position.set(pos.x + Math.cos(heading)*range/2, pos.y - 0.5, pos.z - Math.sin(heading)*range/2);
+  group.add(cone);
+  group.userData = {id: el.id, name: el.name, props: el.properties};
+  return group;
+}
+
+function createEquipment(el, mat) {
+  const pos = j2t(el.geometry.x, el.geometry.y, 0);
+  const tipo = el.properties?.tipo || '';
+  const group = new THREE.Group();
+  if (tipo === 'bebedero') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.05, 16), mat);
+    base.position.set(pos.x, 0.025, pos.z);
+    group.add(base);
+    const bowl = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 8, 16), mat);
+    bowl.rotation.x = Math.PI/2;
+    bowl.position.set(pos.x, 0.1, pos.z);
+    group.add(bowl);
+  } else if (tipo === 'comedero') {
+    const trough = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.25), mat);
+    trough.position.set(pos.x, 0.075, pos.z);
+    trough.castShadow = true;
+    group.add(trough);
+  } else {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.4), mat);
+    box.position.set(pos.x, 0.15, pos.z);
+    box.castShadow = true;
+    group.add(box);
+  }
+  group.userData = {id: el.id, name: el.name};
+  return group;
+}
+
+function createHuertoBancales(el) {
+  const g = el.geometry;
+  const group = new THREE.Group();
+  // Overall zone plane
+  const zone = createZonePlane(el, M.huerto);
+  if (zone) group.add(zone);
+  // Raised beds (bancales)
+  const startX = g.x + 1, startY = g.y + 1;
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 4; col++) {
+      const bx = startX + col * 4.5;
+      const by = startY + row * 2.5;
+      const bpos = j2t(bx + 1.5, by + 0.5, 0.15);
+      // Wooden frame
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 1), M.bancal);
+      frame.position.copy(bpos);
+      group.add(frame);
+      // Soil inside
+      const soil = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.2, 0.8), M.bancalSoil);
+      soil.position.set(bpos.x, 0.25, bpos.z);
+      group.add(soil);
+      // Plants (small green bumps)
+      for (let p = 0; p < 5; p++) {
+        const plant = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), M.bancalPlant);
+        plant.position.set(bpos.x - 1.2 + p * 0.6, 0.4, bpos.z + (Math.random()-0.5)*0.3);
+        group.add(plant);
+      }
+    }
+  }
+  group.userData = {id: el.id, name: el.name};
+  return group;
+}
+
+// ── Chicken sprite creator ──
+function createChickenSprite(breed, pos3d, birdData) {
+  const color = BREED_COLORS[breed] || 0xAAAAAA;
+  const canvas2d = document.createElement('canvas');
+  canvas2d.width = 64; canvas2d.height = 64;
+  const ctx = canvas2d.getContext('2d');
+  const hexStr = '#' + color.toString(16).padStart(6,'0');
+  // Body oval
+  ctx.fillStyle = hexStr;
+  ctx.beginPath();
+  ctx.ellipse(32, 38, 18, 14, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Head
+  ctx.beginPath();
+  ctx.arc(44, 24, 8, 0, Math.PI*2);
+  ctx.fill();
+  // Crest
+  ctx.fillStyle = '#CC3333';
+  ctx.beginPath();
+  ctx.arc(46, 17, 4, 0, Math.PI*2);
+  ctx.fill();
+  // Beak
+  ctx.fillStyle = '#E8B030';
+  ctx.beginPath();
+  ctx.moveTo(52, 24);
+  ctx.lineTo(58, 26);
+  ctx.lineTo(52, 28);
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(46, 22, 1.5, 0, Math.PI*2);
+  ctx.fill();
+  // Legs
+  ctx.strokeStyle = '#D4A017';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(28, 50); ctx.lineTo(24, 60);
+  ctx.moveTo(36, 50); ctx.lineTo(40, 60);
+  ctx.stroke();
+
+  const texture = new THREE.CanvasTexture(canvas2d);
+  const spriteMat = new THREE.SpriteMaterial({map: texture, transparent: true});
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(0.7, 0.7, 1);
+  sprite.position.copy(pos3d);
+  sprite.position.y = 0.35;
+  sprite.userData = {
+    id: birdData.id,
+    name: `${birdData.id} · ${breed} ${birdData.sex === 'M' ? '♂' : '♀'}`,
+    props: {raza: breed, sexo: birdData.sex, gallinero: birdData.x > 24 ? 'GII' : 'GI'}
+  };
+  return sprite;
+}
+
+// ── Camera POV positions ──
+let camPOVs = [];
+
+// ── Load BIM and build scene ──
+async function loadBIM() {
+  let bim;
+  try {
+    const resp = await fetch(BIM_URL);
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    bim = await resp.json();
+  } catch(e) {
+    console.warn('BIM API failed, using inline fallback:', e);
+    bim = BIM_FALLBACK;
+  }
+  buildScene(bim);
+  loadBirds();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('status').textContent =
+    `✅ ${bim.elements.length} elementos BIM · ${FALLBACK_BIRDS.length} aves · Three.js r${THREE.REVISION}`;
+}
+
+function buildScene(bim) {
+  const els = bim.elements || [];
+
+  // Ground plane (grass green)
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(36, 22), M.ground);
+  ground.rotation.x = -Math.PI/2;
+  ground.position.set(15, -0.01, 7.5);
+  ground.receiveShadow = true;
+  layers.terreno.add(ground);
+
+  // Dirt patches in parque areas
+  const dirtGI = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), M.groundDirt);
+  dirtGI.rotation.x = -Math.PI/2;
+  dirtGI.position.set(14, 0.005, 15 - 10);
+  dirtGI.receiveShadow = true;
+  layers.terreno.add(dirtGI);
+
+  els.forEach(el => {
+    const id = el.id;
+    if (id === 'MT-001') {
+      layers.terreno.add(createMuro(el));
+    } else if (id === 'RF-001') {
+      layers.edificios.add(createSauna(el));
+    } else if (id === 'COOP-001') {
+      layers.edificios.add(createCoop(el, M.coopWhite, M.roof));
+    } else if (id === 'COOP-002') {
+      layers.edificios.add(createCoop(el, M.coopWood, M.roof));
+    } else if (id === 'Z-GI') {
+      const mesh = createZonePlane(el, M.zoneGI);
+      if (mesh) layers.zonas.add(mesh);
+    } else if (id === 'Z-GII') {
+      const mesh = createZonePlane(el, M.zoneGII);
+      if (mesh) layers.zonas.add(mesh);
+    } else if (id === 'Z-HUERTO') {
+      layers.zonas.add(createHuertoBancales(el));
+    } else if (id === 'FEN-001') {
+      layers.vallas.add(createFenceLine(el, M.wire));
+    } else if (id === 'FEN-002') {
+      layers.vallas.add(createFenceLine(el, M.wireGreen));
+    } else if (id === 'CAM-001') {
+      layers.camaras.add(createCamera3D(el, M.fovD));
+      camPOVs.push(el);
+    } else if (id === 'CAM-002') {
+      layers.camaras.add(createCamera3D(el, M.fovN));
+      camPOVs.push(el);
+    } else if (id === 'CAM-003') {
+      layers.camaras.add(createCamera3D(el, M.fovV));
+      camPOVs.push(el);
+    } else if (id.startsWith('EQ-')) {
+      const tipo = el.properties?.tipo || '';
+      const mat = tipo === 'bebedero' ? M.eq : M.eqY;
+      layers.equipamiento.add(createEquipment(el, mat));
+    } else if (id === 'VEG-001') {
+      layers.terreno.add(createAlmendroTree(el));
+    }
+  });
+}
+
+// ── Load birds (fallback or API) ──
+const animalSprites = new Map();
+
+function loadBirds() {
+  // Try API first, fall back to hardcoded census positions
+  fetch('/api/tracking/palacio/latest')
+    .then(r => r.ok ? r.json() : Promise.reject())
+    .then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        updateAnimalPositions(data);
+      } else {
+        loadFallbackBirds();
+      }
+    })
+    .catch(() => loadFallbackBirds());
+}
+
+function loadFallbackBirds() {
+  FALLBACK_BIRDS.forEach(b => {
+    const pos = j2t(b.x, b.y, 0);
+    const sprite = createChickenSprite(b.breed, pos, b);
+    layers.animales.add(sprite);
+    animalSprites.set(b.id, sprite);
+  });
+}
+
+function updateAnimalPositions(animals) {
+  animals.forEach(a => {
+    let sprite = animalSprites.get(a.id);
+    if (!sprite) {
+      const pos = j2t(a.x, a.y, 0);
+      sprite = createChickenSprite(a.breed || 'Sussex', pos, a);
+      layers.animales.add(sprite);
+      animalSprites.set(a.id, sprite);
+    }
+    const pos = j2t(a.x, a.y, 0);
+    pos.y = 0.35;
+    sprite.position.lerp(pos, 0.3);
+  });
+}
+
+// ── WebSocket for animal tracking ──
+function connectTracking() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.host}/ws/tracking`);
+  ws.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      if (Array.isArray(data)) updateAnimalPositions(data);
+    } catch(err) {}
+  };
+  ws.onerror = () => setTimeout(connectTracking, 10000);
+  ws.onclose = () => setTimeout(connectTracking, 10000);
+}
+
+// ── Polling fallback for bird positions (every 4s, same as YOLO) ──
+let _trackingAvailable = true;
+let _trackingRetries = 0;
+setInterval(() => {
+  if (!_trackingAvailable) return; // stop polling after repeated 404s
+  fetch('/api/tracking/palacio')
+    .then(r => {
+      if (!r.ok) { _trackingRetries++; if (_trackingRetries > 3) _trackingAvailable = false; return null; }
+      _trackingRetries = 0;
+      return r.json();
+    })
+    .then(data => {
+      // endpoint returns {gallinero, summary, active_tracks} — extract array
+      const animals = data && Array.isArray(data.active_tracks) ? data.active_tracks : (Array.isArray(data) ? data : null);
+      if (animals && animals.length > 0) updateAnimalPositions(animals);
+    })
+    .catch(() => { _trackingRetries++; if (_trackingRetries > 3) _trackingAvailable = false; });
+}, 4000);
+
+// ── First Person (WASD) controls ──
+let fpsMode = false;
+const fpsKeys = {};
+let yaw = 0, pitch = 0;
+
+document.addEventListener('keydown', e => { if (fpsMode) fpsKeys[e.code] = true; });
+document.addEventListener('keyup', e => { fpsKeys[e.code] = false; });
+
+function enterFPS() {
+  fpsMode = true;
+  controls.enabled = false;
+  camera.position.set(15, 1.7, 7.5);
+  yaw = 0; pitch = 0;
+  document.getElementById('fps-hint').style.display = 'block';
+  canvas.requestPointerLock();
+}
+
+function exitFPS() {
+  fpsMode = false;
+  controls.enabled = true;
+  document.getElementById('fps-hint').style.display = 'none';
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+
+canvas.addEventListener('click', () => {
+  if (fpsMode && !document.pointerLockElement) canvas.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+  if (!document.pointerLockElement && fpsMode) {
+    document.getElementById('fps-hint').style.display = 'block';
+  } else if (document.pointerLockElement) {
+    document.getElementById('fps-hint').style.display = 'none';
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  if (!fpsMode || !document.pointerLockElement) return;
+  yaw -= e.movementX * 0.002;
+  pitch -= e.movementY * 0.002;
+  pitch = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, pitch));
+});
+
+function updateFPS() {
+  if (!fpsMode) return;
+  const speed = 0.12;
+  const dir = new THREE.Vector3();
+  if (fpsKeys['KeyW']) dir.z -= 1;
+  if (fpsKeys['KeyS']) dir.z += 1;
+  if (fpsKeys['KeyA']) dir.x -= 1;
+  if (fpsKeys['KeyD']) dir.x += 1;
+  dir.normalize().multiplyScalar(speed);
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  const dx = dir.x * cos - dir.z * sin;
+  const dz = dir.x * sin + dir.z * cos;
+  camera.position.x += dx;
+  camera.position.z += dz;
+  if (fpsKeys['Space']) camera.position.y += speed;
+  if (fpsKeys['ShiftLeft'] || fpsKeys['ShiftRight']) camera.position.y -= speed;
+  camera.position.x = Math.max(-2, Math.min(32, camera.position.x));
+  camera.position.z = Math.max(-2, Math.min(18, camera.position.z));
+  camera.position.y = Math.max(0.5, Math.min(20, camera.position.y));
+  const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+  camera.quaternion.setFromEuler(euler);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Escape' && fpsMode) exitFPS();
+});
+
+// ── Camera modes ──
+function setCamMode(mode, idx) {
+  if (fpsMode) exitFPS();
+  document.querySelectorAll('.btn-bar button').forEach(b => b.classList.remove('on'));
+
+  if (mode === 'orbit') {
+    camera.position.set(15, 20, 25);
+    controls.target.set(15, 0, 7.5);
+    controls.enabled = true;
+    document.getElementById('b-orbit').classList.add('on');
+  }
+  else if (mode === 'iso') {
+    camera.position.set(40, 25, 30);
+    controls.target.set(15, 0, 7.5);
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    controls.enabled = true;
+    document.getElementById('b-iso').classList.add('on');
+  }
+  else if (mode === 'top') {
+    camera.position.set(15, 35, 7.5);
+    controls.target.set(15, 0, 7.5);
+    controls.enabled = true;
+    document.getElementById('b-top').classList.add('on');
+  }
+  else if (mode === 'fps') {
+    enterFPS();
+    document.getElementById('b-fps').classList.add('on');
+    return;
+  }
+  else if (mode === 'pov' && camPOVs[idx]) {
+    const el = camPOVs[idx];
+    const g = el.geometry;
+    const pos = j2t(g.x, g.y, g.z || 2);
+    camera.position.copy(pos);
+    const heading = (el.properties?.heading_deg || 0) * Math.PI / 180;
+    const range = el.properties?.range_m || 6;
+    controls.target.set(
+      pos.x + Math.cos(heading) * range * 0.5,
+      pos.y - 1,
+      pos.z - Math.sin(heading) * range * 0.5
+    );
+    controls.enabled = true;
+    document.getElementById('b-pov' + idx)?.classList.add('on');
+  }
+  controls.update();
+}
+
+function tglLayer(name, visible) {
+  if (layers[name]) layers[name].visible = visible;
+}
+
+// ── Raycaster for click info ──
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+canvas.addEventListener('click', (e) => {
+  if (simActive && simType === 'expand') return; // handled by sim
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
-  var hits=raycaster.intersectObjects(scene.children);
-  for(var i=0;i<hits.length;i++){
-    if(hits[i].object.userData && hits[i].object.userData.name){
-      infoDiv.innerHTML='<b>'+hits[i].object.userData.name+'</b><br>'+(hits[i].object.userData.info||'').replace(/\n/g,'<br>');
-      infoDiv.style.display='block';
-      setTimeout(function(){infoDiv.style.display='none'},4000);
+  const hits = raycaster.intersectObjects(scene.children, true);
+  for (const hit of hits) {
+    let obj = hit.object;
+    while (obj && !obj.userData?.name) obj = obj.parent;
+    if (obj?.userData?.name) {
+      showInfo(obj.userData);
       break;
     }
   }
 });
 
-// ══════════════════════════════════
-// ANIMATION — no chickens, just LEDs + controls
-// ══════════════════════════════════
-var frames=0, fpsSec=0;
-function animate(time){
+function showInfo(data) {
+  document.getElementById('it').textContent = data.name || data.id;
+  let html = `<div class="d">ID: ${data.id}</div>`;
+  if (data.props) {
+    Object.entries(data.props).forEach(([k,v]) => {
+      if (v !== null && v !== undefined) html += `<div class="d">${k}: ${v}</div>`;
+    });
+  }
+  document.getElementById('ic').innerHTML = html;
+  document.getElementById('info').style.display = 'block';
+}
+
+// ── Resize ──
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Animate ──
+let _animClock = 0;
+function animate() {
   requestAnimationFrame(animate);
-  frames++;
-  if(time-fpsSec>1000){document.getElementById('fps').textContent=frames+' FPS';frames=0;fpsSec=time}
-  var t=time*0.001;
-  scene.traverse(function(obj){
-    if(obj.userData && obj.userData.isLed){
-      var blink = obj.userData.offline ? 0.3+0.2*Math.sin(t) : 0.5+0.5*Math.sin(t*3);
-      obj.material.opacity=blink; obj.material.transparent=true;
-    }
+  _animClock += 0.016; // ~60fps assumed
+  updateFPS();
+  if (!fpsMode) controls.update();
+  if (simActive && simRunning) {
+    if (simType === 'meteo') updateSimMeteo();
+    else if (simType === 'bio') updateSimBio();
+  }
+  // Chicken idle bobbing
+  animalSprites.forEach((sprite, id) => {
+    const hash = id.charCodeAt(id.length - 1) || 0;
+    sprite.position.y = 0.35 + Math.sin(_animClock * 2.5 + hash) * 0.03;
   });
-  controls.update();
   renderer.render(scene, camera);
 }
-animate(0);
 
-addEventListener('resize', function(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+// ══════════════════════════════════════════════════════════════
+// SIMULATION LAYER (variables declared before animate() to avoid TDZ)
+// ══════════════════════════════════════════════════════════════
+
+let simActive = false;
+let simType = 'meteo';
+let simRunning = false;
+let simTime = 0;
+
+// ── Init ──
+loadBIM();
+animate();
+setTimeout(connectTracking, 3000);
+const simParams = {
+  temp: 8, rain: 0, wind: 5,
+  r0: 2.5, incubation: 3, mortality: 5,
+  expandW: 3, expandD: 3,
+  feedCost: 150, caponPrice: 35, eggsDay: 8,
+};
+
+const simObjects = { particles: [], ghostBuilding: null, heatmapPlane: null };
+
+function toggleSimMode() {
+  simActive = !simActive;
+  document.getElementById('sim-bar').style.display = simActive ? 'block' : 'none';
+  document.getElementById('sim-indicator').style.display = simActive ? 'block' : 'none';
+  document.getElementById('b-sim').classList.toggle('on', simActive);
+  if (!simActive) simReset();
+}
+
+function setSimType(type) {
+  simType = type;
+  ['meteo','bio','expand','finance'].forEach(t => {
+    const panel = document.getElementById('sim-' + t + '-panel');
+    if (panel) panel.style.display = t === type ? 'block' : 'none';
+  });
+  document.querySelectorAll('#sim-bar .sim-mode button').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(
+      type === 'meteo' ? 'meteo' : type === 'bio' ? 'bioseg' : type === 'expand' ? 'expan' : 'finan'
+    ));
+  });
+  simReset();
+}
+
+function simPlay() { simRunning = true; }
+function simPause() { simRunning = false; }
+
+function simReset() {
+  simRunning = false;
+  simTime = 0;
+  simObjects.particles.forEach(p => scene.remove(p));
+  simObjects.particles = [];
+  if (simObjects.ghostBuilding) {
+    scene.remove(simObjects.ghostBuilding);
+    simObjects.ghostBuilding = null;
+  }
+  if (simObjects.heatmapPlane) {
+    scene.remove(simObjects.heatmapPlane);
+    simObjects.heatmapPlane = null;
+  }
+  animalSprites.forEach(sprite => {
+    if (sprite.material.color) sprite.material.color.setHex(0xffffff);
+  });
+  // Restore default lighting
+  sun.intensity = 0.9;
+  scene.fog.color.setHex(0xC5D8E8);
+}
+
+function updateSimMeteo() {
+  if (simParams.rain > 0 && simObjects.particles.length < 200) {
+    const geo = new THREE.SphereGeometry(0.03, 4, 4);
+    const mat = new THREE.MeshBasicMaterial({color: 0x6b9ad0, transparent: true, opacity: 0.5});
+    for (let i = 0; i < Math.min(simParams.rain, 10); i++) {
+      const drop = new THREE.Mesh(geo, mat);
+      drop.position.set(Math.random()*30, 10 + Math.random()*5, Math.random()*15);
+      drop.userData.vy = -0.1 - Math.random()*0.1;
+      simObjects.particles.push(drop);
+      scene.add(drop);
+    }
+  }
+  simObjects.particles.forEach(p => {
+    p.position.y += p.userData.vy;
+    if (p.position.y < 0) {
+      p.position.y = 10 + Math.random()*5;
+      p.position.x = Math.random()*30;
+      p.position.z = Math.random()*15;
+    }
+  });
+  const tempFactor = (simParams.temp + 10) / 50;
+  sun.intensity = 0.4 + tempFactor * 1.0;
+  if (simParams.temp < 0) {
+    scene.fog.color.setHex(0x8899AA);
+  } else {
+    scene.fog.color.setHex(0xC5D8E8);
+  }
+}
+
+function updateSimBio() {
+  simTime += 0.016;
+  const daysSim = simTime * 10;
+  const S0 = 26;
+  const beta = simParams.r0 / simParams.incubation;
+  const gamma = 1 / simParams.incubation;
+  const I = S0 * Math.exp((beta - gamma) * Math.min(daysSim, 30)) / (S0 + Math.exp((beta - gamma) * Math.min(daysSim, 30)));
+  const infectedRatio = Math.min(I / S0, 1);
+
+  let idx = 0;
+  animalSprites.forEach(sprite => {
+    const isInfected = (idx / animalSprites.size) < infectedRatio;
+    // For sprites we can't change color directly - but we can tint
+    if (sprite.material.color) {
+      sprite.material.color.setHex(isInfected ? 0xff4444 : 0x44ff44);
+    }
+    idx++;
+  });
+}
+
+canvas.addEventListener('click', function(e) {
+  if (!simActive || simType !== 'expand') return;
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects([...layers.terreno.children], false);
+  if (hits.length > 0) {
+    const pt = hits[0].point;
+    if (simObjects.ghostBuilding) scene.remove(simObjects.ghostBuilding);
+    const geo = new THREE.BoxGeometry(simParams.expandW, 2.5, simParams.expandD);
+    const mat = new THREE.MeshStandardMaterial({color: 0x22c55e, transparent: true, opacity: 0.3});
+    const ghost = new THREE.Mesh(geo, mat);
+    ghost.position.set(pt.x, 1.25, pt.z);
+    const wire = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({color: 0x22c55e, linewidth: 2})
+    );
+    ghost.add(wire);
+    simObjects.ghostBuilding = ghost;
+    scene.add(ghost);
+  }
+});
 </script>
 </body>
 </html>

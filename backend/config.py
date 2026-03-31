@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     together_model_id: str = "Qwen/Qwen2.5-7B-Instruct-Turbo"
     together_classifier_model: str = "Qwen/Qwen2.5-7B-Instruct-Turbo"
     together_critic_model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    together_vision_model: str = "Qwen/Qwen2.5-VL-72B-Instruct"
     together_base_url: str = "https://api.together.xyz/v1"
 
     # Ollama (principal — modelo fine-tuned local)

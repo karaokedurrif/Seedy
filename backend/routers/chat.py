@@ -18,6 +18,12 @@ from services.reranker import rerank
 from services.llm import generate, generate_stream
 from services.query_rewriter import rewrite_query
 
+try:
+    from runtime.logger import log_agent_run, RunTimer
+except ImportError:
+    log_agent_run = None
+    RunTimer = None
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["chat"])
@@ -113,6 +119,19 @@ async def chat(req: ChatRequest):
 
         elapsed = time.time() - t0
         logger.info(f"Respuesta generada en {elapsed:.2f}s vía {model_used}")
+
+        if log_agent_run:
+            log_agent_run(
+                task_type="rag",
+                expert_used="expert_rag",
+                model_used=model_used,
+                tools_invoked=["rag_query"],
+                input_summary=req.query[:200],
+                output_summary=answer[:200],
+                latency_ms=int(elapsed * 1000),
+                confidence=top_chunks[0].get("rerank_score", 0.0) if top_chunks else 0.0,
+                tenant_id=req.farm_id or "palacio",
+            )
 
         return ChatResponse(
             answer=answer,
