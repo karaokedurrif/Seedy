@@ -191,53 +191,171 @@
       font-size: 14px;
       margin-bottom: 6px;
     }
-    /* ── Dashboard dual-camera panel ── */
+    /* ── Dashboard 2-column layout ── */
     .seedy-dashboard-panel {
       padding: 16px;
       max-width: 1400px;
       margin: 0 auto;
     }
-    .seedy-dashboard-panel h3 {
-      color: var(--neutral-100, #f1f5f9);
-      font-size: 1.1em;
-      margin-bottom: 12px;
+    .seedy-kpi-strip {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .seedy-kpi-card {
+      flex: 1 1 0;
+      min-width: 120px;
+      background: var(--neutral-900, #111827);
+      border: 1px solid var(--neutral-800, #1f2937);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .seedy-kpi-icon { font-size: 20px; }
+    .seedy-kpi-body { flex: 1; }
+    .seedy-kpi-value { font-size: 1.15em; font-weight: 700; }
+    .seedy-kpi-label {
+      font-size: 0.65em;
+      color: var(--neutral-500,#6b7280);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .seedy-dashboard-layout {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 960px) {
+      .seedy-dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+      .seedy-kpi-strip {
+        gap: 6px;
+      }
+      .seedy-kpi-card {
+        min-width: 90px;
+        padding: 8px 10px;
+      }
+    }
+    .seedy-dash-left {}
+    .seedy-dash-right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .seedy-dash-hero {
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--neutral-800,#1f2937);
+      background: #0f1419;
+      position: relative;
+    }
+    .seedy-dash-hero iframe {
+      width: 100%;
+      min-height: 500px;
+      height: 60vh;
+      border: none;
+      display: block;
+    }
+    .seedy-dash-hero .hero-expand {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.6); color: #fff; border: none;
+      border-radius: 6px; padding: 5px 10px; font-size: 11px;
+      cursor: pointer; z-index: 2; backdrop-filter: blur(4px);
+      display: none;
+    }
+    .seedy-dash-hero .hero-expand:hover { background: rgba(0,0,0,0.8); }
+    .seedy-hero-modes {
+      position: absolute; top: 10px; right: 10px;
+      display: flex; gap: 4px; z-index: 3;
+    }
+    .seedy-hero-modes button {
+      background: rgba(0,0,0,0.55); color: #fff; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 600;
+      cursor: pointer; backdrop-filter: blur(4px); transition: all 0.15s;
+    }
+    .seedy-hero-modes button:hover { background: rgba(0,0,0,0.8); }
+    .seedy-hero-modes button.active {
+      background: rgba(59,130,246,0.8); border-color: rgba(59,130,246,0.6);
+    }
+    .seedy-hero-render {
+      width: 100%; min-height: 500px; height: 60vh;
+      object-fit: cover; display: block;
+      background: #0f1419;
+    }
+    .seedy-feed-section {
+      margin-top: 14px;
+      background: var(--neutral-900,#111827);
+      border: 1px solid var(--neutral-800,#1f2937);
+      border-radius: 12px;
+      padding: 12px 14px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .seedy-feed-section h4 {
+      margin: 0 0 8px;
+      font-size: 0.85em;
+      color: var(--neutral-400,#9ca3af);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .seedy-feed-item {
+      display: flex;
+      gap: 8px;
+      padding: 4px 0;
+      font-size: 0.8em;
+      color: var(--neutral-300,#d1d5db);
+      border-bottom: 1px solid var(--neutral-800,#1f2937);
+    }
+    .seedy-feed-item:last-child { border-bottom: none; }
+    .seedy-feed-time {
+      color: var(--neutral-500,#6b7280);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .seedy-cam-thumb-row {
+      background: var(--neutral-900,#111827);
+      border: 1px solid var(--neutral-800,#1f2937);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .seedy-cam-thumb-row h4 {
+      margin: 0 0 8px;
+      font-size: 0.8em;
+      color: var(--neutral-400,#9ca3af);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .seedy-cam-thumb {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 5px 0;
+      cursor: pointer;
+      transition: opacity 0.15s;
     }
-    .seedy-dashboard-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+    .seedy-cam-thumb:hover { opacity: 0.8; }
+    .seedy-cam-thumb img {
+      width: 84px; height: 48px;
+      border-radius: 4px; object-fit: cover; background: #000;
     }
-    @media (max-width: 768px) {
-      .seedy-dashboard-grid { grid-template-columns: 1fr; }
-    }
-    .seedy-dashboard-cell {
-      background: var(--neutral-900, #111827);
-      border-radius: 12px;
-      border: 1px solid var(--neutral-800, #1f2937);
-      overflow: hidden;
-    }
-    .seedy-dashboard-cell h4 {
-      padding: 10px 14px 0;
-      font-size: 0.9em;
-      color: var(--neutral-300, #d1d5db);
-      margin: 0;
-    }
-    .seedy-dashboard-cell .seedy-cam-wrap { margin: 8px; border-radius: 8px; }
-    .seedy-dashboard-cell .seedy-cam-toggle { margin: 0 8px 8px; }
+    .seedy-cam-thumb-name { font-size: 0.8em; font-weight: 600; color: var(--neutral-200,#e5e7eb); }
+    .seedy-cam-thumb-status { font-size: 0.65em; color: #22c55e; }
     .seedy-twin-links {
       display: flex;
-      gap: 10px;
-      margin-top: 14px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 8px;
     }
     .seedy-twin-links a {
-      display: inline-flex;
+      display: flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
-      padding: 8px 16px;
+      padding: 10px 16px;
       border-radius: 8px;
       font-size: 0.85em;
       font-weight: 600;
@@ -255,6 +373,88 @@
       border: 1px solid var(--neutral-700, #374151);
     }
     .seedy-twin-links a.twin-2d:hover { background: var(--neutral-700, #374151); }
+    @media (max-width: 960px) {
+      .seedy-twin-links { flex-direction: row; }
+      .seedy-twin-links a { flex: 1; }
+    }
+    .seedy-sidebar-kpis {
+      background: var(--neutral-900,#111827);
+      border: 1px solid var(--neutral-800,#1f2937);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .seedy-sidebar-kpis h4 {
+      margin: 0 0 8px;
+      font-size: 0.8em;
+      color: var(--neutral-400,#9ca3af);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .seedy-sidebar-kpi-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 0.82em;
+      border-bottom: 1px solid var(--neutral-800,#1f2937);
+    }
+    .seedy-sidebar-kpi-item:last-child { border-bottom: none; }
+    .seedy-sidebar-kpi-label { color: var(--neutral-400,#9ca3af); }
+    .seedy-sidebar-kpi-val { font-weight: 700; }
+    .seedy-geotwin-btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 10px 16px; border-radius: 8px;
+      font-size: 0.85em; font-weight: 600; text-decoration: none;
+      background: linear-gradient(135deg, #059669, #10b981); color: #fff;
+      border: none; cursor: pointer; transition: all 0.15s;
+    }
+    .seedy-geotwin-btn:hover { opacity: 0.85; }
+    /* ── Drone control panel ── */
+    .seedy-drone-panel {
+      margin-top: 10px;
+      background: var(--neutral-900, #111827);
+      border: 1px solid var(--neutral-800, #1f2937);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .seedy-drone-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .seedy-drone-title {
+      font-size: 0.85em; font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .seedy-drone-dot {
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+    }
+    .seedy-drone-dot.ok { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+    .seedy-drone-dot.off { background: #6b7280; }
+    .seedy-drone-dot.fly { background: #f59e0b; animation: seedy-pulse 1s infinite; }
+    .seedy-drone-stats {
+      display: flex; gap: 12px; margin-bottom: 10px; font-size: 0.75em;
+    }
+    .seedy-drone-stat { display: flex; flex-direction: column; align-items: center; }
+    .seedy-drone-stat-val { font-weight: 700; font-size: 1.2em; }
+    .seedy-drone-stat-label { color: var(--neutral-500, #6b7280); text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.5px; }
+    .seedy-drone-actions { display: flex; gap: 6px; }
+    .seedy-drone-btn {
+      flex: 1; padding: 7px 10px; border-radius: 6px;
+      font-size: 0.78em; font-weight: 600; border: none;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .seedy-drone-btn.connect { background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; }
+    .seedy-drone-btn.connect:hover { opacity: 0.85; }
+    .seedy-drone-btn.disconnect { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+    .seedy-drone-btn.disconnect:hover { opacity: 0.85; }
+    .seedy-drone-btn.fly-btn { background: linear-gradient(135deg, #d97706, #f59e0b); color: #fff; }
+    .seedy-drone-btn.fly-btn:hover { opacity: 0.85; }
+    .seedy-drone-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .seedy-drone-log {
+      margin-top: 8px; font-size: 0.7em; color: var(--neutral-500, #6b7280);
+      max-height: 48px; overflow-y: auto;
+    }
     /* ── Bird monitoring button ── */
     .seedy-bird-monitor-btn {
       display: inline-flex;
@@ -395,6 +595,12 @@
       cursor: pointer;
       transition: all 0.15s;
     }
+    .seedy-ave-modal-actions .capture-id-btn {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+    }
+    .seedy-ave-modal-actions .capture-id-btn:hover { opacity: 0.85; }
+    .seedy-ave-modal-actions .capture-id-btn:disabled { opacity: 0.5; cursor: wait; }
     .seedy-ave-modal-actions .cam-btn {
       background: linear-gradient(135deg, #10b981, #059669);
       color: #fff;
@@ -454,6 +660,246 @@
     }
     .seedy-photo-zoomable:hover {
       transform: scale(1.05);
+    }
+    /* ── Identification result panel ── */
+    .seedy-id-panel {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.25);
+    }
+    .seedy-id-panel.rejected {
+      background: rgba(239,68,68,0.08);
+      border-color: rgba(239,68,68,0.25);
+    }
+    .seedy-id-header {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .seedy-id-photo {
+      width: 140px;
+      height: 140px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: zoom-in;
+      flex-shrink: 0;
+      border: 2px solid rgba(16,185,129,0.3);
+    }
+    .seedy-id-info {
+      flex: 1;
+      font-size: 0.82em;
+      line-height: 1.55;
+    }
+    .seedy-id-info .breed {
+      font-size: 1.15em;
+      font-weight: 700;
+      color: var(--neutral-100, #f3f4f6);
+    }
+    .seedy-id-info .conf {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 12px;
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+    .seedy-id-info .conf.high { background: #059669; color: #fff; }
+    .seedy-id-info .conf.med  { background: #d97706; color: #fff; }
+    .seedy-id-info .conf.low  { background: #dc2626; color: #fff; }
+    .seedy-id-info .features {
+      margin-top: 4px;
+      color: var(--neutral-400, #9ca3af);
+    }
+    .seedy-id-info .reasoning {
+      margin-top: 6px;
+      font-style: italic;
+      color: var(--neutral-400, #9ca3af);
+    }
+    .seedy-id-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .seedy-id-actions button {
+      padding: 7px 16px;
+      border-radius: 8px;
+      font-size: 0.82em;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .seedy-id-actions button:hover { opacity: 0.85; }
+    .seedy-id-actions .confirm { background: #059669; color: #fff; }
+    .seedy-id-actions .reject  { background: #dc2626; color: #fff; }
+    .seedy-id-actions .correct { background: #d97706; color: #fff; }
+    .seedy-id-actions .download { background: #6366f1; color: #fff; }
+    .seedy-id-actions button:disabled { opacity: 0.4; cursor: wait; }
+    .seedy-correct-form {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .seedy-correct-form select, .seedy-correct-form input {
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: #e5e7eb;
+      font-size: 0.85em;
+    }
+    /* ── Manual ID mode overlay ── */
+    .seedy-idmode-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      background: rgba(0,0,0,0.92);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .seedy-idmode-toolbar {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      align-items: center;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .seedy-idmode-toolbar button {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .seedy-idmode-toolbar .close-btn {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    .seedy-idmode-toolbar .close-btn:hover { background: rgba(255,255,255,0.25); }
+    .seedy-idmode-toolbar .refresh-btn {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .seedy-idmode-toolbar .refresh-btn:hover { background: #2563eb; }
+    .seedy-idmode-toolbar .refresh-btn:disabled { opacity: 0.5; cursor: wait; }
+    .seedy-idmode-canvas-wrap {
+      position: relative;
+      max-width: 95vw;
+      max-height: 75vh;
+    }
+    .seedy-idmode-canvas-wrap canvas {
+      max-width: 95vw;
+      max-height: 75vh;
+      border-radius: 8px;
+      cursor: crosshair;
+    }
+    .seedy-idmode-assign {
+      position: fixed;
+      z-index: 10002;
+      background: var(--neutral-900, #1a1a2e);
+      border: 1px solid var(--neutral-700, #374151);
+      border-radius: 14px;
+      width: 340px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      color: #f1f5f9;
+    }
+    .seedy-idmode-assign-header {
+      padding: 14px 16px 8px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .seedy-idmode-assign-header img {
+      width: 90px;
+      height: 90px;
+      object-fit: cover;
+      border-radius: 10px;
+      background: #222;
+    }
+    .seedy-idmode-assign-header .info {
+      flex: 1;
+      font-size: 0.85em;
+    }
+    .seedy-idmode-assign-header .info .breed-guess {
+      font-size: 1.1em;
+      font-weight: 700;
+      color: #f59e0b;
+    }
+    .seedy-idmode-assign-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin: 0 8px 8px;
+    }
+    .seedy-idmode-assign-list .ave-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.1s;
+      font-size: 0.85em;
+    }
+    .seedy-idmode-assign-list .ave-row:hover {
+      background: rgba(255,255,255,0.08);
+    }
+    .seedy-idmode-assign-list .ave-row .ave-thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #333;
+      flex-shrink: 0;
+    }
+    .seedy-idmode-assign-list .ave-row .ave-detail {
+      flex: 1;
+    }
+    .seedy-idmode-assign-list .ave-row .anilla {
+      font-family: monospace;
+      font-weight: 700;
+      color: #d4a44a;
+    }
+    .seedy-idmode-assign-list .ave-row .assigned {
+      font-size: 0.75em;
+      color: #059669;
+    }
+    .seedy-idmode-assign-list .ave-row .unassigned {
+      font-size: 0.75em;
+      color: #9ca3af;
+    }
+    .seedy-idmode-assign-list .ave-row.has-photo {
+      opacity: 0.5;
+    }
+    .seedy-idmode-assign-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .seedy-idmode-status {
+      padding: 8px 16px;
+      text-align: center;
+      font-size: 12px;
+      color: #9ca3af;
     }
   `;
 
@@ -545,6 +991,7 @@
       <button class="active" data-mode="live">📷 Live</button>
       <button data-mode="yolo">🎯 YOLO</button>
       <button data-mode="annotated">🐔 IA</button>
+      <button data-mode="identify">🏷️ ID</button>
     `;
     toggle.querySelectorAll("button").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -788,6 +1235,13 @@
           img.classList.remove("loading");
         })
         .catch(() => img.classList.remove("loading"));
+    } else if (mode === "identify") {
+      img.classList.remove("loading");
+      openIdModeOverlay(gallineroId, activeStream, cam);
+      // Revert to yolo after opening overlay
+      wrap.dataset.mode = "yolo";
+      updateToggle(wrap, "yolo");
+      refreshSnapshot(wrap, gallineroId);
     }
   }
 
@@ -817,9 +1271,666 @@
     document.body.appendChild(overlay);
   }
 
+  // ── Manual ID mode overlay ──
+  var _idOverlayActive = false;
+  var _cachedAves = null;
+
+  async function _fetchAves() {
+    if (_cachedAves && _cachedAves._ts && Date.now() - _cachedAves._ts < 30000) {
+      return _cachedAves.list;
+    }
+    try {
+      const resp = await fetch(`${OVOSFERA_API}/farms/${SEEDY_FARM}/aves`);
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      const list = Array.isArray(data) ? data : (data.aves || []);
+      _cachedAves = { list: list, _ts: Date.now() };
+      return list;
+    } catch (e) {
+      console.error("[Seedy] Error fetching aves:", e);
+      return [];
+    }
+  }
+
+  async function openIdModeOverlay(gallineroId, streamName, cam) {
+    if (_idOverlayActive) return;
+    _idOverlayActive = true;
+
+    const overlay = document.createElement("div");
+    overlay.className = "seedy-idmode-overlay";
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "seedy-idmode-toolbar";
+
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = `🏷️ ID Manual — ${cam.name}`;
+    toolbar.appendChild(titleSpan);
+
+    const refreshBtn = document.createElement("button");
+    refreshBtn.className = "refresh-btn";
+    refreshBtn.textContent = "📸 Capturar";
+    toolbar.appendChild(refreshBtn);
+
+    const autoIdBtn = document.createElement("button");
+    autoIdBtn.className = "refresh-btn";
+    autoIdBtn.style.cssText = "background:#7c3aed !important;margin-left:4px;";
+    autoIdBtn.textContent = "🤖 Auto-ID";
+    autoIdBtn.title = "Identifica automáticamente TODAS las aves comparando con galería de fotos";
+    toolbar.appendChild(autoIdBtn);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "close-btn";
+    closeBtn.textContent = "✕ Cerrar";
+    closeBtn.addEventListener("click", () => {
+      overlay.remove();
+      _idOverlayActive = false;
+    });
+    toolbar.appendChild(closeBtn);
+
+    overlay.appendChild(toolbar);
+
+    const statusDiv = document.createElement("div");
+    statusDiv.className = "seedy-idmode-status";
+    statusDiv.textContent = "Capturando frame + YOLO...";
+    overlay.appendChild(statusDiv);
+
+    const canvasWrap = document.createElement("div");
+    canvasWrap.className = "seedy-idmode-canvas-wrap";
+    const canvas = document.createElement("canvas");
+    canvasWrap.appendChild(canvas);
+    overlay.appendChild(canvasWrap);
+
+    document.body.appendChild(overlay);
+
+    var currentDetections = null;
+    var currentFrameImg = null;
+
+    async function doCapture() {
+      refreshBtn.disabled = true;
+      statusDiv.textContent = "Capturando frame + YOLO...";
+      // Remove any open assign panels
+      overlay.querySelectorAll(".seedy-idmode-assign").forEach(el => el.remove());
+      currentDetections = null;
+
+      try {
+        const resp = await fetch(`${SEEDY_API}/vision/identify/snapshot/${streamName}/detect`);
+        if (!resp.ok) {
+          statusDiv.textContent = `Error: ${resp.status}`;
+          refreshBtn.disabled = false;
+          return;
+        }
+        const data = await resp.json();
+        currentDetections = data.detections;
+
+        statusDiv.textContent = `🎯 ${data.count} ave(s) detectada(s) · ${data.inference_ms}ms — Haz clic en un ave para asignarla`;
+
+        // Draw frame on canvas
+        const frameImg = new Image();
+        frameImg.onload = function () {
+          currentFrameImg = frameImg;
+          canvas.width = frameImg.naturalWidth;
+          canvas.height = frameImg.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(frameImg, 0, 0);
+
+          // Draw bboxes
+          drawDetectionBoxes(ctx, canvas.width, canvas.height, data.detections);
+          refreshBtn.disabled = false;
+        };
+        frameImg.onerror = function () {
+          statusDiv.textContent = "Error cargando frame";
+          refreshBtn.disabled = false;
+        };
+        frameImg.src = "data:image/jpeg;base64," + data.frame_b64;
+      } catch (e) {
+        statusDiv.textContent = "Error de red: " + e.message;
+        refreshBtn.disabled = false;
+      }
+    }
+
+    refreshBtn.addEventListener("click", doCapture);
+
+    // Auto-ID: identificar todas las aves automáticamente con Together.ai + galería
+    autoIdBtn.addEventListener("click", async function () {
+      autoIdBtn.disabled = true;
+      refreshBtn.disabled = true;
+      autoIdBtn.textContent = "🤖 Analizando...";
+      statusDiv.textContent = "🧠 Enviando aves a Together.ai para identificación visual...";
+      overlay.querySelectorAll(".seedy-idmode-assign").forEach(function (el) { el.remove(); });
+
+      try {
+        var resp = await fetch(SEEDY_API + "/vision/identify/auto-identify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gallinero_id: streamName }),
+        });
+        if (!resp.ok) {
+          statusDiv.textContent = "❌ Error auto-ID: " + resp.status;
+          autoIdBtn.textContent = "🤖 Auto-ID";
+          autoIdBtn.disabled = false;
+          refreshBtn.disabled = false;
+          return;
+        }
+        var data = await resp.json();
+
+        // Draw frame
+        var frameImg2 = new Image();
+        frameImg2.onload = function () {
+          currentFrameImg = frameImg2;
+          canvas.width = frameImg2.naturalWidth;
+          canvas.height = frameImg2.naturalHeight;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(frameImg2, 0, 0);
+
+          // Overlay results on each detection
+          var identified = 0;
+          var total = data.results ? data.results.length : 0;
+          (data.results || []).forEach(function (r) {
+            if (!r.best_match_anilla || r.confidence < 0.4) return;
+            identified++;
+            // Find approximate bbox from the crop (we don't have bbox in auto-identify)
+            // Just show results as text overlay at bottom
+          });
+
+          // Show results panel
+          var resultHtml = '<div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.92);border:2px solid #22c55e;border-radius:12px;padding:16px;max-width:700px;max-height:60vh;overflow-y:auto;z-index:10002;color:#fff;font-size:14px;">';
+          resultHtml += '<div style="font-size:16px;font-weight:700;margin-bottom:10px;color:#22c55e;">🤖 Auto-ID Results — ' + total + ' ave(s)</div>';
+
+          (data.results || []).forEach(function (r, idx) {
+            var conf = Math.round((r.confidence || 0) * 100);
+            var confColor = conf >= 70 ? "#22c55e" : conf >= 40 ? "#f59e0b" : "#ef4444";
+            var matchInfo = r.best_match_anilla || "❓ Sin match";
+            var breedInfo = (r.breed || r.yolo_breed || "?") + (r.sex ? (r.sex === "male" ? " ♂" : " ♀") : "");
+            var reasoning = r.reasoning || "";
+
+            resultHtml += '<div style="display:flex;gap:10px;align-items:center;padding:8px;border-bottom:1px solid #333;' +
+              (conf >= 70 ? 'background:rgba(34,197,94,0.1);' : '') + '">';
+
+            if (r.crop_b64) {
+              var src = r.crop_b64.startsWith("data:") ? r.crop_b64 : "data:image/jpeg;base64," + r.crop_b64;
+              resultHtml += '<img src="' + src + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:2px solid ' + confColor + '">';
+            }
+
+            resultHtml += '<div style="flex:1">' +
+              '<div style="font-weight:600;">' + matchInfo + ' <span style="color:' + confColor + '">' + conf + '%</span></div>' +
+              '<div style="font-size:12px;color:#9ca3af">' + breedInfo + '</div>' +
+              '<div style="font-size:11px;color:#6b7280;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + reasoning + '</div>' +
+              '</div>';
+
+            // Confirm button if high confidence
+            if (r.best_match_id && conf >= 50 && r.crop_b64) {
+              resultHtml += '<button class="auto-id-confirm" data-ave-id="' + r.best_match_id + '" data-anilla="' + (r.best_match_anilla || '') + '" data-idx="' + idx + '" ' +
+                'style="background:#059669;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">✅ Confirmar</button>';
+            }
+
+            resultHtml += '</div>';
+          });
+
+          resultHtml += '<div style="text-align:center;margin-top:10px;"><button class="auto-id-close" style="background:#374151;color:#fff;border:none;border-radius:8px;padding:8px 20px;cursor:pointer;font-weight:600;">Cerrar</button></div>';
+          resultHtml += '</div>';
+
+          var resultPanel = document.createElement("div");
+          resultPanel.innerHTML = resultHtml;
+          overlay.appendChild(resultPanel);
+
+          // Close button
+          resultPanel.querySelector(".auto-id-close").addEventListener("click", function () {
+            resultPanel.remove();
+          });
+
+          // Confirm buttons — assign to OvoSfera
+          resultPanel.querySelectorAll(".auto-id-confirm").forEach(function (btn) {
+            btn.addEventListener("click", async function () {
+              var aveId = parseInt(btn.dataset.aveId);
+              var ridx = parseInt(btn.dataset.idx);
+              var r = data.results[ridx];
+              btn.disabled = true;
+              btn.textContent = "⏳...";
+              try {
+                var assignResp = await fetch(SEEDY_API + "/vision/identify/manual-assign", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    ove_ave_id: aveId,
+                    crop_b64: r.crop_b64 || "",
+                    breed: r.breed || "",
+                    color: r.color || "",
+                    sex: r.sex === "male" ? "M" : r.sex === "female" ? "H" : "",
+                    gallinero: streamName,
+                  }),
+                });
+                if (assignResp.ok) {
+                  btn.textContent = "✅ OK";
+                  btn.style.background = "#22c55e";
+                  _cachedAves = null;
+                } else {
+                  btn.textContent = "❌ Error";
+                  btn.style.background = "#ef4444";
+                }
+              } catch (e2) {
+                btn.textContent = "❌ Red";
+              }
+            });
+          });
+
+          statusDiv.textContent = "🤖 Auto-ID completo: " + identified + "/" + total + " identificadas con confianza";
+        };
+        frameImg2.src = "data:image/jpeg;base64," + data.frame_b64;
+      } catch (e) {
+        statusDiv.textContent = "❌ Error: " + e.message;
+      }
+      autoIdBtn.textContent = "🤖 Auto-ID";
+      autoIdBtn.disabled = false;
+      refreshBtn.disabled = false;
+    });
+
+    // Click on canvas → find which bbox was clicked
+    canvas.addEventListener("click", async function (e) {
+      if (!currentDetections || !currentDetections.length || !currentFrameImg) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const cx = (e.clientX - rect.left) * scaleX;
+      const cy = (e.clientY - rect.top) * scaleY;
+
+      // Find clicked detection (bbox is [x1_norm, y1_norm, x2_norm, y2_norm])
+      var clicked = null;
+      for (var i = 0; i < currentDetections.length; i++) {
+        var det = currentDetections[i];
+        var b = det.bbox;
+        if (!b || b.length < 4) continue;
+        var x1 = b[0] * canvas.width;
+        var y1 = b[1] * canvas.height;
+        var x2 = b[2] * canvas.width;
+        var y2 = b[3] * canvas.height;
+        if (cx >= x1 && cx <= x2 && cy >= y1 && cy <= y2) {
+          clicked = det;
+          break;
+        }
+      }
+      if (!clicked) return;
+
+      // Highlight selected bbox
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(currentFrameImg, 0, 0);
+      drawDetectionBoxes(ctx, canvas.width, canvas.height, currentDetections, clicked.index);
+
+      // Show assign panel
+      showAssignPanel(overlay, canvas, clicked, e.clientX, e.clientY, streamName, gallineroId, function () {
+        // After assign: redraw without assigned detection
+        currentDetections = currentDetections.filter(d => d.index !== clicked.index);
+        ctx.drawImage(currentFrameImg, 0, 0);
+        drawDetectionBoxes(ctx, canvas.width, canvas.height, currentDetections);
+        statusDiv.textContent = `✅ Asignada — quedan ${currentDetections.length} detección(es)`;
+      });
+    });
+
+    // First capture
+    doCapture();
+  }
+
+  function drawDetectionBoxes(ctx, w, h, detections, highlightIndex) {
+    var colors = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7", "#06b6d4", "#ec4899"];
+    for (var i = 0; i < detections.length; i++) {
+      var det = detections[i];
+      var b = det.bbox;
+      if (!b || b.length < 4) continue;
+      var x1 = b[0] * w, y1 = b[1] * h, x2 = b[2] * w, y2 = b[3] * h;
+      var bw = x2 - x1, bh = y2 - y1;
+      var isHighlighted = (highlightIndex !== undefined && det.index === highlightIndex);
+      var color = isHighlighted ? "#fff" : colors[i % colors.length];
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = isHighlighted ? 4 : 2;
+      ctx.strokeRect(x1, y1, bw, bh);
+
+      // Label
+      var label = det.breed_guess || "Ave";
+      if (det.breed_confidence > 0) label += " " + Math.round(det.breed_confidence * 100) + "%";
+      ctx.font = "bold 16px sans-serif";
+      var tw = ctx.measureText(label).width + 12;
+      ctx.fillStyle = color;
+      ctx.fillRect(x1, y1 - 24, tw, 24);
+      ctx.fillStyle = isHighlighted ? "#000" : "#fff";
+      ctx.fillText(label, x1 + 6, y1 - 6);
+
+      if (isHighlighted) {
+        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        ctx.fillRect(x1, y1, bw, bh);
+      }
+    }
+  }
+
+  async function showAssignPanel(overlay, canvas, detection, clickX, clickY, streamName, gallineroId, onAssigned) {
+    // Remove any existing panel
+    overlay.querySelectorAll(".seedy-idmode-assign").forEach(el => el.remove());
+
+    var panel = document.createElement("div");
+    panel.className = "seedy-idmode-assign";
+
+    // Position near click but within viewport
+    var px = Math.min(clickX + 10, window.innerWidth - 360);
+    var py = Math.min(clickY - 50, window.innerHeight - 450);
+    if (py < 10) py = 10;
+    panel.style.position = "fixed";
+    panel.style.left = px + "px";
+    panel.style.top = py + "px";
+
+    // Close button
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "seedy-idmode-assign-close";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => panel.remove());
+    panel.appendChild(closeBtn);
+
+    // Header with crop
+    var header = document.createElement("div");
+    header.className = "seedy-idmode-assign-header";
+    var cropImg = document.createElement("img");
+    cropImg.src = detection.crop_b64
+      ? (detection.crop_b64.startsWith("data:") ? detection.crop_b64 : "data:image/jpeg;base64," + detection.crop_b64)
+      : "";
+    header.appendChild(cropImg);
+
+    var infoDiv = document.createElement("div");
+    infoDiv.className = "info";
+    infoDiv.innerHTML =
+      '<div class="breed-guess">' + (detection.breed_guess || "Desconocida") + '</div>' +
+      '<div>Conf: ' + Math.round((detection.breed_confidence || 0) * 100) + '%</div>' +
+      (detection.breed_color ? '<div>Color: ' + detection.breed_color + '</div>' : '') +
+      (detection.breed_sex && detection.breed_sex !== "unknown" ? '<div>Sexo: ' + (detection.breed_sex === "M" ? "♂ Macho" : "♀ Hembra") + '</div>' : '');
+    header.appendChild(infoDiv);
+    panel.appendChild(header);
+
+    // Smart match button
+    var smartDiv = document.createElement("div");
+    smartDiv.style.cssText = "padding:4px 10px;text-align:center;";
+    var smartBtn = document.createElement("button");
+    smartBtn.style.cssText = "background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;width:100%;";
+    smartBtn.textContent = "🧠 IA Match (Together.ai)";
+    smartBtn.addEventListener("click", async function () {
+      smartBtn.disabled = true;
+      smartBtn.textContent = "🧠 Analizando...";
+      try {
+        var resp = await fetch(SEEDY_API + "/vision/identify/smart-match", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            crop_b64: detection.crop_b64 || "",
+            gallinero_id: streamName,
+            breed_hint: detection.breed_guess || "",
+          }),
+        });
+        if (!resp.ok) {
+          smartBtn.textContent = "❌ Error " + resp.status;
+          return;
+        }
+        var result = await resp.json();
+        var matchText = result.breed + (result.color ? " " + result.color : "");
+        if (result.best_match_anilla) matchText += " → " + result.best_match_anilla;
+        matchText += " (" + Math.round((result.confidence || 0) * 100) + "%)";
+        smartBtn.textContent = "🧠 " + matchText;
+        smartBtn.style.background = "#059669";
+        // Highlight the matched ave in the list
+        if (result.best_match_anilla) {
+          var rows = listDiv.querySelectorAll(".ave-row");
+          rows.forEach(function (r) {
+            if (r.dataset.anilla === result.best_match_anilla) {
+              r.style.background = "rgba(124,58,237,0.25)";
+              r.style.border = "1px solid #7c3aed";
+              r.scrollIntoView({ block: "center" });
+            }
+          });
+        }
+      } catch (e) {
+        smartBtn.textContent = "❌ " + e.message;
+      }
+    });
+    smartDiv.appendChild(smartBtn);
+    panel.appendChild(smartDiv);
+
+    // Ave list
+    var listDiv = document.createElement("div");
+    listDiv.className = "seedy-idmode-assign-list";
+    listDiv.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af">Cargando aves...</div>';
+    panel.appendChild(listDiv);
+
+    overlay.appendChild(panel);
+
+    // Fetch aves
+    var aves = await _fetchAves();
+    listDiv.innerHTML = "";
+
+    if (!aves.length) {
+      listDiv.innerHTML = '<div style="padding:12px;text-align:center;color:#ef4444">No se encontraron aves</div>';
+      return;
+    }
+
+    // Build score map from suggested_aves (from detect endpoint)
+    var sugMap = {};
+    if (detection.suggested_aves && detection.suggested_aves.length) {
+      detection.suggested_aves.forEach(function (s, idx) {
+        sugMap[s.id] = { score: s.score, rank: idx };
+      });
+    }
+
+    // Sort: by suggestion score (highest first), then unassigned, then anilla
+    aves.sort(function (a, b) {
+      var sa = sugMap[a.id] ? sugMap[a.id].score : -100;
+      var sb = sugMap[b.id] ? sugMap[b.id].score : -100;
+      if (sa !== sb) return sb - sa;
+      var aHas = a.foto ? 1 : 0;
+      var bHas = b.foto ? 1 : 0;
+      if (aHas !== bHas) return aHas - bHas;
+      return (a.anilla || "").localeCompare(b.anilla || "");
+    });
+
+    aves.forEach(function (ave) {
+      var sug = sugMap[ave.id];
+      var isTop = sug && sug.rank === 0 && sug.score > 30;
+      var row = document.createElement("div");
+      row.className = "ave-row" + (ave.foto && !isTop ? " has-photo" : "");
+      row.dataset.anilla = ave.anilla || "";
+      if (isTop) row.style.background = "rgba(34,197,94,0.15)";
+
+      var thumb = document.createElement("img");
+      thumb.className = "ave-thumb";
+      thumb.src = ave.foto || "";
+      if (!ave.foto) thumb.style.background = "#444";
+      row.appendChild(thumb);
+
+      var detail = document.createElement("div");
+      detail.className = "ave-detail";
+      var scoreTag = sug && sug.score > 0
+        ? ' <span style="background:rgba(34,197,94,0.3);padding:1px 5px;border-radius:4px;font-size:0.7em">★ ' + sug.score + '</span>'
+        : '';
+      detail.innerHTML =
+        '<span class="anilla">' + (ave.anilla || "SIN ANILLA") + '</span> ' +
+        (ave.raza ? ave.raza : '') +
+        (ave.color ? ' · ' + ave.color : '') +
+        (ave.sexo ? ' · ' + (ave.sexo === "M" ? "♂" : "♀") : '') +
+        scoreTag +
+        '<br>' +
+        (ave.ai_vision_id
+          ? '<span class="assigned">✔ ' + ave.ai_vision_id + '</span>'
+          : '<span class="unassigned">Sin identificar</span>');
+      row.appendChild(detail);
+
+      row.addEventListener("click", async function () {
+        if (row.dataset.assigning === "1") return;
+        row.dataset.assigning = "1";
+        row.style.opacity = "0.4";
+        row.style.pointerEvents = "none";
+
+        try {
+          var resp = await fetch(`${SEEDY_API}/vision/identify/manual-assign`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ove_ave_id: ave.id,
+              crop_b64: detection.crop_b64 || "",
+              breed: ave.raza || detection.breed_guess || "",
+              color: ave.color || detection.breed_color || "",
+              sex: ave.sexo || detection.breed_sex || "",
+              gallinero: streamName,
+            }),
+          });
+          if (!resp.ok) {
+            var errText = await resp.text();
+            alert("Error: " + errText);
+            row.style.opacity = "";
+            row.style.pointerEvents = "";
+            row.dataset.assigning = "";
+            return;
+          }
+          // Success
+          _cachedAves = null; // invalidate cache
+          panel.remove();
+          if (onAssigned) onAssigned();
+        } catch (e) {
+          alert("Error de red: " + e.message);
+          row.style.opacity = "";
+          row.style.pointerEvents = "";
+          row.dataset.assigning = "";
+        }
+      });
+
+      listDiv.appendChild(row);
+    });
+  }
+
+  // ── Find gallinero cards — 3 strategies ──
+  function findGallineroCards() {
+    // Strategy 1: Direct .nf-card class
+    let cards = document.querySelectorAll(".nf-card");
+    if (cards.length) return Array.from(cards);
+
+    // Strategy 2: .nf-card-pad → parent is the card
+    const pads = document.querySelectorAll(".nf-card-pad, [class*='card-pad'], [class*='CardPad']");
+    if (pads.length) return Array.from(pads).map(p => p.parentElement).filter(Boolean);
+
+    // Strategy 3: Generic divs with card-like class containing gallinero text
+    const allCards = document.querySelectorAll("div[class*='card'], div[class*='Card']");
+    const result = [];
+    allCards.forEach(el => {
+      const text = el.textContent || "";
+      if (text.match(/#\d+/) && (text.includes("Durrif") || text.includes("Gallinero") || text.includes("gallinero") || text.includes("Zona"))) {
+        result.push(el);
+      }
+    });
+    return result;
+  }
+
   // ── Inject cameras into gallinero cards ──
+  // ── Inject camera thumbnails in gallineros LIST page ──
+  function injectGallineroListThumbnails() {
+    const cards = findGallineroCards();
+    cards.forEach(function(card) {
+      if (card.querySelector(".seedy-list-cam-thumb")) return;
+      var gid = parseGallineroId(card);
+      if (!gid || !CAMERA_MAP[gid]) return;
+      var cam = CAMERA_MAP[gid];
+
+      var wrap = document.createElement("div");
+      wrap.className = "seedy-list-cam-thumb";
+      wrap.style.cssText = "position:relative;margin:8px 0;border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.1)";
+
+      var img = document.createElement("img");
+      img.src = SEEDY_API + "/ovosfera/camera/" + gid + "/snapshot?_t=" + Date.now();
+      img.alt = cam.name;
+      img.style.cssText = "width:100%;height:120px;object-fit:cover;display:block;background:#111";
+      img.onerror = function() { this.style.background = "#1f2937"; this.alt = "Sin señal"; };
+      wrap.appendChild(img);
+
+      var badge = document.createElement("div");
+      badge.style.cssText = "position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.65);color:#22c55e;font-size:10px;padding:2px 8px;border-radius:4px;backdrop-filter:blur(4px)";
+      badge.textContent = "● " + cam.name;
+      wrap.appendChild(badge);
+
+      wrap.addEventListener("click", function() {
+        openCameraModal(gid);
+      });
+
+      // Insert into card
+      var contentDiv = card.firstElementChild || card;
+      var children = contentDiv.children;
+      if (children.length > 2) {
+        contentDiv.insertBefore(wrap, children[children.length - 1]);
+      } else {
+        contentDiv.appendChild(wrap);
+      }
+    });
+
+    // Refresh thumbnails every 10s
+    if (!window._galListThumbTimer) {
+      window._galListThumbTimer = setInterval(function() {
+        document.querySelectorAll(".seedy-list-cam-thumb img").forEach(function(img) {
+          var src = img.src.split("?")[0];
+          img.src = src + "?_t=" + Date.now();
+        });
+      }, 10000);
+    }
+  }
+
+  // ── Camera fullscreen modal (opened from gallinero list thumbnails) ──
+  function openCameraModal(gid) {
+    var cam = CAMERA_MAP[gid];
+    if (!cam) return;
+
+    // Remove any previous camera modal
+    var prev = document.querySelector(".seedy-camera-modal-overlay");
+    if (prev) prev.remove();
+
+    var overlay = document.createElement("div");
+    overlay.className = "seedy-camera-modal-overlay";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px";
+
+    // Close on backdrop click
+    overlay.addEventListener("click", function(e) {
+      if (e.target === overlay) closeCameraModal(overlay);
+    });
+
+    // Header bar
+    var header = document.createElement("div");
+    header.style.cssText = "width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px";
+    var title = document.createElement("div");
+    title.style.cssText = "color:#fff;font-size:18px;font-weight:600";
+    title.textContent = "📷 " + cam.name;
+    header.appendChild(title);
+    var closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.style.cssText = "background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:4px 12px";
+    closeBtn.addEventListener("click", function() { closeCameraModal(overlay); });
+    header.appendChild(closeBtn);
+    overlay.appendChild(header);
+
+    // Camera element (reuse buildCameraElement)
+    var camEl = buildCameraElement(gid);
+    if (camEl) {
+      camEl.style.cssText = "width:100%;max-width:900px;border-radius:12px;overflow:hidden";
+      overlay.appendChild(camEl);
+    }
+
+    // Close with Escape key
+    overlay._escHandler = function(e) {
+      if (e.key === "Escape") closeCameraModal(overlay);
+    };
+    document.addEventListener("keydown", overlay._escHandler);
+
+    document.body.appendChild(overlay);
+
+    // Start refresh for the modal camera
+    startRefreshLoop();
+  }
+
+  function closeCameraModal(overlay) {
+    if (overlay._escHandler) document.removeEventListener("keydown", overlay._escHandler);
+    stopRefreshLoop();
+    overlay.remove();
+  }
+
   function injectCameras() {
-    const cards = document.querySelectorAll(".nf-card, [class*='card'], [class*='Card']");
+    const cards = findGallineroCards();
     cards.forEach((card) => {
       if (card.querySelector(".seedy-cam-container")) return;
 
@@ -844,6 +1955,9 @@
             contentDiv.appendChild(camEl);
           }
         }
+      } else {
+        // Fallback: append directly to card
+        card.appendChild(camEl);
       }
     });
   }
@@ -885,6 +1999,10 @@
       clearInterval(refreshTimer);
       refreshTimer = null;
     }
+    if (_feedTimer) {
+      clearInterval(_feedTimer);
+      _feedTimer = null;
+    }
   }
 
   // ── Load Seedy widget ──
@@ -897,12 +2015,38 @@
   }
 
   // ── MutationObserver for SPA navigation ──
+  function isGallinerosListPage() {
+    // /gallineros but NOT /gallineros/:id
+    return window.location.pathname.match(/\/gallineros\/?$/) !== null;
+  }
+
+  function isGallineroDetailPage() {
+    return window.location.pathname.match(/\/gallineros\/\d+/) !== null;
+  }
+
   function isGallinerosPage() {
+    // Matches any /gallineros path (list or detail)
     return window.location.pathname.includes("/gallineros");
   }
 
   function isDashboardPage() {
     return window.location.pathname.includes("/dashboard");
+  }
+
+  function isDigitalTwinPage() {
+    return window.location.pathname.includes("/digital-twin");
+  }
+
+  function isDigitalTwin2DPage() {
+    return window.location.pathname.includes("/digital-twin/2d");
+  }
+
+  function isDigitalTwin3DPage() {
+    return window.location.pathname.includes("/digital-twin/3d");
+  }
+
+  function isSitePage() {
+    return window.location.pathname.match(/\/farm\/[^/]+\/site/) !== null;
   }
 
   function isFarmPage() {
@@ -992,19 +2136,207 @@
           (visionId ? '<div class="seedy-ave-modal-vision">AI-Vision ID: <code>' + visionId + '</code></div>' : '') +
           (ave.notas ? '<div class="seedy-ave-modal-notes">' + ave.notas + '</div>' : '') +
           '<div class="seedy-ave-modal-actions">' +
-            '<button class="cam-btn" data-ave-id="' + aveId + '">📹 Cámara IA Vision</button>' +
-            '<button class="edit-btn" data-ave-id="' + aveId + '">✏️ Editar</button>' +
-          '</div>';
+            '<button class="capture-id-btn" data-ave-id="' + aveId + '">📸 Capturar + Identificar</button>' +
+            '<button class="cam-btn" data-ave-id="' + aveId + '">📹 Cámara en vivo</button>' +
+            '<button class="edit-btn" data-ave-id="' + aveId + '">✏️ Editar en OvoSfera</button>' +
+          '</div>' +
+          '<div class="seedy-capture-status" style="margin:8px 0;font-size:0.85em;color:#666"></div>' +
+          '<div class="seedy-id-panel" style="display:none"></div>';
 
-        // Photo click → fullscreen
+        // Photo click → fullscreen (robust: wait for load if needed)
         var photoEl = modal.querySelector(".seedy-ave-modal-photo");
         if (photoEl && photoEl.tagName === "IMG") {
-          photoEl.addEventListener("click", function () {
-            openFullscreen(ave.foto, nombre);
-          });
+          photoEl.style.cursor = "zoom-in";
+          function enableZoom() {
+            photoEl.addEventListener("click", function () {
+              openFullscreen(photoEl.src, nombre);
+            });
+          }
+          if (photoEl.complete && photoEl.naturalWidth > 0) {
+            enableZoom();
+          } else {
+            photoEl.addEventListener("load", enableZoom);
+          }
         }
 
-        // Camera button
+        // ── Capture + Identify button ──
+        var capIdBtn = modal.querySelector(".capture-id-btn");
+        var capStatus = modal.querySelector(".seedy-capture-status");
+        var capIdPanel = modal.querySelector(".seedy-id-panel");
+
+        capIdBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          capIdBtn.disabled = true;
+          capIdBtn.innerHTML = "⏳ Capturando + identificando...";
+          capStatus.textContent = "Buscando al ave en las cámaras y analizando con Qwen2.5-VL...";
+          capIdPanel.style.display = "none";
+
+          fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/capture-identify", {
+            method: "POST",
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              capIdBtn.innerHTML = "📸 Capturar + Identificar";
+              capIdBtn.disabled = false;
+
+              if (!data.success) {
+                capStatus.textContent = "⚠️ " + (data.message || "No se pudo capturar");
+                return;
+              }
+
+              capStatus.textContent = "Foto capturada: " + data.resolution + " — revisa la identificación:";
+
+              var id = data.identification || {};
+              var conf = id.confidence || 0;
+              var confClass = conf >= 0.75 ? "high" : conf >= 0.5 ? "med" : "low";
+              var features = (id.distinctive_features || []).join(", ");
+
+              capIdPanel.style.display = "block";
+              capIdPanel.innerHTML =
+                '<div class="seedy-id-header">' +
+                  '<img class="seedy-id-photo" src="' + data.photo_data_uri + '" alt="Foto capturada" />' +
+                  '<div class="seedy-id-info">' +
+                    '<div><span class="breed">' + (id.breed || "?") + '</span>' +
+                    '<span class="conf ' + confClass + '">' + Math.round(conf * 100) + '%</span></div>' +
+                    '<div>Color: ' + (id.color || "?") + ' · Sexo: ' + (id.sex || "?") + '</div>' +
+                    '<div>Calidad: ' + (id.image_quality || "?") + '</div>' +
+                    (features ? '<div class="features">Rasgos: ' + features + '</div>' : '') +
+                    (id.reasoning ? '<div class="reasoning">"' + id.reasoning + '"</div>' : '') +
+                  '</div>' +
+                '</div>' +
+                '<div class="seedy-id-actions">' +
+                  '<button class="confirm" data-action="confirm">✅ Confirmar</button>' +
+                  '<button class="reject" data-action="reject">❌ Rechazar</button>' +
+                  '<button class="correct" data-action="correct">✏️ Corregir</button>' +
+                  '<button class="download" data-action="download" title="Guardar foto para subir a otra ficha">💾 Guardar foto</button>' +
+                '</div>' +
+                '<div class="seedy-correct-form" style="display:none">' +
+                  '<select class="correct-breed">' +
+                    '<option value="">— Raza —</option>' +
+                    '<option>Sussex</option><option>Bresse</option><option>Marans</option>' +
+                    '<option>Araucana</option><option>Sulmtaler</option><option>Vorwerk</option>' +
+                    '<option>Pita Pinta</option><option>Andaluza Azul</option>' +
+                    '<option>Cruce F1</option><option>Desconocida</option>' +
+                  '</select>' +
+                  '<input class="correct-color" placeholder="Color" />' +
+                  '<select class="correct-sex">' +
+                    '<option value="">— Sexo —</option>' +
+                    '<option value="gallina">Gallina</option><option value="gallo">Gallo</option>' +
+                  '</select>' +
+                  '<button class="confirm" data-action="save-correct">💾 Guardar</button>' +
+                '</div>';
+
+              // Photo zoom in ID panel
+              var idPhoto = capIdPanel.querySelector(".seedy-id-photo");
+              if (idPhoto) {
+                idPhoto.addEventListener("click", function () {
+                  openFullscreen(data.photo_data_uri, (id.breed || "Ave") + " " + (id.color || ""));
+                });
+              }
+
+              // Also update the main modal photo
+              if (photoEl && photoEl.tagName === "IMG") {
+                photoEl.src = data.photo_data_uri;
+              }
+
+              // Action buttons
+              var actionBtns = capIdPanel.querySelectorAll(".seedy-id-actions button");
+              actionBtns.forEach(function (btn) {
+                btn.addEventListener("click", function (ev) {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  var action = btn.dataset.action;
+
+                  if (action === "download") {
+                    var a = document.createElement("a");
+                    a.href = data.photo_data_uri;
+                    a.download = "ave_" + (id.breed || "captura").replace(/\s+/g, "_") + "_" + Date.now() + ".jpg";
+                    a.click();
+                    return;
+                  }
+
+                  // Si confirma con raza desconocida → forzar corrección
+                  if (action === "confirm" && (!id.breed || id.breed.toLowerCase() === "desconocida" || id.breed.toLowerCase() === "unknown")) {
+                    action = "correct";
+                  }
+
+                  if (action === "correct") {
+                    var form = capIdPanel.querySelector(".seedy-correct-form");
+                    form.style.display = "flex";
+                    var breedSelect = form.querySelector(".correct-breed");
+                    var colorInput = form.querySelector(".correct-color");
+                    var sexSelect = form.querySelector(".correct-sex");
+                    for (var i = 0; i < breedSelect.options.length; i++) {
+                      if (breedSelect.options[i].text.toLowerCase() === (id.breed || "").toLowerCase()) {
+                        breedSelect.selectedIndex = i; break;
+                      }
+                    }
+                    colorInput.value = id.color || "";
+                    for (var j = 0; j < sexSelect.options.length; j++) {
+                      if (sexSelect.options[j].value === (id.sex || "")) {
+                        sexSelect.selectedIndex = j; break;
+                      }
+                    }
+                    return;
+                  }
+
+                  if (action === "save-correct") action = "correct";
+
+                  actionBtns.forEach(function (b) { b.disabled = true; });
+                  var saveBtn = capIdPanel.querySelector("[data-action='save-correct']");
+                  if (saveBtn) saveBtn.disabled = true;
+
+                  var confirmBody = {
+                    action: action,
+                    photo_data_uri: data.photo_data_uri,
+                    breed: id.breed || "",
+                    color: id.color || "",
+                    sex: id.sex || "",
+                    existing_vision_id: (data.ave && data.ave.ai_vision_id) || "",
+                  };
+
+                  if (action === "correct") {
+                    var form = capIdPanel.querySelector(".seedy-correct-form");
+                    confirmBody.breed = form.querySelector(".correct-breed").value || id.breed;
+                    confirmBody.color = form.querySelector(".correct-color").value || id.color;
+                    confirmBody.sex = form.querySelector(".correct-sex").value || id.sex;
+                  }
+
+                  fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/confirm-identity", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(confirmBody),
+                  })
+                    .then(function (r) { return r.json(); })
+                    .then(function (result) {
+                      if (action === "reject") {
+                        capIdPanel.className = "seedy-id-panel rejected";
+                        capStatus.textContent = "❌ Rechazada — puedes intentar otra captura";
+                      } else {
+                        capStatus.textContent = (action === "confirm" ? "✅ Confirmado" : "✏️ Corregido") +
+                          ": " + confirmBody.breed + " " + confirmBody.color;
+                      }
+                      var actionsDiv = capIdPanel.querySelector(".seedy-id-actions");
+                      if (actionsDiv) actionsDiv.style.display = "none";
+                      var correctForm = capIdPanel.querySelector(".seedy-correct-form");
+                      if (correctForm) correctForm.style.display = "none";
+                    })
+                    .catch(function (err) {
+                      capStatus.textContent = "❌ Error: " + err.message;
+                      actionBtns.forEach(function (b) { b.disabled = false; });
+                    });
+                });
+              });
+            })
+            .catch(function (err) {
+              capStatus.textContent = "❌ Error: " + err.message;
+              capIdBtn.innerHTML = "📸 Capturar + Identificar";
+              capIdBtn.disabled = false;
+            });
+        });
+
+        // Camera live button
         modal.querySelector(".cam-btn").addEventListener("click", function () {
           overlay.remove();
           openBirdMonitor(aveId, nombre);
@@ -1045,59 +2377,36 @@
     if (document.body.dataset.seedyAvesIntercepted) return;
     document.body.dataset.seedyAvesIntercepted = "1";
 
+    // Capture-phase listener on row clicks:
+    // 1. Record the anilla → window.__seedySelectedAveId (for enhanceEditModal)
+    // 2. If click was NOT on a button/icon, force-click the pencil (edit) button
+    //    so the native "Editar Ave" modal opens.
     document.body.addEventListener("click", function (e) {
-      if (!isAvesPage() || isAveDetailPage()) return;
-
-      // Find if click was on a table row in the aves list
-      var row = e.target.closest("tr[data-id], tr[class*='row'], tbody tr");
+      var row = e.target.closest("tbody tr");
       if (!row) return;
 
-      // Don't intercept clicks on action buttons (edit, delete, monitor icons)
-      if (e.target.closest("button, a, .seedy-bird-monitor-btn, [class*='action'], svg, path")) return;
-      // Don't intercept if clicking on icon buttons in the last column
-      var cell = e.target.closest("td");
-      if (cell) {
-        var cells = Array.from(row.querySelectorAll("td"));
-        if (cells.length > 0 && cell === cells[cells.length - 1]) return;
+      // Record anilla
+      var cells = row.querySelectorAll("td");
+      if (cells.length >= 2) {
+        var anillaText = (cells[1].textContent || "").trim();
+        var m = anillaText.match(/PAL-\d+-(\d+)/);
+        if (m) {
+          window.__seedySelectedAveId = parseInt(m[1], 10);
+          window.__seedySelectedAnilla = anillaText;
+        }
       }
 
-      // Prevent OvoSfera's default expand behavior
-      e.preventDefault();
-      e.stopPropagation();
+      // If the user clicked directly on a button/icon, let it through unchanged
+      if (e.target.closest("button, a, svg, path")) return;
 
-      // Find and click the edit (pencil) button in this row's actions column
-      var editBtn = row.querySelector("td:last-child button:first-child, td:last-child a:first-child, [title*='dit'], [title*='ditar'], svg[data-icon*='edit']");
+      // Otherwise, force open the edit modal via the pencil button
+      var editBtn = row.querySelector("button[title='Editar'], button[title*='dit'], td:last-child button:first-child");
       if (editBtn) {
+        e.preventDefault();
+        e.stopPropagation();
         editBtn.click();
-        return;
       }
-      // Fallback: find any pencil-like icon/button
-      var actionBtns = row.querySelectorAll("td:last-child button, td:last-child a");
-      if (actionBtns.length > 0) {
-        actionBtns[0].click(); // first action is typically edit
-        return;
-      }
-
-      // Last fallback: extract ID and navigate to detail page
-      var aveId = row.dataset.id;
-      if (!aveId) {
-        var link = row.querySelector("a[href*='/aves/']");
-        if (link) {
-          var m = link.href.match(/\/aves\/(\d+)/);
-          if (m) aveId = m[1];
-        }
-      }
-      if (!aveId) {
-        var anilla = row.querySelector("td:first-child");
-        if (anilla) {
-          var anillaMatch = anilla.textContent.match(/PAL-\d+-(\d+)/);
-          if (anillaMatch) aveId = parseInt(anillaMatch[1], 10);
-        }
-      }
-      if (aveId) {
-        window.location.href = "/farm/" + SEEDY_FARM + "/aves/" + aveId;
-      }
-    }, true); // capture phase to intercept before OvoSfera
+    }, true);
   }
 
   // ── Bird monitoring overlay ──
@@ -1163,6 +2472,15 @@
         });
         container.appendChild(btn);
 
+        // Digital Twin button — opens ave_twin.html with OvoSfera ID mapped
+        var twinBtn = document.createElement("a");
+        twinBtn.className = "seedy-bird-monitor-btn";
+        twinBtn.style.cssText = "background:linear-gradient(135deg,#8b5cf6,#6d28d9);margin-left:8px;text-decoration:none;display:inline-flex";
+        twinBtn.innerHTML = "🐔 Digital Twin del Ave";
+        twinBtn.href = SEEDY_API + "/dashboard/ave_twin.html?id=" + (ave.anilla || "PAL-2026-" + String(aveId).padStart(4, "0"));
+        twinBtn.target = "_blank";
+        container.appendChild(twinBtn);
+
         // If the ave has a photo, show a small preview
         if (ave.foto) {
           var preview = document.createElement("img");
@@ -1222,59 +2540,266 @@
     });
   }
 
-  // ── Dashboard panel: dual cameras + digital twin links ──
+  // ── Dashboard panel: 2-column layout — plano hero (65%) + side panel (35%) ──
   function injectDashboardPanel() {
     if (document.getElementById("seedy-dashboard-injected")) return;
 
-    // Find a suitable container in the dashboard page
-    const main =
+    // Find a suitable container — multiple fallbacks
+    let main =
       document.querySelector("main") ||
       document.querySelector("[class*='content']") ||
       document.querySelector("[class*='Content']") ||
       document.querySelector("[class*='dashboard']") ||
       document.querySelector("[class*='Dashboard']");
 
+    // Fallback: look for headers with relevant text → use their parent
+    if (!main) {
+      const headers = document.querySelectorAll("h1, h2, h3");
+      for (const h of headers) {
+        const t = h.textContent || "";
+        if (t.includes("Gallinero") || t.includes("Dashboard") || t.includes("Palacio") || t.includes("dashboard")) {
+          main = h.parentElement;
+          break;
+        }
+      }
+    }
+
+    // Last resort: #__next or body
+    if (!main) {
+      main = document.getElementById("__next") || document.body;
+    }
+
     if (!main) return;
+
+    // Push "Primeros pasos" wizard to the bottom
+    const allSections = main.querySelectorAll("div, section");
+    allSections.forEach(function(el) {
+      const txt = el.textContent || "";
+      if ((txt.includes("Primeros pasos") || txt.includes("Getting started")) && el.parentElement === main) {
+        el.style.order = "999";
+      }
+    });
+    if (main.style.display !== "flex") {
+      main.style.display = "flex";
+      main.style.flexDirection = "column";
+      main.dataset.seedyFlexApplied = "1";
+    }
 
     const panel = document.createElement("div");
     panel.id = "seedy-dashboard-injected";
     panel.className = "seedy-dashboard-panel";
+    panel.style.order = "-1"; // Always on top
 
-    // Header
-    const header = document.createElement("h3");
-    header.innerHTML = "📹 Cámaras en directo";
-    panel.appendChild(header);
+    // ── 2-column layout with KPI strip on top ──
+    // == KPI STRIP (horizontal, across full width — compact) ==
+    const kpiStrip = document.createElement("div");
+    kpiStrip.className = "seedy-kpi-strip";
+    const kpis = [
+      { icon: "🐔", label: "Aves", value: "~26", color: "#22c55e", id: "kpi-aves" },
+      { icon: "🏠", label: "Gallineros", value: "2", color: "#3b82f6", id: "kpi-gall" },
+      { icon: "🥚", label: "Huevos hoy", value: "—", color: "#f59e0b", id: "kpi-huevos" },
+      { icon: "🌡️", label: "Temp media", value: "—", color: "#ef4444", id: "kpi-temp" },
+      { icon: "⚠️", label: "Alertas", value: "0", color: "#6b7280", id: "kpi-alertas" },
+    ];
+    kpis.forEach(function(k) {
+      const card = document.createElement("div");
+      card.className = "seedy-kpi-card";
+      card.id = k.id;
+      card.innerHTML = '<div class="seedy-kpi-icon">' + k.icon + '</div>'
+        + '<div class="seedy-kpi-body">'
+        + '<div class="seedy-kpi-value" style="color:' + k.color + '">' + k.value + '</div>'
+        + '<div class="seedy-kpi-label">' + k.label + '</div>'
+        + '</div>';
+      kpiStrip.appendChild(card);
+    });
+    panel.appendChild(kpiStrip);
 
-    // Grid with both cameras
-    const grid = document.createElement("div");
-    grid.className = "seedy-dashboard-grid";
+    // == 2-COLUMN GRID (75% / 25%) ==
+    const layout = document.createElement("div");
+    layout.className = "seedy-dashboard-layout";
 
-    for (const [gid, cam] of Object.entries(CAMERA_MAP)) {
-      const cell = document.createElement("div");
-      cell.className = "seedy-dashboard-cell";
-      const title = document.createElement("h4");
-      title.textContent = cam.name;
-      cell.appendChild(title);
+    // ═══════════ LEFT COLUMN: Hero with mode switching ═══════════
+    const leftCol = document.createElement("div");
+    leftCol.className = "seedy-dash-left";
 
-      const camEl = buildCameraElement(parseInt(gid));
-      if (camEl) cell.appendChild(camEl);
-      grid.appendChild(cell);
-    }
+    // -- Hero: multi-mode (2D / 3D / IA render) --
+    const heroSection = document.createElement("div");
+    heroSection.className = "seedy-dash-hero";
 
-    panel.appendChild(grid);
+    const heroIframe = document.createElement("iframe");
+    heroIframe.id = "seedy-hero-iframe";
+    heroIframe.title = "Plano 2D interactivo";
+    heroIframe.style.display = "none";
+    heroSection.appendChild(heroIframe);
 
-    // Digital Twin links
+    // Render IA image element (shown by default)
+    const heroImg = document.createElement("img");
+    heroImg.id = "seedy-hero-render";
+    heroImg.className = "seedy-hero-render";
+    heroImg.alt = "Render IA de la granja";
+    heroSection.appendChild(heroImg);
+
+    // Load IA render immediately
+    fetch(SEEDY_API + "/api/renders/latest?concept=isometric")
+      .then(function(r) { return r.ok ? r.json() : {}; })
+      .then(function(data) {
+        if (data.url) { heroImg.src = SEEDY_API + data.url; }
+        else { heroImg.alt = "Sin renders — genera con POST /api/renders/generate"; }
+      })
+      .catch(function() {});
+
+    // Mode switching buttons
+    const modeBar = document.createElement("div");
+    modeBar.className = "seedy-hero-modes";
+    var _heroMode = "ia";
+    var modes = [
+      { key: "2d", label: "📐 2D" },
+      { key: "3d", label: "🧊 3D" },
+      { key: "ia", label: "📸 IA" },
+      { key: "fs", label: "⛶" },
+    ];
+    modes.forEach(function(m) {
+      var btn = document.createElement("button");
+      btn.textContent = m.label;
+      btn.dataset.mode = m.key;
+      if (m.key === "ia") btn.classList.add("active");
+      btn.addEventListener("click", function() {
+        if (m.key === "fs") {
+          // Fullscreen: open current mode in new tab
+          if (_heroMode === "3d") {
+            window.open(SEEDY_API + "/dashboard/digital_twin_3d.html", "_blank");
+          } else if (_heroMode === "ia") {
+            var src = heroImg.src;
+            if (src) window.open(src, "_blank");
+          } else {
+            window.open(SEEDY_API + "/dashboard/plano_2d.html", "_blank");
+          }
+          return;
+        }
+        _heroMode = m.key;
+        // Update active button
+        modeBar.querySelectorAll("button").forEach(function(b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        // Switch content
+        if (m.key === "2d") {
+          heroIframe.src = SEEDY_API + "/dashboard/plano_2d.html?embed";
+          heroIframe.style.display = "block";
+          heroImg.style.display = "none";
+        } else if (m.key === "3d") {
+          heroIframe.src = SEEDY_API + "/dashboard/digital_twin_3d.html";
+          heroIframe.style.display = "block";
+          heroImg.style.display = "none";
+        } else if (m.key === "ia") {
+          heroIframe.style.display = "none";
+          heroImg.style.display = "block";
+          // Load latest render
+          fetch(SEEDY_API + "/api/renders/latest?concept=isometric")
+            .then(function(r) { return r.ok ? r.json() : {}; })
+            .then(function(data) {
+              if (data.url) {
+                heroImg.src = SEEDY_API + data.url;
+              } else {
+                heroImg.alt = "Sin renders generados — usa POST /api/renders/generate";
+              }
+            })
+            .catch(function() {});
+        }
+      });
+      modeBar.appendChild(btn);
+    });
+    heroSection.appendChild(modeBar);
+    leftCol.appendChild(heroSection);
+
+    layout.appendChild(leftCol);
+
+    // ═══════════ RIGHT COLUMN: KPIs compact + Activity feed + Actions ═══════════
+    const rightCol = document.createElement("div");
+    rightCol.className = "seedy-dash-right";
+
+    // -- Sidebar KPIs (compact text, no big cards) --
+    const sideKpi = document.createElement("div");
+    sideKpi.className = "seedy-sidebar-kpis";
+    sideKpi.innerHTML = '<h4>Estado</h4>';
+    var sideKpis = [
+      { label: "Aves", value: "~26", color: "#22c55e", id: "skpi-aves" },
+      { label: "Gallineros", value: "2", color: "#3b82f6", id: "skpi-gall" },
+      { label: "Huevos hoy", value: "—", color: "#f59e0b", id: "skpi-huevos" },
+      { label: "Temp media", value: "—", color: "#ef4444", id: "skpi-temp" },
+      { label: "Alertas", value: "0", color: "#6b7280", id: "skpi-alertas" },
+    ];
+    sideKpis.forEach(function(k) {
+      var row = document.createElement("div");
+      row.className = "seedy-sidebar-kpi-item";
+      row.id = k.id;
+      row.innerHTML = '<span class="seedy-sidebar-kpi-label">' + k.label + '</span>'
+        + '<span class="seedy-sidebar-kpi-val" style="color:' + k.color + '">' + k.value + '</span>';
+      sideKpi.appendChild(row);
+    });
+    rightCol.appendChild(sideKpi);
+
+    // -- Activity feed (compact) --
+    const feedSection = document.createElement("div");
+    feedSection.className = "seedy-feed-section";
+    feedSection.id = "seedy-activity-feed";
+    feedSection.innerHTML = '<h4>Actividad reciente</h4>';
+    const feedList = document.createElement("div");
+    feedList.id = "seedy-feed-list";
+
+    // Seed with placeholder
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    var seedItem = document.createElement("div");
+    seedItem.className = "seedy-feed-item";
+    seedItem.innerHTML = '<span class="seedy-feed-time">' + hh + ":" + mm + '</span><span>Dashboard cargado</span>';
+    feedList.appendChild(seedItem);
+    feedSection.appendChild(feedList);
+    rightCol.appendChild(feedSection);
+
+    // Start polling for real events
+    _pollActivityFeed(feedList);
+
+    // -- Action links --
     const links = document.createElement("div");
     links.className = "seedy-twin-links";
-    links.innerHTML = `
-      <a href="${SEEDY_API}/dashboard/digital_twin_3d.html" target="_blank" class="twin-3d">
-        🏗️ Digital Twin 3D
-      </a>
-      <a href="${SEEDY_API}/dashboard/plano_2d.html" target="_blank" class="twin-2d">
-        📐 Plano 2D
-      </a>
-    `;
-    panel.appendChild(links);
+    links.innerHTML = '<a href="' + SEEDY_API + '/dashboard/digital_twin_3d.html" target="_blank" class="twin-3d">🏗️ Digital Twin 3D</a>';
+    rightCol.appendChild(links);
+
+    // -- GeoTwin button --
+    const geoBtn = document.createElement("button");
+    geoBtn.className = "seedy-geotwin-btn";
+    geoBtn.innerHTML = "🌍 Abrir en GeoTwin";
+    geoBtn.addEventListener("click", function() {
+      window.open("https://geotwin.es?twin=Yasg5zxsF_&lat=40.91541&lon=-4.06827&zoom=18", "_blank");
+    });
+    rightCol.appendChild(geoBtn);
+
+    // -- Drone control panel --
+    var dronePanel = document.createElement("div");
+    dronePanel.className = "seedy-drone-panel";
+    dronePanel.id = "seedy-drone-panel";
+    dronePanel.innerHTML =
+      '<div class="seedy-drone-header">' +
+        '<span class="seedy-drone-title"><span class="seedy-drone-dot off" id="seedy-drone-dot"></span> Dron Bebop 2</span>' +
+        '<span id="seedy-drone-status" style="font-size:0.7em;color:var(--neutral-500,#6b7280);">Desconectado</span>' +
+      '</div>' +
+      '<div class="seedy-drone-stats">' +
+        '<div class="seedy-drone-stat"><span class="seedy-drone-stat-val" id="seedy-drone-batt">--</span><span class="seedy-drone-stat-label">Batería</span></div>' +
+        '<div class="seedy-drone-stat"><span class="seedy-drone-stat-val" id="seedy-drone-flights">--</span><span class="seedy-drone-stat-label">Vuelos hoy</span></div>' +
+        '<div class="seedy-drone-stat"><span class="seedy-drone-stat-val" id="seedy-drone-cooldown">--</span><span class="seedy-drone-stat-label">Cooldown</span></div>' +
+      '</div>' +
+      '<div class="seedy-drone-actions">' +
+        '<button class="seedy-drone-btn connect" id="seedy-drone-connect">Conectar</button>' +
+        '<button class="seedy-drone-btn fly-btn" id="seedy-drone-fly" disabled>Vuelo manual</button>' +
+      '</div>' +
+      '<div class="seedy-drone-log" id="seedy-drone-log"></div>';
+    rightCol.appendChild(dronePanel);
+
+    // Drone panel logic
+    _initDronePanel();
+
+    layout.appendChild(rightCol);
+    panel.appendChild(layout);
 
     // Insert at the top of main content
     if (main.firstChild) {
@@ -1284,64 +2809,394 @@
     }
   }
 
+  // ── Activity feed poller — fetches YOLO/ReID/sensor events ──
+  var _feedTimer = null;
+  function _pollActivityFeed(feedList) {
+    if (_feedTimer) clearInterval(_feedTimer);
+    var seenIds = {};
+
+    function fetchEvents() {
+      fetch(SEEDY_API + "/api/tracking/" + SEEDY_FARM + "/latest", { mode: "cors" })
+        .then(function(r) { return r.ok ? r.json() : []; })
+        .then(function(data) {
+          if (!Array.isArray(data) || !data.length) return;
+          data.slice(0, 15).reverse().forEach(function(ev) {
+            var key = (ev.timestamp || "") + (ev.bird_id || "") + (ev.type || "");
+            if (seenIds[key]) return;
+            seenIds[key] = true;
+            var ts = ev.timestamp ? new Date(ev.timestamp) : new Date();
+            var t = String(ts.getHours()).padStart(2, "0") + ":" + String(ts.getMinutes()).padStart(2, "0");
+            var text = "";
+            if (ev.type === "yolo" || ev.breed) {
+              text = "YOLO: " + (ev.breed || "ave") + " detectada" + (ev.camera ? " en " + ev.camera : "");
+            } else if (ev.type === "reid") {
+              text = "Re-ID: " + (ev.bird_id || "ave") + " identificada";
+            } else if (ev.type === "sensor") {
+              text = "Sensor: " + (ev.metric || "") + " = " + (ev.value || "—");
+            } else {
+              text = ev.type + ": " + (ev.summary || ev.bird_id || "evento");
+            }
+            var item = document.createElement("div");
+            item.className = "seedy-feed-item";
+            item.innerHTML = '<span class="seedy-feed-time">' + t + '</span><span>' + text + '</span>';
+            feedList.insertBefore(item, feedList.firstChild);
+            // Keep max 15 items
+            while (feedList.children.length > 15) feedList.removeChild(feedList.lastChild);
+          });
+        })
+        .catch(function() { /* silent */ });
+    }
+
+    fetchEvents();
+    _feedTimer = setInterval(fetchEvents, 8000);
+  }
+
+  // ── Retry timer: reintenta inyección cada 2s durante 30s (React hydration) ──
+  let _retryTimer = null;
+  function retryInjection(fn, maxMs) {
+    if (_retryTimer) clearInterval(_retryTimer);
+    const deadline = Date.now() + (maxMs || 30000);
+    _retryTimer = setInterval(() => {
+      fn();
+      if (Date.now() > deadline) {
+        clearInterval(_retryTimer);
+        _retryTimer = null;
+      }
+    }, 2000);
+  }
+
+  // ── Clean up dashboard panel when leaving dashboard ──
+  function cleanupDashboardPanel() {
+    var panel = document.getElementById("seedy-dashboard-injected");
+    if (panel) panel.remove();
+    _cleanupDronePoller();
+    // Restore main styles that injectDashboardPanel may have set
+    var main = document.querySelector("main");
+    if (main && main.dataset.seedyFlexApplied) {
+      main.style.display = "";
+      main.style.flexDirection = "";
+      delete main.dataset.seedyFlexApplied;
+    }
+    // Clean up activity feed timer
+    if (_feedTimer) { clearInterval(_feedTimer); _feedTimer = null; }
+  }
+
+  // ── Drone control panel logic ──
+  var _dronePoller = null;
+
+  function _droneLog(msg) {
+    var log = document.getElementById("seedy-drone-log");
+    if (!log) return;
+    var t = new Date();
+    var ts = String(t.getHours()).padStart(2,"0") + ":" + String(t.getMinutes()).padStart(2,"0");
+    log.innerHTML = '<div>' + ts + ' ' + msg + '</div>' + log.innerHTML;
+    if (log.children.length > 5) log.removeChild(log.lastChild);
+  }
+
+  function _updateDroneUI(data) {
+    var dot = document.getElementById("seedy-drone-dot");
+    var statusEl = document.getElementById("seedy-drone-status");
+    var battEl = document.getElementById("seedy-drone-batt");
+    var flightsEl = document.getElementById("seedy-drone-flights");
+    var coolEl = document.getElementById("seedy-drone-cooldown");
+    var connectBtn = document.getElementById("seedy-drone-connect");
+    var flyBtn = document.getElementById("seedy-drone-fly");
+    if (!dot) return;
+
+    if (data.connected) {
+      if (data.is_flying) {
+        dot.className = "seedy-drone-dot fly";
+        statusEl.textContent = "En vuelo...";
+        statusEl.style.color = "#f59e0b";
+      } else {
+        dot.className = "seedy-drone-dot ok";
+        statusEl.textContent = "Conectado";
+        statusEl.style.color = "#22c55e";
+      }
+      connectBtn.textContent = "Desconectar";
+      connectBtn.className = "seedy-drone-btn disconnect";
+      flyBtn.disabled = data.is_flying || !data.can_fly;
+    } else {
+      dot.className = "seedy-drone-dot off";
+      statusEl.textContent = "Desconectado";
+      statusEl.style.color = "var(--neutral-500,#6b7280)";
+      connectBtn.textContent = "Conectar";
+      connectBtn.className = "seedy-drone-btn connect";
+      flyBtn.disabled = true;
+    }
+
+    battEl.textContent = data.battery_pct != null ? data.battery_pct + "%" : "--";
+    if (data.battery_pct != null && data.battery_pct < 30) battEl.style.color = "#ef4444";
+    else if (data.battery_pct != null && data.battery_pct < 50) battEl.style.color = "#f59e0b";
+    else battEl.style.color = "";
+
+    flightsEl.textContent = data.flights_today != null ? data.flights_today : "--";
+    if (data.cooldown_remaining != null && data.cooldown_remaining > 0) {
+      coolEl.textContent = data.cooldown_remaining + "s";
+    } else {
+      coolEl.textContent = data.can_fly ? "Listo" : "--";
+      if (data.can_fly) coolEl.style.color = "#22c55e";
+    }
+  }
+
+  function _pollDroneStatus() {
+    fetch(SEEDY_API + "/api/dron/status", { mode: "cors" })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) { if (data) _updateDroneUI(data); })
+      .catch(function() {
+        _updateDroneUI({ connected: false });
+      });
+  }
+
+  function _initDronePanel() {
+    var connectBtn = document.getElementById("seedy-drone-connect");
+    var flyBtn = document.getElementById("seedy-drone-fly");
+    if (!connectBtn) return;
+
+    connectBtn.addEventListener("click", function() {
+      var isDisconnect = connectBtn.textContent.includes("Desconectar");
+      var url = SEEDY_API + "/api/dron/" + (isDisconnect ? "disconnect" : "connect");
+      connectBtn.disabled = true;
+      connectBtn.textContent = isDisconnect ? "Desconectando..." : "Conectando...";
+      _droneLog(isDisconnect ? "Desconectando dron..." : "Conectando al Bebop 2...");
+      fetch(url, { method: "POST", mode: "cors" })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          _droneLog(data.status || (data.connected ? "Conectado" : "Desconectado"));
+          _pollDroneStatus();
+        })
+        .catch(function(e) { _droneLog("Error: " + e.message); })
+        .finally(function() { connectBtn.disabled = false; });
+    });
+
+    flyBtn.addEventListener("click", function() {
+      if (!confirm("El dron va a despegar y volar 20m. Espacio despejado?")) return;
+      flyBtn.disabled = true;
+      flyBtn.textContent = "Volando...";
+      _droneLog("Vuelo anti-gorriones iniciado");
+      fetch(SEEDY_API + "/api/dron/sparrow-deterrent", { method: "POST", mode: "cors" })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          _droneLog("Vuelo: " + (data.status || "completado") + (data.duration_s ? " (" + data.duration_s + "s)" : ""));
+          flyBtn.textContent = "Vuelo manual";
+          _pollDroneStatus();
+        })
+        .catch(function(e) {
+          _droneLog("Error vuelo: " + e.message);
+          flyBtn.textContent = "Vuelo manual";
+        })
+        .finally(function() { flyBtn.disabled = false; });
+    });
+
+    // Poll status every 5s
+    _pollDroneStatus();
+    _dronePoller = setInterval(_pollDroneStatus, 5000);
+  }
+
+  function _cleanupDronePoller() {
+    if (_dronePoller) { clearInterval(_dronePoller); _dronePoller = null; }
+  }
+
+  // ── Inject "Site" link into OvoSfera sidebar ──
+  function injectSidebarSiteLink() {
+    if (!isTargetFarm()) return;
+    if (document.getElementById("seedy-site-link")) return;
+
+    // OvoSfera sidebar: <aside class="nf-sidebar">
+    //   <nav class="nf-sidebar-nav">
+    //     <div> <div class="nf-nav-label">Sostenibilidad</div> ... </div>
+    //     <div> <div class="nf-nav-label">Sistema</div> ... </div>
+    var labels = document.querySelectorAll(".nf-nav-label");
+    var sistemaGroup = null;
+    labels.forEach(function (lbl) {
+      if (lbl.textContent.trim() === "Sistema") {
+        sistemaGroup = lbl.parentElement;
+      }
+    });
+    if (!sistemaGroup) return;
+
+    // Create the Site link group
+    var siteGroup = document.createElement("div");
+    siteGroup.id = "seedy-site-link";
+
+    var siteLink = document.createElement("a");
+    siteLink.href = SEEDY_API + "/dashboard/site_palacio.html";
+    siteLink.className = "nf-nav-item";
+    siteLink.target = "_blank";
+    siteLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+      + '<span class="nf-nav-text">Site</span>';
+
+    siteGroup.appendChild(siteLink);
+    sistemaGroup.parentNode.insertBefore(siteGroup, sistemaGroup);
+  }
+
+  // ── Inject Site landing page content ──
+  function injectSitePage() {
+    // Replace main content area with the landing page in an iframe
+    var main = document.querySelector("main.nf-main") || document.querySelector("main");
+    if (!main) return;
+    if (document.getElementById("seedy-site-frame")) return;
+
+    // Clear existing page content (the Next.js rendered page below status bar)
+    var statusBar = main.querySelector(".nf-status-bar");
+    // Remove all children except the status bar
+    Array.from(main.children).forEach(function (child) {
+      if (child.classList && child.classList.contains("nf-status-bar")) return;
+      child.style.display = "none";
+      child.dataset.seedySiteHidden = "1";
+    });
+
+    var frame = document.createElement("iframe");
+    frame.id = "seedy-site-frame";
+    frame.src = SEEDY_API + "/dashboard/site_palacio.html?embed=1";
+    frame.style.cssText = "width:100%;border:none;min-height:calc(100vh - 48px);display:block;";
+    frame.setAttribute("allowfullscreen", "");
+    main.appendChild(frame);
+
+    // Auto-resize iframe to content height
+    frame.addEventListener("load", function () {
+      try {
+        var h = frame.contentDocument.body.scrollHeight;
+        if (h > 200) frame.style.height = h + "px";
+      } catch (e) { /* cross-origin, use min-height fallback */ }
+    });
+  }
+
+  function cleanupSitePage() {
+    var frame = document.getElementById("seedy-site-frame");
+    if (frame) frame.remove();
+    // Restore hidden children
+    document.querySelectorAll("[data-seedy-site-hidden]").forEach(function (el) {
+      el.style.display = "";
+      delete el.dataset.seedySiteHidden;
+    });
+  }
+
   function onPageChange() {
     if (!isTargetFarm()) {
       stopRefreshLoop();
+      cleanupDashboardPanel();
+      if (_retryTimer) { clearInterval(_retryTimer); _retryTimer = null; }
       return;
     }
-    if (isDashboardPage()) {
+    if (isDigitalTwinPage()) {
+      // Digital twin pages: no camera injection needed
+      stopRefreshLoop();
+      cleanupDashboardPanel();
+      cleanupSitePage();
+    } else if (isSitePage()) {
+      stopRefreshLoop();
+      cleanupDashboardPanel();
+      setTimeout(function () { injectSitePage(); }, 400);
+    } else if (isDashboardPage()) {
+      cleanupSitePage();
       setTimeout(() => {
         injectDashboardPanel();
-        injectCameras();
-        startRefreshLoop();
+        // NO injectCameras() on dashboard — only small thumbnails in the panel
       }, 800);
-    } else if (isGallinerosPage()) {
+      retryInjection(() => {
+        injectDashboardPanel();
+      }, 30000);
+    } else if (isGallineroDetailPage()) {
+      cleanupDashboardPanel();
+      cleanupSitePage();
+      // /gallineros/:id — HERE we show full camera streams
       setTimeout(() => {
         injectCameras();
         startRefreshLoop();
       }, 800);
+      retryInjection(() => injectCameras(), 30000);
+    } else if (isGallinerosListPage()) {
+      // /gallineros — inject small camera thumbnails in each gallinero card
+      stopRefreshLoop();
+      cleanupDashboardPanel();
+      cleanupSitePage();
+      setTimeout(() => injectGallineroListThumbnails(), 800);
+      retryInjection(() => injectGallineroListThumbnails(), 30000);
     } else if (isAveDetailPage()) {
+      cleanupDashboardPanel();
+      cleanupSitePage();
       setTimeout(() => {
         injectBirdMonitor();
       }, 800);
     } else if (isAvesPage()) {
+      cleanupDashboardPanel();
+      cleanupSitePage();
       setTimeout(() => {
         interceptAvesListClicks();
         injectAvesListMonitor();
       }, 800);
     } else if (isFarmPage()) {
-      // Any farm page — try to inject cameras if cards exist
-      setTimeout(() => {
-        injectCameras();
-      }, 1000);
+      // Any other farm page
+      stopRefreshLoop();
+      cleanupDashboardPanel();
+      cleanupSitePage();
     } else {
       stopRefreshLoop();
+      cleanupDashboardPanel();
+      cleanupSitePage();
     }
   }
 
   // ── Enhance OvoSfera edit modal with Seedy capture + photo zoom ──
   function enhanceEditModal() {
-    // OvoSfera edit modal: look for the dialog/modal containing "Editar Ave" or photo upload buttons
-    var modals = document.querySelectorAll("[class*='modal'], [class*='dialog'], [role='dialog'], [class*='Modal']");
+    // OvoSfera edit modal: inline-styled div (no classes/role), rendered as:
+    //   div[style*="position: fixed; inset: 0"] (overlay)
+    //     └─ div[style*="maxWidth: 560"] (the form panel)
+    // Also try standard selectors as fallback.
+    var modals = [];
+
+    // Strategy 1: find fixed-position overlays containing "Editar Ave"
+    document.querySelectorAll("div").forEach(function (el) {
+      var s = el.style;
+      if (s && s.position === "fixed" && (s.inset === "0px" || s.inset === "0")) {
+        var inner = el.querySelector("div");
+        if (inner && (inner.textContent || "").includes("Editar")) {
+          modals.push(inner);
+        }
+      }
+    });
+
+    // Strategy 2: standard class/role selectors
+    document.querySelectorAll("[class*='modal'], [class*='dialog'], [role='dialog'], [class*='Modal']").forEach(function (el) {
+      if ((el.textContent || "").includes("Editar") || (el.textContent || "").includes("Subir foto")) {
+        modals.push(el);
+      }
+    });
+
+    // Strategy 3: find any element with h3 containing "Editar Ave" → use its scroll container
+    if (!modals.length) {
+      document.querySelectorAll("h3").forEach(function (h) {
+        if ((h.textContent || "").includes("Editar Ave")) {
+          // Walk up to find the scrollable container
+          var container = h.closest("div[style*='overflow']") || h.parentElement.parentElement;
+          if (container) modals.push(container);
+        }
+      });
+    }
+
     modals.forEach(function (modal) {
       if (modal.dataset.seedyEnhanced) return;
 
-      // Detect if this is an edit modal (has "Editar" or "Subir foto" text)
-      var text = modal.textContent || "";
-      if (!text.includes("Editar") && !text.includes("Subir foto")) return;
-
       modal.dataset.seedyEnhanced = "1";
 
-      // 1. Make existing photo zoomable
+      // 1. Make existing photo zoomable (robust: retry on load for lazy/data-uri images)
       var photos = modal.querySelectorAll("img");
       photos.forEach(function (img) {
-        if (img.naturalWidth < 20) return; // skip icons
         if (img.classList.contains("seedy-photo-zoomable")) return;
-        img.classList.add("seedy-photo-zoomable");
-        img.addEventListener("click", function (e) {
-          e.stopPropagation();
-          openFullscreen(img.src, "Foto del ave");
-        });
+        function makeZoomable() {
+          if (img.naturalWidth < 20 && !img.src.startsWith("data:image")) return;
+          img.classList.add("seedy-photo-zoomable");
+          img.addEventListener("click", function (e) {
+            e.stopPropagation();
+            openFullscreen(img.src, "Foto del ave");
+          });
+        }
+        if (img.complete && img.naturalWidth > 0) {
+          makeZoomable();
+        } else {
+          img.addEventListener("load", makeZoomable);
+        }
       });
 
       // 2. Find the "Subir foto" button area and add our "Cámara AI-Vision" button
@@ -1355,22 +3210,24 @@
       // Already has our button?
       if (modal.querySelector(".seedy-capture-btn")) return;
 
-      // Find the ave ID from the form (look for ai_vision_id field or URL)  
+      // Find the ave ID — OvoSfera's native edit modal has no ID in the DOM.
+      // We rely on __seedySelectedAveId set by interceptAvesListClicks.
       var aveId = null;
-      var inputs = modal.querySelectorAll("input");
-      inputs.forEach(function (inp) {
-        // Hidden input or value matching PAL pattern or numeric ID
-        if (inp.name === "id" || inp.dataset.id) aveId = inp.value || inp.dataset.id;
-      });
-      // Try to extract from any link/text in the modal containing the anilla
+
+      // Strategy A: captured from table row click (most reliable)
+      if (window.__seedySelectedAveId) {
+        aveId = window.__seedySelectedAveId;
+      }
+      // Strategy B: PAL-YYYY-NNNN in the modal text (visible in "new ave" mode only)
       if (!aveId) {
-        var anillaMatch = text.match(/PAL-\\d+-(\\d+)/);
+        var modalText = modal.textContent || "";
+        var anillaMatch = modalText.match(/PAL-\d+-(\d+)/);
         if (anillaMatch) aveId = parseInt(anillaMatch[1], 10);
       }
-      // Try from URL if on detail page
+      // Strategy C: URL has /aves/{id} (detail page)
       if (!aveId) {
-        var urlMatch = window.location.pathname.match(/\\/aves\\/(\\d+)/);
-        if (urlMatch) aveId = urlMatch[1];
+        var urlMatch = window.location.pathname.match(/\/aves\/(\d+)/);
+        if (urlMatch) aveId = parseInt(urlMatch[1], 10);
       }
 
       // Find the photo container area
@@ -1389,51 +3246,262 @@
         var captureBtn = document.createElement("button");
         captureBtn.className = "seedy-capture-btn";
         captureBtn.type = "button";
-        captureBtn.innerHTML = "📸 Captura IA (4K)";
-        captureBtn.title = "Captura una foto nítida del ave usando las cámaras + IA";
+        captureBtn.innerHTML = "📸 Capturar + Identificar";
+        captureBtn.title = "Captura una foto nítida y la identifica con IA (Qwen2.5-VL)";
+
+        var manualBtn = document.createElement("button");
+        manualBtn.className = "seedy-capture-btn";
+        manualBtn.type = "button";
+        manualBtn.innerHTML = "📷 Subir foto manual";
+        manualBtn.title = "Sube una foto desde tu dispositivo para identificar";
+        manualBtn.style.background = "linear-gradient(135deg, #6366f1, #8b5cf6)";
+
+        var manualInput = document.createElement("input");
+        manualInput.type = "file";
+        manualInput.accept = "image/*";
+        manualInput.style.display = "none";
 
         var statusDiv = document.createElement("div");
         statusDiv.className = "seedy-capture-status";
 
+        var idPanel = document.createElement("div");
+        idPanel.className = "seedy-id-panel";
+        idPanel.style.display = "none";
+
+        // ── Shared: render ID result panel ──
+        function renderIdResult(data) {
+          var id = data.identification || {};
+          var conf = id.confidence || 0;
+          var confClass = conf >= 0.75 ? "high" : conf >= 0.5 ? "med" : "low";
+          var features = (id.distinctive_features || []).join(", ");
+
+          statusDiv.textContent = (data.source_camera === "manual_upload" ? "Foto subida" : "Foto capturada: " + data.resolution) + " — revisa la identificación:";
+
+          idPanel.className = "seedy-id-panel";
+          idPanel.style.display = "block";
+          idPanel.innerHTML =
+            '<div class="seedy-id-header">' +
+              '<img class="seedy-id-photo" src="' + data.photo_data_uri + '" alt="Foto" />' +
+              '<div class="seedy-id-info">' +
+                '<div><span class="breed">' + (id.breed || "?") + '</span>' +
+                '<span class="conf ' + confClass + '">' + Math.round(conf * 100) + '%</span></div>' +
+                '<div>Color: ' + (id.color || "?") + ' · Sexo: ' + (id.sex || "?") + '</div>' +
+                '<div>Calidad: ' + (id.image_quality || "?") + ' · Modelo: ' + (id.model || "Qwen2.5-VL") + '</div>' +
+                (features ? '<div class="features">Rasgos: ' + features + '</div>' : '') +
+                (id.reasoning ? '<div class="reasoning">"' + id.reasoning + '"</div>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="seedy-id-actions">' +
+              '<button class="confirm" data-action="confirm">✅ Confirmar</button>' +
+              '<button class="reject" data-action="reject">❌ Rechazar</button>' +
+              '<button class="correct" data-action="correct">✏️ Corregir</button>' +
+              '<button class="download" data-action="download" title="Guardar foto para subir a otra ficha">💾 Guardar foto</button>' +
+            '</div>' +
+            '<div class="seedy-correct-form" style="display:none">' +
+              '<select class="correct-breed">' +
+                '<option value="">— Raza —</option>' +
+                '<option>Sussex</option><option>Bresse</option><option>Marans</option>' +
+                '<option>Araucana</option><option>Sulmtaler</option><option>Vorwerk</option>' +
+                '<option>Pita Pinta</option><option>Andaluza Azul</option>' +
+                '<option>Cruce F1</option><option>Desconocida</option>' +
+              '</select>' +
+              '<input class="correct-color" placeholder="Color" />' +
+              '<select class="correct-sex">' +
+                '<option value="">— Sexo —</option>' +
+                '<option value="gallina">Gallina</option><option value="gallo">Gallo</option>' +
+              '</select>' +
+              '<button class="confirm" data-action="save-correct">💾 Guardar</button>' +
+            '</div>';
+
+          var idPhoto = idPanel.querySelector(".seedy-id-photo");
+          if (idPhoto) {
+            idPhoto.addEventListener("click", function () {
+              openFullscreen(data.photo_data_uri, (id.breed || "Ave") + " " + (id.color || ""));
+            });
+          }
+
+          var actionBtns = idPanel.querySelectorAll(".seedy-id-actions button");
+          actionBtns.forEach(function (btn) {
+            btn.addEventListener("click", function (ev) {
+              ev.preventDefault();
+              ev.stopPropagation();
+              var action = btn.dataset.action;
+
+              if (action === "download") {
+                var a = document.createElement("a");
+                a.href = data.photo_data_uri;
+                a.download = "ave_" + (id.breed || "captura").replace(/\s+/g, "_") + "_" + Date.now() + ".jpg";
+                a.click();
+                return;
+              }
+
+              // Si confirma con raza desconocida → forzar corrección
+              if (action === "confirm" && (!id.breed || id.breed.toLowerCase() === "desconocida" || id.breed.toLowerCase() === "unknown")) {
+                action = "correct";
+              }
+
+              if (action === "correct") {
+                var form = idPanel.querySelector(".seedy-correct-form");
+                form.style.display = "flex";
+                var breedSelect = form.querySelector(".correct-breed");
+                var colorInput = form.querySelector(".correct-color");
+                var sexSelect = form.querySelector(".correct-sex");
+                for (var i = 0; i < breedSelect.options.length; i++) {
+                  if (breedSelect.options[i].text.toLowerCase() === (id.breed || "").toLowerCase()) {
+                    breedSelect.selectedIndex = i; break;
+                  }
+                }
+                colorInput.value = id.color || "";
+                for (var j = 0; j < sexSelect.options.length; j++) {
+                  if (sexSelect.options[j].value === (id.sex || "")) {
+                    sexSelect.selectedIndex = j; break;
+                  }
+                }
+                return;
+              }
+
+              if (action === "save-correct") action = "correct";
+
+              actionBtns.forEach(function (b) { b.disabled = true; });
+              var saveBtn = idPanel.querySelector("[data-action='save-correct']");
+              if (saveBtn) saveBtn.disabled = true;
+
+              var confirmBody = {
+                action: action,
+                photo_data_uri: data.photo_data_uri,
+                breed: id.breed || "",
+                color: id.color || "",
+                sex: id.sex || "",
+                existing_vision_id: (data.ave && data.ave.ai_vision_id) || "",
+              };
+
+              if (action === "correct") {
+                var form = idPanel.querySelector(".seedy-correct-form");
+                confirmBody.breed = form.querySelector(".correct-breed").value || id.breed;
+                confirmBody.color = form.querySelector(".correct-color").value || id.color;
+                confirmBody.sex = form.querySelector(".correct-sex").value || id.sex;
+              }
+
+              fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/confirm-identity", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(confirmBody),
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (result) {
+                  if (action === "reject") {
+                    idPanel.className = "seedy-id-panel rejected";
+                    statusDiv.textContent = "❌ Identificación rechazada — ai_vision_id y foto limpiados";
+                  } else {
+                    statusDiv.textContent = (action === "confirm" ? "✅ Confirmado" : "✏️ Corregido") +
+                      ": " + confirmBody.breed + " " + confirmBody.color;
+                    var imgs = modal.querySelectorAll("img");
+                    imgs.forEach(function (img) {
+                      if (img.naturalWidth > 20 || img.src.startsWith("data:image")) {
+                        img.src = data.photo_data_uri;
+                      }
+                    });
+                  }
+                  var actionsDiv = idPanel.querySelector(".seedy-id-actions");
+                  if (actionsDiv) actionsDiv.style.display = "none";
+                  var correctForm = idPanel.querySelector(".seedy-correct-form");
+                  if (correctForm) correctForm.style.display = "none";
+                })
+                .catch(function (err) {
+                  statusDiv.textContent = "❌ Error: " + err.message;
+                  actionBtns.forEach(function (b) { b.disabled = false; });
+                });
+            });
+          });
+        }
+
+        // ── Capturar desde cámaras ──
         captureBtn.addEventListener("click", function (e) {
           e.preventDefault();
           e.stopPropagation();
           captureBtn.disabled = true;
-          captureBtn.innerHTML = "⏳ Capturando...";
-          statusDiv.textContent = "Buscando al ave en las cámaras...";
+          captureBtn.innerHTML = "⏳ Capturando + identificando...";
+          statusDiv.textContent = "Buscando al ave en las cámaras y analizando con Qwen2.5-VL...";
+          idPanel.style.display = "none";
 
-          fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/capture-photo", {
+          fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/capture-identify", {
             method: "POST",
           })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-              if (data.success) {
-                statusDiv.textContent = "✅ Foto capturada: " + data.resolution + " — " + data.message;
-                // Update the photo preview in the modal
-                var imgs = modal.querySelectorAll("img");
-                imgs.forEach(function (img) {
-                  if (img.naturalWidth > 20 || img.src.includes("data:image")) {
-                    img.src = data.photo_data_uri;
-                    img.classList.add("seedy-photo-zoomable");
-                  }
-                });
-                captureBtn.innerHTML = "📸 Captura IA (4K)";
-                captureBtn.disabled = false;
-              } else {
-                statusDiv.textContent = "⚠️ " + (data.message || "No se pudo capturar");
-                captureBtn.innerHTML = "📸 Captura IA (4K)";
-                captureBtn.disabled = false;
+              captureBtn.innerHTML = "📸 Capturar + Identificar";
+              captureBtn.disabled = false;
+              if (!data.success) {
+                statusDiv.textContent = "⚠️ " + (data.message || "No se pudo capturar") + " — prueba subir foto manual";
+                return;
               }
+              renderIdResult(data);
             })
             .catch(function (err) {
               statusDiv.textContent = "❌ Error: " + err.message;
-              captureBtn.innerHTML = "📸 Captura IA (4K)";
+              captureBtn.innerHTML = "📸 Capturar + Identificar";
               captureBtn.disabled = false;
             });
         });
 
+        // ── Subir foto manual ──
+        manualBtn.addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          manualInput.click();
+        });
+
+        manualInput.addEventListener("change", function () {
+          var file = manualInput.files[0];
+          if (!file) return;
+          manualBtn.disabled = true;
+          manualBtn.innerHTML = "⏳ Identificando...";
+          statusDiv.textContent = "Analizando foto con Qwen2.5-VL...";
+          idPanel.style.display = "none";
+
+          var reader = new FileReader();
+          reader.onload = function () {
+            var dataUri = reader.result;
+            fetch(SEEDY_API + "/vision/identify/bird/ovosfera/" + aveId + "/identify-photo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ photo_data_uri: dataUri }),
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) {
+                manualBtn.innerHTML = "📷 Subir foto manual";
+                manualBtn.disabled = false;
+                if (!data.success) {
+                  statusDiv.textContent = "⚠️ " + (data.message || "Error al identificar");
+                  return;
+                }
+                renderIdResult(data);
+              })
+              .catch(function (err) {
+                statusDiv.textContent = "❌ Error: " + err.message;
+                manualBtn.innerHTML = "📷 Subir foto manual";
+                manualBtn.disabled = false;
+              });
+          };
+          reader.readAsDataURL(file);
+          manualInput.value = "";
+        });
+
         photoArea.appendChild(captureBtn);
+        photoArea.appendChild(manualBtn);
+        photoArea.appendChild(manualInput);
+
+        // Digital Twin del Ave button (purple)
+        var twinBtn = document.createElement("a");
+        twinBtn.className = "seedy-capture-btn";
+        twinBtn.style.cssText = "background:linear-gradient(135deg,#8b5cf6,#6d28d9);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-top:6px;";
+        twinBtn.innerHTML = "🐔 Digital Twin del Ave";
+        twinBtn.href = SEEDY_API + "/dashboard/ave_twin.html?id=" + (window.__seedySelectedAnilla || ave.anilla || "PAL-2026-" + String(aveId).padStart(4, "0"));
+        twinBtn.target = "_blank";
+        photoArea.appendChild(twinBtn);
+
         photoArea.appendChild(statusDiv);
+        photoArea.appendChild(idPanel);
       }
     });
   }
@@ -1443,24 +3511,40 @@
     injectStyles();
     loadSeedyWidget();
 
+    // Inject sidebar link (retry until sidebar available)
+    injectSidebarSiteLink();
+    var _sidebarRetry = setInterval(function () {
+      if (document.getElementById("seedy-site-link")) { clearInterval(_sidebarRetry); return; }
+      injectSidebarSiteLink();
+    }, 1000);
+    setTimeout(function () { clearInterval(_sidebarRetry); }, 15000);
+
     // Initial check
     onPageChange();
 
-    // Watch for SPA navigation and DOM changes
+    // Watch for SPA navigation and DOM changes (debounced to prevent storms during navigation)
+    let _mutationTimer = null;
     const observer = new MutationObserver(() => {
-      if (!isTargetFarm()) return;
-      enhanceEditModal(); // inject Seedy into any open OvoSfera edit modal
-      if (isGallinerosPage()) {
-        injectCameras();
-      } else if (isDashboardPage()) {
-        injectDashboardPanel();
-        injectCameras();
-      } else if (isAveDetailPage()) {
-        injectBirdMonitor();
-      } else if (isAvesPage()) {
-        interceptAvesListClicks();
-        injectAvesListMonitor();
-      }
+      if (_mutationTimer) return; // debounce: skip if already scheduled
+      _mutationTimer = setTimeout(() => {
+        _mutationTimer = null;
+        if (!isTargetFarm()) return;
+        injectSidebarSiteLink();
+        enhanceEditModal(); // inject Seedy into any open OvoSfera edit modal
+        // Only inject for the CURRENT page — don't re-inject dashboard on other pages
+        if (isSitePage() && !document.getElementById("seedy-site-frame")) {
+          injectSitePage();
+        } else if (isDashboardPage() && !document.getElementById("seedy-dashboard-injected")) {
+          injectDashboardPanel();
+        } else if (isGallineroDetailPage()) {
+          injectCameras();
+        } else if (isAveDetailPage()) {
+          injectBirdMonitor();
+        } else if (isAvesPage()) {
+          interceptAvesListClicks();
+          injectAvesListMonitor();
+        }
+      }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });
 

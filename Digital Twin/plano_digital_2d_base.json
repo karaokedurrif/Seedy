@@ -1,0 +1,206 @@
+{
+  "meta": {
+    "name": "Plano digital 2D base - granja pequeña",
+    "units": "meters",
+    "scale_px_per_meter": 40,
+    "origin": "bottom-left",
+    "canvas_m": {
+      "width": 30.0,
+      "height": 15.0
+    },
+    "recommended_editors": [
+      "Figma",
+      "Illustrator",
+      "Inkscape"
+    ],
+    "notes": [
+      "La referencia izquierda representa solo el lateral útil de 3.5 m y el módulo 1x1 m.",
+      "El SVG incluye capas vacías para animales, sensores, cámaras extra, alertas y trayectorias."
+    ]
+  },
+  "zones": {
+    "muro_talud": {
+      "type": "rect",
+      "x": 0.5,
+      "y": 13.45,
+      "w": 29.0,
+      "h": 1.05
+    },
+    "referencia_lateral": {
+      "type": "rect",
+      "x": 0.0,
+      "y": 8.8,
+      "w": 4.25,
+      "h": 4.1
+    },
+    "parque_gi": {
+      "type": "polygon",
+      "points": [
+        [
+          4.45,
+          12.85
+        ],
+        [
+          24.6,
+          12.85
+        ],
+        [
+          24.6,
+          7.2
+        ],
+        [
+          21.3,
+          6.45
+        ],
+        [
+          8.55,
+          6.05
+        ],
+        [
+          4.45,
+          8.8
+        ]
+      ]
+    },
+    "parque_gii": {
+      "type": "rect",
+      "x": 24.6,
+      "y": 0.8,
+      "w": 4.0,
+      "h": 12.1
+    },
+    "gallinero_ii": {
+      "type": "rect",
+      "x": 25.15,
+      "y": 7.65,
+      "w": 2.0,
+      "h": 2.0
+    }
+  },
+  "lines": {
+    "valla_principal": {
+      "type": "polyline",
+      "points": [
+        [
+          4.25,
+          8.8
+        ],
+        [
+          8.55,
+          6.05
+        ],
+        [
+          9.35,
+          10.85
+        ],
+        [
+          21.8,
+          10.1
+        ],
+        [
+          24.6,
+          7.3
+        ]
+      ]
+    },
+    "borde_inferior_gi": {
+      "type": "polyline",
+      "points": [
+        [
+          8.55,
+          6.05
+        ],
+        [
+          20.2,
+          6.05
+        ],
+        [
+          24.6,
+          6.85
+        ]
+      ]
+    }
+  },
+  "points": {
+    "cam_ref": {
+      "x": 4.25,
+      "y": 8.8
+    },
+    "cam_nueva_gi": {
+      "x": 24.35,
+      "y": 9.85
+    },
+    "anchor_gi_centro": {
+      "x": 15.0,
+      "y": 9.4
+    },
+    "anchor_gii_centro": {
+      "x": 26.6,
+      "y": 5.0
+    },
+    "anchor_union_valla_1": {
+      "x": 8.55,
+      "y": 6.05
+    },
+    "anchor_union_gii": {
+      "x": 24.6,
+      "y": 7.3
+    }
+  },
+  "future_layers": {
+    "animales": {
+      "recommended_object": "point or short trail polyline",
+      "fields": [
+        "id",
+        "species",
+        "name",
+        "x",
+        "y",
+        "timestamp",
+        "state"
+      ]
+    },
+    "sensores": {
+      "recommended_object": "point with coverage circle",
+      "fields": [
+        "id",
+        "type",
+        "x",
+        "y",
+        "zone",
+        "status",
+        "battery"
+      ]
+    },
+    "camaras_extra": {
+      "recommended_object": "point with viewing cone polygon",
+      "fields": [
+        "id",
+        "x",
+        "y",
+        "heading_deg",
+        "fov_deg",
+        "range_m"
+      ]
+    },
+    "alertas": {
+      "recommended_object": "colored polygon or marker",
+      "fields": [
+        "id",
+        "severity",
+        "zone",
+        "timestamp",
+        "message"
+      ]
+    },
+    "trayectorias": {
+      "recommended_object": "polyline",
+      "fields": [
+        "entity_id",
+        "points",
+        "start_time",
+        "end_time"
+      ]
+    }
+  }
+}

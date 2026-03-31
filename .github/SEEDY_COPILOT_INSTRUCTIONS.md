@@ -203,6 +203,40 @@ Test 4 (11 planes SIGE):    ⚠️ PARCIAL → Lista 11 pero inventa algunos nom
 
 ---
 
+## AGENTES ESPECIALIZADOS (DELEGACIÓN)
+
+Copilot actúa como **orquestador**. Ante las consultas descritas a continuación, delega siempre al agente especializado correspondiente. No intentes resolver estas materias directamente.
+
+### Agente 1 — Arquitecto de Infraestructura (`infra-architect`)
+> Fichero: `.claude/agents/infra-architect.md` · Modelo: **Claude Opus 4.6**
+
+**Delega cuando la consulta trate sobre:**
+- Docker / Docker Compose / docker-compose.yml / redes / volúmenes
+- Cloudflare Tunnel (`cloudflared`), subdominios `*.neofarm.io`, configuración QUIC
+- Red LAN (192.168.20.x · 192.168.30.x · 10.10.10.x), VLANs, Proxmox CTs
+- Cesium 3D / WMS / SingleTile / WMTS (visor GeoTwin, PNOA)
+- Caddy reverse proxy, certificados mkcert, DNS split-horizon
+- Registry mirrors de Docker, `daemon.json`
+
+**Instrucción clave para Copilot**: Antes de proponer cualquier cambio de IP o puerto, el agente debe verificar que el túnel Cloudflare no se rompe. El edge server externo es **CT 102 `docker-edge-apps` en 192.168.30.101**.
+
+---
+
+### Agente 2 — Especialista en Visión e IA (`vision-ai-specialist`)
+> Fichero: `.claude/agents/vision-ai-specialist.md` · Modelo: **Claude Sonnet 4.6**
+
+**Delega cuando la consulta trate sobre:**
+- YOLO v11: entrenamiento, inferencia, tiling, clases, pesos
+- Gemini 2.5 Flash: prompts de visión, respuestas JSON, re-identificación
+- Lógica definida en `.claude/agents/neofarm.md` (pipeline captura → YOLO → Gemini → registro)
+- `backend/runtime/tool_registry.json`: añadir / modificar / eliminar herramientas RAG
+- Re-ID visual, `birds_registry.json`, IDs de aves (`PAL-2026-XXXX`)
+- Logs de detección, alertas de visión, `audio_classify`
+
+**Instrucción clave para Copilot**: Tras cualquier cambio en el pipeline de visión o en los tools, el agente debe asegurarse de que `tool_registry.json` queda actualizado con los `input_schema` correctos para el RAG.
+
+---
+
 ## REGLAS PARA COPILOT
 
 ### Técnicas

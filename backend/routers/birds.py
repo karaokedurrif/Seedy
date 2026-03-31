@@ -226,3 +226,160 @@ async def reset_registry():
     _save_registry()
     logger.info(f"🗑️ Bird registry reset: {count} records cleared")
     return {"status": "reset", "cleared": count}
+
+
+# ─── Per-bird digital twin endpoints (Task E) ───────
+
+@router.get("/{bird_id}/photos")
+async def get_bird_photos(bird_id: str):
+    """Gallery of IA-captured photos for a bird."""
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    # Check gallery directory
+    gallery_dir = Path(f"/app/data/bird_gallery/{bird.get('ai_vision_id', bird_id)}")
+    photos = []
+    if gallery_dir.exists():
+        for f in sorted(gallery_dir.glob("*.jpg"), key=lambda p: p.stat().st_mtime, reverse=True):
+            photos.append({
+                "filename": f.name,
+                "url": f"/birds/{bird_id}/photos/{f.name}",
+                "timestamp": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
+                "size": f.stat().st_size,
+            })
+    # Include the main photo_b64 if available
+    if bird.get("photo_b64"):
+        photos.insert(0, {
+            "filename": "main_capture.jpg",
+            "url": f"/birds/{bird_id}/photo",
+            "timestamp": bird.get("last_seen", ""),
+            "size": len(bird["photo_b64"]) * 3 // 4,
+            "is_main": True,
+        })
+    return {"bird_id": bird_id, "photos": photos, "total": len(photos)}
+
+
+@router.get("/{bird_id}/tracking")
+async def get_bird_tracking(bird_id: str, hours: int = Query(24, ge=1, le=168)):
+    """Tracking positions from YOLO detections (last N hours)."""
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    # Tracking data comes from InfluxDB or stored detections
+    # For now return structure ready for real data integration
+    return {
+        "bird_id": bird_id,
+        "hours": hours,
+        "positions": [],  # [{x, y, timestamp, camera, confidence}]
+        "summary": {
+            "total_detections": 0,
+            "cameras_seen": [],
+            "most_active_zone": None,
+        },
+    }
+
+
+@router.get("/{bird_id}/detections")
+async def get_bird_detections(bird_id: str, limit: int = Query(50, ge=1, le=500)):
+    """Re-ID detection history."""
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    return {
+        "bird_id": bird_id,
+        "detections": [],  # [{timestamp, camera, confidence, breed, color, photo_url}]
+        "total": 0,
+    }
+
+
+@router.get("/{bird_id}/gompertz")
+async def get_bird_gompertz(bird_id: str):
+    """Growth curve data (Gompertz model) for weight tracking."""
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    # Gompertz parameters vary by breed
+    breed = bird.get("breed", "").lower()
+    sex = bird.get("sex", "").lower()
+
+    # Default parameters (capón/heritage breeds)
+    # W(t) = A * exp(-b * exp(-k * t))
+    # A = asymptotic weight, b = displacement, k = growth rate
+    gompertz_params = {
+        "sussex":   {"A": 4.2, "b": 4.5, "k": 0.020},
+        "bresse":   {"A": 3.8, "b": 4.3, "k": 0.022},
+        "marans":   {"A": 3.5, "b": 4.1, "k": 0.021},
+        "sulmtaler": {"A": 3.2, "b": 4.0, "k": 0.019},
+    }
+
+    params = gompertz_params.get(breed, {"A": 3.5, "b": 4.2, "k": 0.020})
+    if sex in ("h", "hembra", "gallina"):
+        params["A"] *= 0.75  # Hens are smaller
+
+    return {
+        "bird_id": bird_id,
+        "breed": bird.get("breed", ""),
+        "sex": bird.get("sex", ""),
+        "gompertz_params": params,
+        "weight_records": [],  # [{date, weight_kg, source}]
+        "predicted_curve": [],  # Will be computed client-side from params
+    }
+
+
+@router.get("/{bird_id}/events")
+async def get_bird_events(bird_id: str):
+    """Timeline events for a bird: detections, weigh-ins, vaccinations, transfers."""
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    events = []
+    # Registration event
+    if bird.get("registered_at"):
+        events.append({
+            "type": "registration",
+            "date": bird["registered_at"],
+            "description": f"Registrada como {bird.get('breed', '?')} {bird.get('sex', '?')}",
+        })
+    # Last sighting
+    if bird.get("last_seen"):
+        events.append({
+            "type": "reid",
+            "date": bird["last_seen"],
+            "description": f"Última detección Re-ID (confianza {bird.get('last_confidence', 0):.0%})",
+        })
+    # Sightings history
+    for s in bird.get("sightings", []):
+        events.append({
+            "type": "detection",
+            "date": s.get("timestamp", ""),
+            "description": f"Detectada por {s.get('camera', 'IA Vision')} ({s.get('confidence', 0):.0%})",
+        })
+
+    # Sort chronologically
+    events.sort(key=lambda e: e.get("date", ""), reverse=True)
+    return {"bird_id": bird_id, "events": events}

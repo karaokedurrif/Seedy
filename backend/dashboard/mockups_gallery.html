@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Los Capones de Palacio — Mockups Digital Twin</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0e17;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;padding:20px 40px;line-height:1.5}
+  h1{font-size:22px;font-weight:700;background:linear-gradient(135deg,#22c55e,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+  .sub{color:#6b7280;font-size:13px;margin-bottom:30px}
+  h2{font-size:16px;color:#22c55e;margin:30px 0 12px;border-bottom:1px solid rgba(34,197,94,.2);padding-bottom:6px}
+  .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px;margin-bottom:20px}
+  .card h3{font-size:14px;color:#f59e0b;margin-bottom:4px}
+  .card .meta{font-size:11px;color:#6b7280;margin-bottom:10px}
+  .card img{width:100%;border-radius:8px;border:1px solid rgba(255,255,255,.1);cursor:pointer;transition:.3s}
+  .card img:hover{border-color:#22c55e;transform:scale(1.01)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:1000px){.row{grid-template-columns:1fr}}
+  .badge{display:inline-block;background:rgba(34,197,94,.2);color:#22c55e;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-right:4px}
+  .badge.blue{background:rgba(59,130,246,.2);color:#3b82f6}
+  .badge.amber{background:rgba(245,158,11,.2);color:#f59e0b}
+  .badge.purple{background:rgba(168,85,247,.2);color:#a855f7}
+  #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;cursor:zoom-out;padding:20px;align-items:center;justify-content:center}
+  #overlay.show{display:flex}
+  #overlay img{max-width:95vw;max-height:95vh;border-radius:8px}
+  a{color:#22c55e;text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<h1>🐔 Los Capones de Palacio — Digital Twin Mockups</h1>
+<p class="sub">Generados con Together.ai FLUX · Para revisión antes de publicar</p>
+
+<h2>📐 1. Plano 2D Interactivo (SVG)</h2>
+<div class="card">
+  <h3>Plano General — 2D con pan/zoom, capas, info interactiva</h3>
+  <div class="meta">
+    <span class="badge">HTML/SVG</span>
+    <span class="badge blue">Interactivo</span>
+    Pan+zoom con rueda/touch · Capas: cámaras, FOV, medidas, aves, grid · Click en elementos → panel info
+  </div>
+  <p style="font-size:13px;margin:10px 0">
+    <a href="plano_2d.html" target="_blank">→ Abrir plano 2D interactivo en nueva pestaña</a>
+  </p>
+</div>
+
+<h2>🏗️ 2. Mockups Isométricos 3D</h2>
+<div class="row">
+  <div class="card">
+    <h3>Isométrico 1 — Vista aérea arquitectónica</h3>
+    <div class="meta">
+      <span class="badge amber">FLUX.1.1-pro</span>
+      1440×1024 · 28 steps · Vista 45° · Estilo clean architectural
+    </div>
+    <img src="mockups/isometric_1_flux11pro.png" alt="Isometric 1" onclick="zoom(this)"/>
+  </div>
+  <div class="card">
+    <h3>Isométrico 2 — Diorama miniatura</h3>
+    <div class="meta">
+      <span class="badge purple">FLUX.1-krea-dev</span>
+      1440×1024 · 28 steps · Vista SE 30° · Diorama fotorrealista
+    </div>
+    <img src="mockups/isometric_2_kreadev.png" alt="Isometric 2" onclick="zoom(this)"/>
+  </div>
+</div>
+
+<h2>📸 3. Mockups Hiperrealistas 3D</h2>
+<div class="row">
+  <div class="card">
+    <h3>Hiperrealista 1 — Drone aéreo (vista cenital)</h3>
+    <div class="meta">
+      <span class="badge amber">FLUX.1.1-pro</span>
+      1440×1024 · DJI Mavic 3 style · Golden hour · 8K photorealism
+    </div>
+    <img src="mockups/hyperreal_1_flux11pro.png" alt="Hyperrealistic 1" onclick="zoom(this)"/>
+  </div>
+  <div class="card">
+    <h3>Hiperrealista 2 — Nivel suelo (National Geographic)</h3>
+    <div class="meta">
+      <span class="badge blue">FLUX.2-pro</span>
+      1440×1024 · Eye level · Canon R5 f/2.8 · Cinematic grading
+    </div>
+    <img src="mockups/hyperreal_2_flux2pro.png" alt="Hyperrealistic 2" onclick="zoom(this)"/>
+  </div>
+</div>
+
+<div style="margin:30px 0;padding:16px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;font-size:12px;color:#9ca3af">
+  <strong style="color:#22c55e">Siguiente paso:</strong> Confirma qué estilo(s) te gustan más y si el plano 2D es correcto, y procedo con:
+  <ul style="margin:6px 0 0 16px">
+    <li>Publicar plano 2D en el dashboard de OvoSfera</li>
+    <li>Generar más iteraciones del estilo elegido con mayor detalle</li>
+    <li>Implementar el 3D isométrico interactivo con Three.js (zoom, girar, mover)</li>
+  </ul>
+</div>
+
+<div id="overlay" onclick="this.classList.remove('show')"><img id="oi"/></div>
+<script>
+function zoom(el){document.getElementById('oi').src=el.src;document.getElementById('overlay').classList.add('show')}
+</script>
+</body>
+</html>

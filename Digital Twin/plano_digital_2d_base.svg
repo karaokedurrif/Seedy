@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
+<title>Plano Digital 2D — Los Capones de Palacio</title>
+<desc>Fuente de verdad: plano_digital_2d_base.json · Escala 40px/m · Origen: esquina inferior-izquierda · 3 cámaras · Dark theme</desc>
+
+<defs>
+  <style>
+    /* ── Dark theme ────────────────────────────────────── */
+    .bg       { fill: #0f1419; }
+    .txt      { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    .txt-xs   { font-size: 9px; }
+    .txt-sm   { font-size: 11px; }
+    .txt-md   { font-size: 14px; font-weight: 600; }
+    .txt-lg   { font-size: 18px; font-weight: 700; }
+    .txt-xl   { font-size: 22px; font-weight: 700; }
+
+    /* ── Zone fills ───────────────────────────────────── */
+    .fill-gi      { fill: rgba(34,197,94,.06); stroke: #22c55e; stroke-width: 2.5; }
+    .fill-gii     { fill: rgba(59,130,246,.06); stroke: #3b82f6; stroke-width: 2.5; }
+    .fill-huerto  { fill: rgba(180,83,9,.04); stroke: #b45309; stroke-width: 1.5; stroke-dasharray: 8 4; }
+    .fill-muro    { fill: #1a2e1a; stroke: #2d5a2d; stroke-width: 1.5; }
+    .fill-sauna   { fill: #3d2510; stroke: #8B6914; stroke-width: 1.8; }
+    .fill-caseta  { fill: #2a2a2a; stroke: #888; stroke-width: 1.5; }
+    .fill-coop-i  { fill: #2a2a2a; stroke: #22c55e; stroke-width: 1.5; }
+
+    /* ── Lines ────────────────────────────────────────── */
+    .valla-roja   { stroke: #ef4444; stroke-width: 3; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+    .borde-gi     { stroke: #22c55e; stroke-width: 1.5; fill: none; stroke-dasharray: 6 3; }
+    .guide        { stroke: rgba(255,255,255,.04); stroke-width: 0.5; }
+    .guide-label  { fill: rgba(255,255,255,.12); }
+    .cota         { stroke: #64748b; stroke-width: 0.8; }
+    .cota-txt     { fill: #64748b; }
+    .anchor       { fill: rgba(255,255,255,.15); stroke: rgba(255,255,255,.25); stroke-width: 1; }
+
+    /* ── FOV ──────────────────────────────────────────── */
+    .fov-dahua    { fill: rgba(245,158,11,.07); stroke: #f59e0b; stroke-width: 0.5; stroke-dasharray: 4 4; }
+    .fov-nueva    { fill: rgba(168,85,247,.07); stroke: #a855f7; stroke-width: 0.5; stroke-dasharray: 4 4; }
+    .fov-vigi2    { fill: rgba(59,130,246,.07); stroke: #3b82f6; stroke-width: 0.5; stroke-dasharray: 4 4; }
+
+    /* ── Equipment ────────────────────────────────────── */
+    .eq-bebedero  { fill: none; stroke: #06b6d4; stroke-width: 1.3; }
+    .eq-comedero  { fill: none; stroke: #f59e0b; stroke-width: 1.3; }
+    .eq-compostera{ fill: none; stroke: #8B6914; stroke-width: 1; stroke-dasharray: 3 2; }
+
+    /* ── Layer toggle via CSS ─────────────────────────── */
+    .layer-hidden { display: none; }
+
+    /* ── Interactive hover ─────────────────────────────── */
+    .clickable:hover { filter: brightness(1.4); cursor: pointer; }
+  </style>
+
+  <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+    <path d="M0,1L6,3L0,5" fill="#64748b"/>
+  </marker>
+
+  <!-- Muro vegetation pattern -->
+  <pattern id="veg" width="30" height="30" patternUnits="userSpaceOnUse">
+    <circle cx="8"  cy="8"  r="12" fill="#1e3a1e" opacity=".4"/>
+    <circle cx="22" cy="16" r="10" fill="#234a23" opacity=".35"/>
+  </pattern>
+
+  <!-- Grid pattern -->
+  <pattern id="grid40" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M40 0L0 0 0 40" fill="none" stroke="rgba(255,255,255,.03)" stroke-width="0.5"/>
+  </pattern>
+</defs>
+
+<!-- ════════════════════════════════════════════════════════════
+     BACKGROUND
+     ════════════════════════════════════════════════════════════ -->
+<rect class="bg" width="1200" height="600"/>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: GRID  (id="capa_grid")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_grid" class="layer-hidden">
+  <rect width="1200" height="600" fill="url(#grid40)"/>
+  <!-- 5m marks -->
+  <g class="guide">
+    <line x1="200" y1="0" x2="200" y2="600"/><line x1="400" y1="0" x2="400" y2="600"/>
+    <line x1="600" y1="0" x2="600" y2="600"/><line x1="800" y1="0" x2="800" y2="600"/>
+    <line x1="1000" y1="0" x2="1000" y2="600"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/><line x1="0" y1="400" x2="1200" y2="400"/>
+  </g>
+  <g class="txt txt-xs guide-label" text-anchor="middle">
+    <text x="200" y="12">5m</text><text x="400" y="12">10m</text><text x="600" y="12">15m</text>
+    <text x="800" y="12">20m</text><text x="1000" y="12">25m</text><text x="1200" y="12">30m</text>
+  </g>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: TERRENO  (id="capa_terreno")
+     Muro/Talud: rect (0.5, 13.45) 29×1.05 m → SVG (20, 20, 1160, 42)
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_terreno">
+  <!-- Muro talud (vegetación + piedra) -->
+  <rect x="20" y="20" width="1160" height="42" rx="2" class="fill-muro"/>
+  <rect x="20" y="20" width="1160" height="42" rx="2" fill="url(#veg)" opacity=".6"/>
+  <text class="txt txt-sm" x="600" y="45" text-anchor="middle" fill="#4ade80" font-weight="600" letter-spacing="4" opacity=".6">MURO CON TALUD Y ÁRBOLES — 29m</text>
+
+  <!-- Suelo base -->
+  <rect x="0" y="62" width="1200" height="538" fill="rgba(15,20,25,.3)"/>
+
+  <!-- Árbol grande central VEG-001 at (8.0, 9.0) → SVG (320, 240), canopy r=3.5m=140px -->
+  <g id="VEG-001" class="clickable">
+    <circle cx="320" cy="240" r="140" fill="#1a3a1a" opacity=".12"/>
+    <circle cx="320" cy="240" r="70" fill="#1e3a1e" opacity=".2"/>
+    <circle cx="320" cy="240" r="8" fill="#2d5a2d" opacity=".6"/>
+    <text class="txt txt-xs" x="320" y="260" text-anchor="middle" fill="#4ade80" opacity=".4">Almendro (r≈3.5m)</text>
+  </g>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: ZONAS  (id="capa_zonas")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_zonas">
+  <!-- Parque GI — polígono L/embudo 6 vértices
+       JSON: (4.45,12.85)(24.6,12.85)(24.6,7.2)(21.3,6.45)(8.55,6.05)(4.45,8.8)
+       SVG:  (178,86)(984,86)(984,312)(852,342)(342,358)(178,248) -->
+  <polygon id="Z-GI"
+    points="178,86 984,86 984,312 852,342 342,358 178,248"
+    class="fill-gi clickable"/>
+  <text class="txt txt-xl" x="550" y="200" text-anchor="middle" fill="#22c55e" opacity=".2">PARQUE GALLINERO I</text>
+  <text class="txt txt-xs" x="550" y="218" text-anchor="middle" fill="#22c55e" opacity=".15">Polígono L — zona abierta + transición + pasillo</text>
+
+  <!-- Parque GII — rect (24.6, 0.8) 4.0×12.1 m → SVG (984, 84, 160, 484) -->
+  <rect id="Z-GII" x="984" y="84" width="160" height="484" rx="2"
+    class="fill-gii clickable"/>
+  <text class="txt txt-lg" x="1064" y="400" text-anchor="middle" fill="#3b82f6" opacity=".25">PARQUE</text>
+  <text class="txt txt-lg" x="1064" y="422" text-anchor="middle" fill="#3b82f6" opacity=".25">GII</text>
+  <text class="txt txt-xs" x="1064" y="440" text-anchor="middle" fill="#3b82f6" opacity=".15">4.0 × 12.1 m</text>
+
+  <!-- Huerto — rect (4.5, 0.5) 19.0×5.5 m → SVG (180, 360, 760, 220)
+       Fuera del perímetro avícola -->
+  <rect id="Z-HUERTO" x="180" y="360" width="760" height="220" rx="3"
+    class="fill-huerto clickable"/>
+  <!-- Bancales de huerto -->
+  <g opacity=".15" stroke="#b45309" stroke-width=".5" fill="none">
+    <rect x="210" y="400" width="80" height="25" rx="2"/>
+    <rect x="210" y="440" width="80" height="25" rx="2"/>
+    <rect x="310" y="400" width="80" height="25" rx="2"/>
+    <rect x="310" y="440" width="80" height="25" rx="2"/>
+    <rect x="410" y="400" width="80" height="25" rx="2"/>
+    <rect x="410" y="440" width="80" height="25" rx="2"/>
+    <rect x="510" y="400" width="80" height="25" rx="2"/>
+    <rect x="510" y="440" width="80" height="25" rx="2"/>
+  </g>
+  <text class="txt txt-lg" x="560" y="520" text-anchor="middle" fill="#b45309" opacity=".2">HUERTO</text>
+  <text class="txt txt-xs" x="560" y="538" text-anchor="middle" fill="#b45309" opacity=".12">Fuera del perímetro avícola — sin acceso gallinas</text>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: EDIFICIOS  (id="capa_edificios")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_edificios">
+  <!-- Referencia lateral / Sauna: rect (0, 8.8) 4.25×4.1 m → SVG (0, 84, 170, 164)
+       Incluye sauna: 3.5m (este→parque) × 6m (norte→sur)
+       Pared este (6m) da al Parque GI, pared sur sale del perímetro -->
+  <g id="RF-001" class="clickable">
+    <rect x="0" y="84" width="170" height="164" rx="4" class="fill-sauna"/>
+    <!-- Ventana pared este -->
+    <rect x="155" y="135" width="15" height="30" rx="2" fill="rgba(135,206,235,.1)" stroke="#8B6914" stroke-width=".6"/>
+    <!-- Etiqueta -->
+    <text class="txt txt-md" x="85" y="170" text-anchor="middle" fill="#f59e0b" opacity=".8"
+      transform="rotate(-90,85,170)">SAUNA</text>
+    <text class="txt txt-xs" x="85" y="230" text-anchor="middle" fill="#f59e0b" opacity=".5">3.5m × 6m · 4m alto</text>
+  </g>
+
+  <!-- Gallinero I (caseta pequeña) COOP-001: rect (22.5, 12.0) 1.5×0.9 m → SVG (900, 84, 60, 36) -->
+  <g id="COOP-001" class="clickable">
+    <rect x="900" y="84" width="60" height="36" rx="2" class="fill-coop-i"/>
+    <!-- Tejadillo -->
+    <line x1="900" y1="84" x2="930" y2="78" stroke="#666" stroke-width="1"/>
+    <line x1="930" y1="78" x2="960" y2="84" stroke="#666" stroke-width="1"/>
+    <!-- Puerta sur -->
+    <rect x="918" y="110" width="14" height="10" rx="1" fill="rgba(34,197,94,.15)" stroke="#22c55e" stroke-width=".5"/>
+    <text class="txt txt-sm" x="930" y="100" text-anchor="middle" fill="#22c55e" font-weight="700">GI</text>
+  </g>
+  <text class="txt txt-xs" x="930" y="130" text-anchor="middle" fill="#22c55e" opacity=".5">Gallinero I · 1.5×0.9m · 2m alto</text>
+
+  <!-- Gallinero II COOP-002: rect (25.15, 7.65) 2×2 m → SVG (1006, 214, 80, 80) -->
+  <g id="COOP-002" class="clickable">
+    <rect x="1006" y="214" width="80" height="80" rx="3" class="fill-caseta"/>
+    <!-- Ventana -->
+    <rect x="1014" y="228" width="20" height="14" rx="1" fill="rgba(135,206,235,.08)" stroke="#888" stroke-width=".5"/>
+    <!-- Puerta sur -->
+    <rect x="1046" y="272" width="18" height="22" rx="2" fill="rgba(200,200,200,.1)" stroke="#888" stroke-width=".8"/>
+    <!-- Tejado -->
+    <polygon points="1003,214 1046,204 1089,214" fill="#555" stroke="#444" stroke-width="1"/>
+    <text class="txt txt-md" x="1046" y="260" text-anchor="middle" fill="#3b82f6" font-weight="700">GALL. II</text>
+  </g>
+  <text class="txt txt-xs" x="1046" y="305" text-anchor="middle" fill="#3b82f6" opacity=".5">2.0 × 2.0m · 2m alto</text>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: VALLAS  (id="capa_vallas")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_vallas">
+  <!-- Valla principal (roja) FEN-001
+       JSON: (4.25,8.8)→(8.55,6.05)→(9.35,10.85)→(21.8,10.1)→(24.6,7.3)
+       SVG:  (170,248)→(342,358)→(374,166)→(872,196)→(984,308) -->
+  <polyline id="FEN-001"
+    points="170,248 342,358 374,166 872,196 984,308"
+    class="valla-roja"/>
+  <!-- Postes de madera -->
+  <g fill="#8B4513" opacity=".6">
+    <rect x="168" y="244" width="5" height="8" rx="1"/>
+    <rect x="339" y="354" width="5" height="8" rx="1"/>
+    <rect x="371" y="162" width="5" height="8" rx="1"/>
+    <rect x="620" y="180" width="5" height="8" rx="1"/>
+    <rect x="869" y="192" width="5" height="8" rx="1"/>
+    <rect x="981" y="304" width="5" height="8" rx="1"/>
+  </g>
+
+  <!-- Borde inferior GI
+       JSON: (8.55,6.05)→(20.2,6.05)→(24.6,6.85)
+       SVG:  (342,358)→(808,358)→(984,326) -->
+  <polyline points="342,358 808,358 984,326" class="borde-gi"/>
+
+  <!-- Separación GI / GII (implícita en x=984 = 24.6m) -->
+  <line x1="984" y1="86" x2="984" y2="484" stroke="#ef4444" stroke-width="2" stroke-dasharray="6 3" opacity=".4"/>
+  <text class="txt txt-xs" x="975" y="400" fill="#ef4444" opacity=".3" text-anchor="end"
+    transform="rotate(-90,975,400)">VALLA SEPARADORA</text>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: EQUIPAMIENTO  (id="capa_equipamiento")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_equipamiento">
+  <!-- EQ-001 Bebedero GI at (10, 9.5) → SVG (400, 220) -->
+  <g id="EQ-001" class="clickable">
+    <circle cx="400" cy="220" r="7" class="eq-bebedero"/>
+    <circle cx="400" cy="220" r="2.5" fill="#06b6d4" opacity=".3"/>
+    <text class="txt txt-xs" x="400" y="236" text-anchor="middle" fill="#06b6d4" opacity=".6">bebedero</text>
+  </g>
+
+  <!-- EQ-002 Comedero GI at (13, 8.0) → SVG (520, 280) -->
+  <g id="EQ-002" class="clickable">
+    <rect x="513" y="273" width="14" height="14" rx="7" class="eq-comedero"/>
+    <text class="txt txt-xs" x="520" y="298" text-anchor="middle" fill="#f59e0b" opacity=".6">comedero</text>
+  </g>
+
+  <!-- EQ-003 Compostera at (11, 7.5) → SVG (440, 300) -->
+  <g id="EQ-003" class="clickable">
+    <rect x="415" y="285" width="50" height="30" rx="3" class="eq-compostera"/>
+    <text class="txt txt-xs" x="440" y="305" text-anchor="middle" fill="#8B6914" opacity=".6">compostera</text>
+  </g>
+
+  <!-- EQ-004 Bebedero GII at (26.5, 4.5) → SVG (1060, 420) -->
+  <g id="EQ-004" class="clickable">
+    <circle cx="1060" cy="420" r="7" class="eq-bebedero"/>
+    <circle cx="1060" cy="420" r="2.5" fill="#06b6d4" opacity=".3"/>
+    <text class="txt txt-xs" x="1060" y="436" text-anchor="middle" fill="#06b6d4" opacity=".6">bebedero</text>
+  </g>
+
+  <!-- EQ-005 Comedero GII at (26.5, 3.0) → SVG (1060, 480) -->
+  <g id="EQ-005" class="clickable">
+    <rect x="1053" y="473" width="14" height="14" rx="7" class="eq-comedero"/>
+    <text class="txt txt-xs" x="1060" y="498" text-anchor="middle" fill="#f59e0b" opacity=".6">comedero</text>
+  </g>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: CAMARAS FOV  (id="capa_fov")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_fov">
+  <!-- CAM-001 Dahua FOV — looking east into Parque GI -->
+  <polygon points="170,248 460,120 460,370" class="fov-dahua"/>
+
+  <!-- CAM-002 Cam Nueva FOV — looking west toward sauna -->
+  <polygon points="974,206 680,100 680,340" class="fov-nueva"/>
+
+  <!-- CAM-003 Vigi GII FOV — looking south into Parque GII -->
+  <polygon points="1046,294 960,520 1140,520" class="fov-vigi2"/>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: CAMARAS  (id="capa_camaras") — SOLO 3
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_camaras">
+  <!-- CAM-001: Dahua WizSense 4K at (4.25, 8.8) → SVG (170, 248), z=2.2m
+       Pared este de la sauna, mirando E al Parque GI -->
+  <g id="CAM-001" class="clickable">
+    <circle cx="170" cy="248" r="10" fill="#1f2937" stroke="#f59e0b" stroke-width="2.5"/>
+    <text x="170" y="252" text-anchor="middle" class="txt" font-size="12">📹</text>
+    <text class="txt txt-sm" x="188" y="244" fill="#f59e0b" font-weight="700">Dahua 4K</text>
+    <text class="txt txt-xs" x="188" y="256" fill="#f59e0b" opacity=".5">10.10.10.108 · z=2.2m</text>
+  </g>
+
+  <!-- CAM-002: Cam Nueva TP-Link at (24.35, 9.85) → SVG (974, 206), z=2.2m
+       Sobre el muro near GII, mirando O hacia sauna -->
+  <g id="CAM-002" class="clickable">
+    <circle cx="974" cy="206" r="10" fill="#1f2937" stroke="#a855f7" stroke-width="2.5"/>
+    <text x="974" y="210" text-anchor="middle" class="txt" font-size="12">📹</text>
+    <text class="txt txt-sm" x="960" y="192" text-anchor="end" fill="#a855f7" font-weight="700">Cam Nueva</text>
+    <text class="txt txt-xs" x="960" y="180" text-anchor="end" fill="#a855f7" opacity=".5">TP-Link · PENDIENTE · z=2.2m</text>
+    <!-- Indicador PENDIENTE -->
+    <circle cx="986" cy="198" r="4" fill="#ef4444" opacity=".8"/>
+  </g>
+
+  <!-- CAM-003: Vigi GII at (26.15, 7.65) → SVG (1046, 294), z=2.0m
+       En caseta GII, mirando S al Parque GII -->
+  <g id="CAM-003" class="clickable">
+    <circle cx="1046" cy="294" r="10" fill="#1f2937" stroke="#3b82f6" stroke-width="2.5"/>
+    <text x="1046" y="298" text-anchor="middle" class="txt" font-size="12">📹</text>
+    <text class="txt txt-sm" x="1066" y="290" fill="#3b82f6" font-weight="700">Vigi GII</text>
+    <text class="txt txt-xs" x="1066" y="302" fill="#3b82f6" opacity=".5">10.10.10.10 · z=2.0m</text>
+  </g>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: ANIMALES  (id="capa_animales") — VACÍA (inyección YOLO)
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_animales" data-source="seedy-backend WebSocket /ws/tracking" data-refresh-hz="2">
+  <!-- Posiciones inyectadas en tiempo real por YOLO tracking -->
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: SENSORES  (id="capa_sensores") — VACÍA (IoT)
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_sensores" data-source="InfluxDB via /api/iot/latest" data-refresh-s="30">
+  <!-- Sensores IoT: temp, humedad, lux, CO2 -->
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: ALERTAS  (id="capa_alertas") — VACÍA
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_alertas" data-source="MQTT topic palacio/alertas">
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: TRAYECTORIAS  (id="capa_trayectorias") — VACÍA
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_trayectorias">
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: COTAS  (id="capa_cotas")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_cotas" class="layer-hidden">
+  <!-- 30m total muro -->
+  <line x1="20" y1="14" x2="1180" y2="14" class="cota" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="txt txt-sm cota-txt" x="600" y="12" text-anchor="middle" font-weight="600">30m</text>
+
+  <!-- Sauna 4.25m ancho -->
+  <line x1="0" y1="256" x2="170" y2="256" class="cota" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="txt txt-xs cota-txt" x="85" y="268">4.25m (incl. sauna 3.5m)</text>
+
+  <!-- Sauna alto planta 4.1m -->
+  <line x1="-8" y1="84" x2="-8" y2="248" class="cota" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="txt txt-xs cota-txt" x="-6" y="170" transform="rotate(-90,-6,170)">4.1m</text>
+
+  <!-- Parque GII ancho 4m -->
+  <line x1="984" y1="574" x2="1144" y2="574" class="cota" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="txt txt-xs cota-txt" x="1064" y="570" text-anchor="middle">4.0m</text>
+
+  <!-- Parque GII alto 12.1m -->
+  <line x1="1150" y1="84" x2="1150" y2="568" class="cota" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="txt txt-xs cota-txt" x="1160" y="330">12.1m</text>
+
+  <!-- Gallinero I dimensions -->
+  <line x1="900" y1="126" x2="960" y2="126" class="cota"/>
+  <text class="txt txt-xs cota-txt" x="930" y="138" text-anchor="middle">1.5m</text>
+  <line x1="966" y1="84" x2="966" y2="120" class="cota"/>
+  <text class="txt txt-xs cota-txt" x="976" y="106">0.9m</text>
+
+  <!-- Gallinero II dimensions -->
+  <line x1="1006" y1="300" x2="1086" y2="300" class="cota"/>
+  <text class="txt txt-xs cota-txt" x="1046" y="312" text-anchor="middle">2.0m</text>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     CAPA: ANCHORS  (id="capa_anchors")
+     ════════════════════════════════════════════════════════════ -->
+<g id="capa_anchors" class="layer-hidden">
+  <circle id="anchor_gi_centro"      cx="600"  cy="224" r="5" class="anchor"/>
+  <circle id="anchor_gii_centro"     cx="1064" cy="400" r="5" class="anchor"/>
+  <circle id="anchor_union_valla_1"  cx="342"  cy="358" r="5" class="anchor"/>
+  <circle id="anchor_union_gii"      cx="984"  cy="308" r="5" class="anchor"/>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     LEYENDA  (abajo-izquierda)
+     ════════════════════════════════════════════════════════════ -->
+<g id="leyenda" transform="translate(12, 475)">
+  <rect x="0" y="0" width="165" height="115" rx="6" fill="rgba(15,20,25,.9)" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+  <text class="txt txt-sm" x="10" y="16" fill="#22c55e" font-weight="700">Leyenda</text>
+
+  <rect x="10" y="24" width="12" height="8" rx="2" fill="rgba(34,197,94,.15)" stroke="#22c55e" stroke-width="1.5"/>
+  <text class="txt txt-xs" x="28" y="32" fill="#e0e0e0">Parque GI (perímetro)</text>
+
+  <rect x="10" y="38" width="12" height="8" rx="2" fill="rgba(59,130,246,.15)" stroke="#3b82f6" stroke-width="1.5"/>
+  <text class="txt txt-xs" x="28" y="46" fill="#e0e0e0">Parque GII</text>
+
+  <rect x="10" y="52" width="12" height="8" rx="2" class="fill-sauna"/>
+  <text class="txt txt-xs" x="28" y="60" fill="#e0e0e0">Sauna (madera)</text>
+
+  <rect x="10" y="66" width="12" height="8" rx="2" fill="#2a2a2a" stroke="#888" stroke-width="1"/>
+  <text class="txt txt-xs" x="28" y="74" fill="#e0e0e0">Casetas</text>
+
+  <line x1="10" y1="84" x2="22" y2="84" stroke="#ef4444" stroke-width="3"/>
+  <text class="txt txt-xs" x="28" y="88" fill="#e0e0e0">Valla principal</text>
+
+  <circle cx="16" cy="100" r="5" fill="#1f2937" stroke="#f59e0b" stroke-width="1.5"/>
+  <text class="txt txt-xs" x="28" y="104" fill="#e0e0e0">Cámaras (×3)</text>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     BARRA DE ESCALA  (abajo-derecha)
+     ════════════════════════════════════════════════════════════ -->
+<g id="barra_escala" transform="translate(1010, 570)">
+  <line x1="0" y1="0" x2="200" y2="0" stroke="#fff" stroke-width="1.5"/>
+  <line x1="0" y1="-5" x2="0" y2="5" stroke="#fff" stroke-width="1"/>
+  <line x1="100" y1="-4" x2="100" y2="4" stroke="#fff" stroke-width=".5"/>
+  <line x1="200" y1="-5" x2="200" y2="5" stroke="#fff" stroke-width="1"/>
+  <text class="txt txt-xs" x="0" y="14" fill="#9ca3af">0</text>
+  <text class="txt txt-xs" x="96" y="14" fill="#9ca3af">2.5m</text>
+  <text class="txt txt-xs" x="192" y="14" fill="#9ca3af">5m</text>
+  <text class="txt txt-xs" x="100" y="-8" text-anchor="middle" fill="#6b7280">40px/m</text>
+</g>
+
+<!-- ════════════════════════════════════════════════════════════
+     BRÚJULA  (arriba-izquierda)
+     ════════════════════════════════════════════════════════════ -->
+<g id="brujula" transform="translate(30, 475)">
+</g>
+
+<!-- Compass in top-right corner -->
+<g transform="translate(1160, 30)">
+  <circle cx="0" cy="0" r="18" fill="rgba(15,20,25,.8)" stroke="rgba(255,255,255,.15)" stroke-width="1"/>
+  <polygon points="0,-14 4,-4 -4,-4" fill="#ef4444"/>
+  <polygon points="0,14 -4,4 4,4" fill="#6b7280"/>
+  <text class="txt" x="0" y="-6" text-anchor="middle" font-size="6" fill="#ef4444" font-weight="700">N</text>
+  <text class="txt" x="0" y="11" text-anchor="middle" font-size="5" fill="#6b7280">S</text>
+  <text class="txt" x="-11" y="3" text-anchor="middle" font-size="5" fill="#6b7280">O</text>
+  <text class="txt" x="11" y="3" text-anchor="middle" font-size="5" fill="#6b7280">E</text>
+</g>
+
+</svg>

@@ -1,0 +1,23 @@
+# Seedy Breed Dataset — Auto-generated
+# 14 razas de gallinas/gallos
+
+path: /home/davidia/Documentos/Seedy/yolo_breed_dataset
+train: images/train
+val: images/val
+
+nc: 14
+names:
+  0: vorwerk_gallina
+  1: vorwerk_gallo
+  2: sussex_silver_gallina
+  3: sussex_silver_gallo
+  4: sussex_white_gallina
+  5: sulmtaler_gallina
+  6: sulmtaler_gallo
+  7: marans_gallina
+  8: bresse_gallina
+  9: bresse_gallo
+  10: andaluza_azul_gallina
+  11: pita_pinta_gallina
+  12: araucana_gallina
+  13: ameraucana_gallina
