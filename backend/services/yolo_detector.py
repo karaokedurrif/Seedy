@@ -29,6 +29,7 @@ YOLO_MODEL = os.environ.get("YOLO_MODEL", "yolov8s.pt")
 YOLO_CONFIDENCE = float(os.environ.get("YOLO_CONFIDENCE", "0.25"))
 YOLO_DEVICE = os.environ.get("YOLO_DEVICE", "0")
 YOLO_CUSTOM_MODEL = os.environ.get("YOLO_CUSTOM_MODEL", "")
+YOLO_BREED_MODEL = os.environ.get("YOLO_BREED_MODEL", "")
 YOLO_DATA_DIR = Path(os.environ.get("YOLO_DATA_DIR", "/app/yolo_dataset"))
 YOLO_IMGSZ = int(os.environ.get("YOLO_IMGSZ", "1280"))
 
@@ -83,6 +84,11 @@ _model = None
 _model_name: str = ""
 _model_type: str = ""  # "coco" | "custom"
 _custom_classes: dict[int, str] = {}
+
+# ── Modelo de razas (singleton) ──
+_breed_model = None
+_breed_model_name: str = ""
+_breed_classes: dict[int, str] = {}
 
 
 def _load_model():
@@ -716,3 +722,88 @@ def reload_model():
     _model_name = ""
     _model_type = ""
     _load_model()
+
+
+# ── Breed YOLO: clasificación de raza por crop ──
+
+def _load_breed_model():
+    """Carga el modelo YOLO de razas (12 clases de razas de gallinas)."""
+    global _breed_model, _breed_model_name, _breed_classes
+    if not YOLO_BREED_MODEL or not Path(YOLO_BREED_MODEL).exists():
+        return
+    try:
+        from ultralytics import YOLO
+        _breed_model = YOLO(YOLO_BREED_MODEL)
+        _breed_model_name = YOLO_BREED_MODEL
+        _breed_classes = dict(_breed_model.names)
+        logger.info(
+            f"\U0001f413 YOLO breed model loaded: {_breed_model_name} "
+            f"({len(_breed_classes)} breeds) on device={YOLO_DEVICE}"
+        )
+    except Exception as e:
+        logger.warning(f"Failed loading YOLO breed model: {e}")
+
+
+def get_breed_model():
+    if _breed_model is None:
+        _load_breed_model()
+    return _breed_model
+
+
+def classify_breed_crop(crop_bytes: bytes, confidence: float = 0.30) -> dict | None:
+    """Clasifica la raza de un ave a partir de su crop JPEG.
+
+    Ejecuta el modelo de razas sobre el crop. Como el modelo fue
+    entrenado con imágenes de una sola ave (bbox ~90% del frame),
+    se espera una detección principal.
+
+    Returns:
+        {"breed_class": str, "confidence": float, "class_id": int} o None
+    """
+    model = get_breed_model()
+    if model is None:
+        return None
+
+    import numpy as np
+    from PIL import Image
+
+    try:
+        img = Image.open(io.BytesIO(crop_bytes))
+        results = model.predict(
+            source=np.array(img),
+            conf=confidence,
+            imgsz=640,
+            device=YOLO_DEVICE,
+            verbose=False,
+        )
+
+        best = None
+        for r in results:
+            if r.boxes is None:
+                continue
+            for box in r.boxes:
+                cls_id = int(box.cls[0])
+                cls_conf = float(box.conf[0])
+                if best is None or cls_conf > best["confidence"]:
+                    best = {
+                        "breed_class": _breed_classes.get(cls_id, f"class_{cls_id}"),
+                        "confidence": round(cls_conf, 3),
+                        "class_id": cls_id,
+                    }
+        return best
+    except Exception as e:
+        logger.debug(f"Breed classification failed: {e}")
+        return None
+
+
+def classify_breeds_batch(crops: list[bytes], confidence: float = 0.30) -> list[dict | None]:
+    """Clasifica razas para múltiples crops en batch."""
+    return [classify_breed_crop(c, confidence) for c in crops]
+
+
+def reload_breed_model():
+    global _breed_model, _breed_model_name, _breed_classes
+    _breed_model = None
+    _breed_model_name = ""
+    _breed_classes = {}
+    _load_breed_model()

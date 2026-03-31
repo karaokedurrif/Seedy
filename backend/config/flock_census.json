@@ -1,33 +1,46 @@
 {
-  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision.",
-  "_nota_distribucion": "G2 tiene 12 aves fijas confirmadas. G1 tiene 13 aves por descubrir por descarte. A veces 1-2 saltan la valla.",
+  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Sincronizado con OvoSfera 2026-03-22.",
+  "_nota_distribucion": "25 aves totales. G2 tiene 14 asignadas, G1 tiene 2 asignadas, 9 sin asignar a gallinero (libres entre ambos). A veces saltan la valla.",
   "_total": 25,
   "gallinero_durrif_1": {
     "name": "Gallinero Durrif I",
     "ovosfera_id": 2,
     "zona": "Cría",
     "permite_visitantes_de": "gallinero_durrif_2",
-    "_nota": "13 aves. Nueva cámara VIGI C340 instalada 2026-03-20. Razas por descubrir por descarte (las que no están en G2).",
+    "_nota": "2 Bresse gallinas asignadas. Ameraucana vista aquí. Resto de aves sin asignar pueden estar en G1 o G2.",
     "aves": [
-      {"raza": "Por determinar", "color": "", "sexo": "unknown", "cantidad": 13, "notas": "13 aves pendientes de identificación por descarte. Se instalará nueva cámara."}
+      {"raza": "Bresse",       "color": "blanco",   "sexo": "female", "cantidad": 2, "notas": "PAL-0002, PAL-0012. Blancas puras, patas gris-azulado, más pequeñas que Sussex."},
+      {"raza": "Ameraucana",   "color": "trigueño",  "sexo": "female", "cantidad": 1, "notas": "Subvariedad de Araucana. Trigueña. Vista en G1 pero sin asignar en OvoSfera."}
     ]
   },
   "gallinero_durrif_2": {
     "name": "Gallinero Durrif II",
     "ovosfera_id": 3,
     "zona": "Cría",
-    "aves_fijas": 12,
-    "_nota": "12 aves fijas confirmadas por el usuario 2026-03-20.",
+    "aves_fijas": 14,
+    "_nota": "14 aves asignadas en OvoSfera 2026-03-22.",
     "aves": [
-      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "female", "cantidad": 3, "notas": "Cuerpo leonado/dorado, cuello y cola negros. 3 gallinas."},
-      {"raza": "Sussex",           "color": "silver",         "sexo": "male",   "cantidad": 1, "notas": "Gallo Sussex Silver. Plumaje plateado con negro."},
-      {"raza": "Araucana",         "color": "trigueño",       "sexo": "female", "cantidad": 1, "notas": "Gallina Araucana trigueña. Sin cola (rumpless), huevos azules/verdes."},
-      {"raza": "Sulmtaler",        "color": "trigueño",       "sexo": "male",   "cantidad": 1, "notas": "Gallo Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado, porte elegante."},
-      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "female", "cantidad": 1, "notas": "Gallina Marans. Negra con reflejos cobrizos en cuello."},
-      {"raza": "F1 (cruce)",       "color": "variado",        "sexo": "female", "cantidad": 2, "notas": "Las 2 únicas gallinas F1 (cruce) de toda la cabaña. Fenotipo mixto."},
-      {"raza": "Bresse",           "color": "blanco",         "sexo": "female", "cantidad": 1, "notas": "Gallina Bresse blanca grande. Patas azules, plumaje blanco puro."},
-      {"raza": "Sussex",           "color": "silver",         "sexo": "female", "cantidad": 1, "notas": "Gallina Sussex Silver. Plumaje plateado con marcas negras."},
-      {"raza": "Andaluza Azul",    "color": "azul",           "sexo": "female", "cantidad": 1, "notas": "Gallina Andaluza Azul. Gris azulado uniforme, cresta grande."}
+      {"raza": "Sussex",           "color": "silver",         "sexo": "male",   "cantidad": 1, "notas": "PAL-0001. Gallo grande 4.5kg. Plumaje plateado con negro."},
+      {"raza": "Sussex",           "color": "silver",         "sexo": "female", "cantidad": 1, "notas": "PAL-0003. Gallina Sussex Silver. Plumaje plateado con marcas negras."},
+      {"raza": "Sussex",           "color": "white",          "sexo": "female", "cantidad": 2, "notas": "PAL-0004, PAL-0005. Sussex armiñadas — blancas con rayas negras en cuello."},
+      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "female", "cantidad": 1, "notas": "PAL-0008. Negra con reflejos cobrizos en cuello."},
+      {"raza": "Araucana",         "color": "trigueña",       "sexo": "female", "cantidad": 1, "notas": "PAL-0009. Gallina Araucana trigueña."},
+      {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "PAL-0011. Gallo Bresse blanco. Patas gris-azulado, plumaje blanco puro."},
+      {"raza": "Sulmtaler",        "color": "trigueño",       "sexo": "male",   "cantidad": 1, "notas": "PAL-0014. Gallo Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado."},
+      {"raza": "Andaluza Azul",    "color": "azul",           "sexo": "female", "cantidad": 1, "notas": "PAL-0018. Gris azulado uniforme, cresta grande."},
+      {"raza": "Pita Pinta",       "color": "pinta",          "sexo": "female", "cantidad": 1, "notas": "PAL-0020. Pita Pinta Asturiana."},
+      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "male",   "cantidad": 1, "notas": "PAL-0022. Gallo Vorwerk. Cuerpo dorado, cuello y cola negros."},
+      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "female", "cantidad": 2, "notas": "PAL-0023, PAL-0024. Gallinas Vorwerk. Cuerpo leonado/dorado, cuello y cola negros."},
+      {"raza": "F1 (cruce)",       "color": "variado",        "sexo": "female", "cantidad": 2, "notas": "PAL-0025, PAL-0026. Las 2 únicas gallinas F1 (cruce) de toda la cabaña."}
+    ]
+  },
+  "sin_asignar": {
+    "_nota": "9 aves registradas en OvoSfera sin gallinero asignado. Pueden estar en G1 o G2.",
+    "aves": [
+      {"raza": "Sussex",     "color": "white",    "sexo": "female", "cantidad": 2, "notas": "PAL-0006, PAL-0007. Sussex armiñadas sin asignar."},
+      {"raza": "Araucana",   "color": "negra",    "sexo": "female", "cantidad": 2, "notas": "PAL-0010, PAL-0019."},
+      {"raza": "Sulmtaler",  "color": "trigueño",  "sexo": "female", "cantidad": 3, "notas": "PAL-0015, PAL-0016, PAL-0017."},
+      {"raza": "Sulmtaler",  "color": "trigueño",  "sexo": "male",   "cantidad": 1, "notas": "PAL-0021. Segundo gallo Sulmtaler."}
     ]
   }
 }

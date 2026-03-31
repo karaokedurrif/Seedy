@@ -128,6 +128,7 @@ services:
       - YOLO_MODEL=yolov8s.pt
       - YOLO_CONFIDENCE=0.25
       - YOLO_DEVICE=0
+      - YOLO_BREED_MODEL=/app/yolo_models/seedy_breeds_best.pt
       - YOLO_DATA_DIR=/app/yolo_dataset
       - YOLO_MODELS_DIR=/app/yolo_models
     volumes:

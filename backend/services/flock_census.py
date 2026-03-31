@@ -64,6 +64,30 @@ def get_expected_breeds(gallinero_id: str) -> list[dict]:
     ]
 
 
+def get_all_breeds() -> set[str]:
+    """Devuelve un set con todas las razas (lowercase) de toda la cabaña,
+    incluyendo sin_asignar."""
+    _load()
+    breeds: set[str] = set()
+    for key, val in _census.items():
+        if isinstance(val, dict) and "aves" in val:
+            for e in val["aves"]:
+                if e.get("raza"):
+                    breeds.add(e["raza"].lower())
+    return breeds
+
+
+def get_canonical_breed_name(breed_lower: str) -> str:
+    """Devuelve el nombre canónico (con mayúsculas originales) de una raza."""
+    _load()
+    for val in _census.values():
+        if isinstance(val, dict):
+            for e in val.get("aves", []):
+                if e.get("raza", "").lower() == breed_lower:
+                    return e["raza"]
+    return breed_lower.title()
+
+
 def get_quota(gallinero_id: str, breed: str, color: str, sex: str) -> int:
     """Cuántas aves de esta raza+color+sexo se esperan."""
     for e in get_census(gallinero_id):

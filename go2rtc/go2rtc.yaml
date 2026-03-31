@@ -3,21 +3,38 @@
 #
 # Gallinero Durrif I  → TP-Link VIGI    10.10.10.11   (admin / 123456, 4K H.265)
 # Gallinero Durrif II → TP-Link VIGI    10.10.10.10   (admin / 123456, 4K H.265)
+# Sauna Durrif I      → Dahua WizSense  10.10.10.108  (admin / *********, 4K H.265)
+#
+# Todas las cámaras emiten H.265. Para MSE/MJPEG en navegador necesitamos H.264.
+# ffmpeg transcoding activado en substreams (640-704p = bajo coste CPU).
 
 streams:
   # ── Gallinero Durrif I — TP-Link VIGI (10.10.10.11) ──
-  # 3840x2160 4K H.265
   gallinero_durrif_1:
     - rtsp://admin:123456@10.10.10.11:554/stream1
   gallinero_durrif_1_sub:
     - rtsp://admin:123456@10.10.10.11:554/stream2
 
   # ── Gallinero Durrif II — TP-Link VIGI (10.10.10.10) ──
-  # 3840x2160 4K H.265
   gallinero_durrif_2:
     - rtsp://admin:123456@10.10.10.10:554/stream1
   gallinero_durrif_2_sub:
     - rtsp://admin:123456@10.10.10.10:554/stream2
+
+  # ── Sauna — Dahua WizSense IPC (10.10.10.108) ──
+  sauna_durrif_1:
+    - rtsp://admin:1234567a@10.10.10.108:554/cam/realmonitor?channel=1&subtype=0
+  sauna_durrif_1_sub:
+    - rtsp://admin:1234567a@10.10.10.108:554/cam/realmonitor?channel=1&subtype=1
+
+  # ── Streams H.264 para navegador (MSE/MJPEG) ──
+  # ffmpeg transcodifica H.265→H.264 desde substreams (bajo coste CPU)
+  gallinero_durrif_1_web:
+    - "ffmpeg:gallinero_durrif_1_sub#video=h264#width=640#height=480"
+  gallinero_durrif_2_web:
+    - "ffmpeg:gallinero_durrif_2_sub#video=h264#width=640#height=480"
+  sauna_durrif_1_web:
+    - "ffmpeg:sauna_durrif_1_sub#video=h264#width=704#height=576"
 
 api:
   listen: ":1984"
