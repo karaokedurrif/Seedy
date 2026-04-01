@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Twin del Ave — Los Capones de Palacio</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#0a0e17;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;padding:20px}
+  a{color:#22c55e;text-decoration:none}
+  a:hover{text-decoration:underline}
+  .container{max-width:1100px;margin:0 auto}
+  /* Hero */
+  .hero{display:flex;gap:24px;margin-bottom:28px;padding:24px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px}
+  .hero-photo{width:200px;height:200px;border-radius:14px;object-fit:cover;background:#1f2937;cursor:zoom-in;flex-shrink:0}
+  .hero-photo.no-photo{display:flex;align-items:center;justify-content:center;font-size:64px;background:#1f2937}
+  .hero-info{flex:1}
+  .hero-info h1{font-size:1.6em;font-weight:700;background:linear-gradient(135deg,#22c55e,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+  .hero-info .anilla{font-family:monospace;color:#9ca3af;font-size:.9em}
+  .hero-info .vision-id{font-size:.8em;color:#6b7280;margin-top:2px}
+  .hero-info .status{display:inline-block;padding:3px 10px;border-radius:6px;font-size:.75em;font-weight:600;margin-top:8px}
+  .hero-info .status.active{background:rgba(34,197,94,.2);color:#22c55e}
+  .hero-info .status.inactive{background:rgba(107,114,128,.2);color:#6b7280}
+  .hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  .hero-stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:10px;text-align:center}
+  .hero-stat .val{font-size:1.3em;font-weight:700;color:#f0f0f0}
+  .hero-stat .lbl{font-size:.65em;color:#6b7280;text-transform:uppercase;letter-spacing:.5px}
+  /* Sections */
+  .section{margin-bottom:24px;padding:20px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px}
+  .section h2{font-size:1.1em;font-weight:600;margin-bottom:14px;color:#d1d5db;display:flex;align-items:center;gap:8px}
+  /* Gallery */
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+  .gallery img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:zoom-in;transition:transform .15s;background:#1f2937}
+  .gallery img:hover{transform:scale(1.05)}
+  .gallery .empty{grid-column:1/-1;text-align:center;color:#6b7280;padding:30px;font-size:.9em}
+  /* Identity grid */
+  .identity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+  .identity-grid .field{font-size:.85em}
+  .identity-grid .field label{display:block;color:#6b7280;font-size:.7em;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+  .identity-grid .field span{color:#e5e7eb;font-weight:500}
+  /* Gompertz chart */
+  #gompertz-chart{width:100%;height:250px;background:#111827;border-radius:10px}
+  /* Radar chart */
+  #radar-chart{width:100%;height:260px;background:#111827;border-radius:10px}
+  .dual-panel{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:768px){.dual-panel{grid-template-columns:1fr}}
+  /* Timeline */
+  .timeline{position:relative;padding-left:20px;border-left:2px solid rgba(34,197,94,.3)}
+  .timeline .event{margin-bottom:14px;position:relative;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;font-size:.85em}
+  .timeline .event::before{content:'';position:absolute;left:-25px;top:12px;width:10px;height:10px;background:#22c55e;border-radius:50%;border:2px solid #0a0e17}
+  .timeline .event .date{color:#6b7280;font-size:.8em}
+  .timeline .empty{color:#6b7280;font-size:.9em;padding:16px}
+  /* Mini-map */
+  #minimap{width:100%;height:260px;background:#111827;border-radius:10px;position:relative;overflow:hidden}
+  #minimap svg.farm-bg{position:absolute;inset:0;width:100%;height:100%;opacity:.25}
+  #minimap .dot{position:absolute;width:10px;height:10px;background:#22c55e;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(34,197,94,.5);z-index:2}
+  #minimap .trail{position:absolute;width:4px;height:4px;background:rgba(34,197,94,.35);border-radius:50%;transform:translate(-50%,-50%);z-index:1}
+  #minimap .no-data{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:.85em;z-index:2}
+  .minimap-legend{display:flex;gap:12px;margin-top:6px;font-size:.7em;color:#6b7280}
+  .minimap-legend span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  /* Actions */
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .actions button,.actions a{padding:8px 14px;border-radius:8px;font-size:.8em;font-weight:600;border:none;cursor:pointer;transition:.15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+  .btn-primary{background:linear-gradient(135deg,#22c55e,#059669);color:#fff}
+  .btn-secondary{background:rgba(255,255,255,.08);color:#e5e7eb;border:1px solid rgba(255,255,255,.12) !important}
+  .btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
+  .btn-3d{background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff}
+  button:hover,a.btn-primary:hover,a.btn-secondary:hover,a.btn-3d:hover{opacity:.85}
+  /* Loading */
+  .loading{text-align:center;padding:40px;color:#22c55e;font-size:1.1em}
+  .error{text-align:center;padding:40px;color:#ef4444}
+  /* Responsive */
+  @media(max-width:768px){
+    .hero{flex-direction:column;align-items:center;text-align:center}
+    .hero-photo{width:150px;height:150px}
+    .hero-stats{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <div class="loading" id="loading">⏳ Cargando ave...</div>
+</div>
+
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+<script>
+const SEEDY_API = window.location.origin;
+const OVOSFERA_API = "https://hub.ovosfera.com/api/ovosfera";
+const FARM = "palacio";
+
+// Get bird ID from URL hash or query param: ?id=PAL-2026-0001 or #PAL-2026-0001
+function getBirdId() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("id") || window.location.hash.replace("#", "") || null;
+}
+
+async function loadBird() {
+  const birdId = getBirdId();
+  if (!birdId) {
+    document.getElementById("loading").innerHTML = '<div class="error">No se especificó ID de ave. Usa ?id=PAL-2026-XXXX</div>';
+    return;
+  }
+
+  try {
+    // Parallel fetch: bird data, photos, tracking, gompertz
+    const [birdResp, photosResp, trackingResp, gompertzResp] = await Promise.all([
+      fetch(`${SEEDY_API}/birds/${birdId}`),
+      fetch(`${SEEDY_API}/birds/${birdId}/photos`),
+      fetch(`${SEEDY_API}/birds/${birdId}/tracking?hours=24`),
+      fetch(`${SEEDY_API}/birds/${birdId}/gompertz`),
+    ]);
+
+    if (!birdResp.ok) throw new Error(`Ave ${birdId} no encontrada`);
+    const bird = await birdResp.json();
+    const photos = photosResp.ok ? await photosResp.json() : {photos:[]};
+    const tracking = trackingResp.ok ? await trackingResp.json() : {positions:[]};
+    const gompertz = gompertzResp.ok ? await gompertzResp.json() : {gompertz_params:null};
+
+    renderBird(bird, photos, tracking, gompertz);
+  } catch(e) {
+    document.getElementById("loading").innerHTML = `<div class="error">Error: ${e.message}</div>`;
+  }
+}
+
+function renderBird(bird, photos, tracking, gompertz) {
+  const app = document.getElementById("app");
+  const breed = bird.breed || "Desconocida";
+  const color = bird.color || "";
+  const nombre = breed + (color ? " — " + color : "");
+  const visionId = bird.ai_vision_id || "";
+  const isMale = bird.sex === "M" || bird.sex === "male";
+  const isFemale = bird.sex === "H" || bird.sex === "F" || bird.sex === "female";
+  const sexIcon = isMale ? "♂" : isFemale ? "♀" : "?";
+
+  document.title = `${nombre} · Digital Twin`;
+
+  let photoSrc = "";
+  if (bird.photo_b64) {
+    photoSrc = bird.photo_b64.startsWith("data:") ? bird.photo_b64 : "data:image/jpeg;base64," + bird.photo_b64;
+  }
+
+  app.innerHTML = `
+    <!-- Breadcrumb -->
+    <div style="font-size:.8em;color:#6b7280;margin-bottom:14px">
+      <a href="/farm/${FARM}/aves">← Aves</a> / <strong>${bird.bird_id}</strong>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      ${photoSrc
+        ? `<img class="hero-photo" src="${photoSrc}" alt="${nombre}" onclick="openZoom(this.src)">`
+        : '<div class="hero-photo no-photo">🐔</div>'}
+      <div class="hero-info">
+        <h1>${nombre}</h1>
+        <div class="anilla">${bird.bird_id}</div>
+        ${visionId ? `<div class="vision-id">AI Vision: ${visionId}</div>` : ""}
+        <span class="status active">Activo</span>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="val">${sexIcon}</div><div class="lbl">Sexo</div></div>
+          <div class="hero-stat"><div class="val">${bird.gallinero || "—"}</div><div class="lbl">Gallinero</div></div>
+          <div class="hero-stat"><div class="val">${bird.confidence ? Math.round(bird.confidence*100) + "%" : "—"}</div><div class="lbl">Confianza IA</div></div>
+        </div>
+        <div class="actions" style="margin-top:14px">
+          <a href="/farm/${FARM}/aves/${bird.bird_id.split("-").pop()}" class="btn-primary">📝 Editar en OvoSfera</a>
+          <button class="btn-warning" onclick="captureIdentify('${bird.bird_id}')">📸 Capturar + Identificar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery -->
+    <div class="section">
+      <h2>📷 Galería de fotos IA</h2>
+      <div class="gallery" id="gallery">
+        ${photos.photos.length === 0
+          ? '<div class="empty">Sin fotos todavía — usa "Capturar + Identificar" para añadir</div>'
+          : photos.photos.map(p =>
+              `<img src="${p.is_main && photoSrc ? photoSrc : SEEDY_API + p.url}" alt="${p.filename}" onclick="openZoom(this.src)" title="${p.timestamp}">`
+            ).join("")}
+      </div>
+    </div>
+
+    <!-- Identity -->
+    <div class="section">
+      <h2>🧬 Identidad genética</h2>
+      <div class="identity-grid">
+        <div class="field"><label>Raza</label><span>${breed}</span></div>
+        <div class="field"><label>Color/Variedad</label><span>${color || "—"}</span></div>
+        <div class="field"><label>Sexo</label><span>${isMale ? "Macho" : isFemale ? "Hembra" : "—"}</span></div>
+        <div class="field"><label>Gallinero</label><span>${bird.gallinero || "Sin asignar"}</span></div>
+        <div class="field"><label>Primera detección</label><span>${formatDate(bird.first_seen)}</span></div>
+        <div class="field"><label>Última detección</label><span>${formatDate(bird.last_seen)}</span></div>
+      </div>
+    </div>
+
+    <!-- Radar conformación + Gompertz — side by side -->
+    <div class="section">
+      <h2>📊 Análisis morfológico y crecimiento</h2>
+      <div class="dual-panel">
+      <div>
+        <h3 style="font-size:.9em;color:#9ca3af;margin-bottom:8px">Radar de conformación</h3>
+        <canvas id="radar-chart"></canvas>
+      </div>
+      <div>
+        <h3 style="font-size:.9em;color:#9ca3af;margin-bottom:8px">Curva Gompertz</h3>
+      <canvas id="gompertz-chart"></canvas>
+      ${gompertz.gompertz_params
+        ? `<div style="font-size:.75em;color:#6b7280;margin-top:8px">Parámetros: A=${gompertz.gompertz_params.A}kg, b=${gompertz.gompertz_params.b}, k=${gompertz.gompertz_params.k} · Modelo teórico para ${breed}</div>`
+        : '<div style="color:#6b7280;font-size:.85em">Sin datos de peso disponibles</div>'}
+      </div>
+      </div>
+    </div>
+
+    <!-- Tracking mini-map with farm background -->
+    <div class="section">
+      <h2>📍 Tracking en vivo (últimas 24h)</h2>
+      <div id="minimap">
+        <svg class="farm-bg" viewBox="0 0 750 375" preserveAspectRatio="xMidYMid meet">
+          <!-- Ground -->
+          <rect x="0" y="0" width="750" height="375" fill="#1a3015" opacity=".4"/>
+          <!-- Parque GI (L-shape) -->
+          <polygon points="0,375 0,25 425,25 425,200 625,200 625,375" fill="none" stroke="#22c55e" stroke-width="2" opacity=".6"/>
+          <!-- Parque GII -->
+          <rect x="615" y="20" width="100" height="302" fill="none" stroke="#3b82f6" stroke-width="2" opacity=".6"/>
+          <!-- Gallinero I -->
+          <rect x="115" y="137" width="170" height="62" fill="#4a3728" opacity=".5" rx="3"/>
+          <text x="200" y="172" fill="#9ca3af" font-size="12" text-anchor="middle">GI</text>
+          <!-- Gallinero II -->
+          <rect x="640" y="50" width="50" height="87" fill="#4a3728" opacity=".5" rx="3"/>
+          <text x="665" y="100" fill="#9ca3af" font-size="10" text-anchor="middle">GII</text>
+          <!-- Sauna -->
+          <rect x="50" y="112" width="40" height="50" fill="#5a3020" opacity=".4" rx="2"/>
+          <!-- Muro -->
+          <line x1="0" y1="25" x2="625" y2="25" stroke="#8B7355" stroke-width="4" opacity=".5"/>
+          <!-- Almendro -->
+          <circle cx="350" cy="287" r="18" fill="#2D6B2D" opacity=".35"/>
+        </svg>
+        ${tracking.positions.length === 0
+          ? '<div class="no-data">Sin detecciones recientes</div>'
+          : ''}
+      </div>
+      <div class="minimap-legend">
+        <span style="color:#22c55e">● Posición actual</span>
+        <span style="color:rgba(34,197,94,.5)">● Trayectoria 24h</span>
+      </div>
+      <div style="font-size:.75em;color:#6b7280;margin-top:4px">
+        ${tracking.summary?.total_detections || 0} detecciones · Cámaras: ${(tracking.summary?.cameras_seen || []).join(", ") || "ninguna"}
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="section">
+      <h2>🕐 Línea temporal</h2>
+      <div class="timeline" id="timeline">
+        ${bird.birth_date
+          ? `<div class="event"><div class="date">${formatDate(bird.birth_date)}</div>🐣 Nacimiento — ${breed}</div>`
+          : ''}
+        ${bird.first_seen
+          ? `<div class="event"><div class="date">${formatDate(bird.first_seen)}</div>🔍 Primera detección IA — ${breed} ${color}</div>`
+          : ''}
+        ${(bird.events || []).map(ev => `<div class="event"><div class="date">${formatDate(ev.date)}</div>${ev.icon || '📋'} ${ev.description}</div>`).join('')}
+        ${bird.last_seen && bird.last_seen !== bird.first_seen
+          ? `<div class="event"><div class="date">${formatDate(bird.last_seen)}</div>📡 Última detección — ${bird.last_camera || ''}</div>`
+          : ''}
+        ${!bird.first_seen && !(bird.events||[]).length ? '<div class="empty">Sin eventos registrados</div>' : ''}
+      </div>
+    </div>
+
+    <!-- 3D Model Viewer -->
+    <div class="section">
+      <h2>🧬 Modelo 3D del ave</h2>
+      <div id="model-container" style="width:100%;height:500px;background:#1a1a2e;border-radius:12px;overflow:hidden;position:relative">
+        <div id="model-loading" style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:.9em">⏳ Comprobando modelo 3D...</div>
+      </div>
+      <div id="generate-3d-area" style="text-align:center;margin-top:12px;display:none">
+        <button class="btn-3d" id="gen3d-btn" onclick="generateBird3D('${bird.bird_id}')">
+          🧬 Generar modelo 3D (Tripo AI)
+        </button>
+        <p style="color:#6b7280;font-size:.75em;margin-top:4px">Tarda 30-90 segundos. Usa IA generativa.</p>
+      </div>
+    </div>
+  `;
+
+  // Load 3D model if it exists
+  loadBird3DModel(bird.bird_id);
+
+  // Draw radar chart
+  drawRadar(bird, gompertz);
+
+  // Draw Gompertz curve
+  if (gompertz.gompertz_params) {
+    drawGompertz(gompertz.gompertz_params, gompertz.weight_records || []);
+  }
+
+  // Draw tracking positions on minimap
+  if (tracking.positions.length > 0) {
+    drawTracking(tracking.positions);
+  }
+
+  // Fetch and render timeline events from backend
+  fetchTimelineEvents(bird.bird_id);
+}
+
+function drawGompertz(params, records) {
+  const canvas = document.getElementById("gompertz-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.parentElement.clientWidth - 40;
+  const h = 250;
+  canvas.width = w;
+  canvas.height = h;
+
+  const {A, b, k} = params;
+  const maxDays = 300;
+  const padding = {top:20, right:20, bottom:30, left:50};
+  const plotW = w - padding.left - padding.right;
+  const plotH = h - padding.top - padding.bottom;
+
+  // Background
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = padding.top + plotH * (1 - i/5);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(w - padding.right, y);
+    ctx.stroke();
+    ctx.fillStyle = "#6b7280";
+    ctx.font = "10px sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillText((A * i / 5).toFixed(1) + "kg", padding.left - 5, y + 4);
+  }
+
+  // Gompertz curve
+  ctx.beginPath();
+  ctx.strokeStyle = "#22c55e";
+  ctx.lineWidth = 2;
+  for (let t = 0; t <= maxDays; t++) {
+    const weight = A * Math.exp(-b * Math.exp(-k * t));
+    const x = padding.left + (t / maxDays) * plotW;
+    const y = padding.top + plotH * (1 - weight / A);
+    if (t === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // X axis labels
+  ctx.fillStyle = "#6b7280";
+  ctx.textAlign = "center";
+  for (let d = 0; d <= maxDays; d += 60) {
+    const x = padding.left + (d / maxDays) * plotW;
+    ctx.fillText(d + "d", x, h - 8);
+  }
+
+  // Real weight records as dots
+  records.forEach(r => {
+    const day = r.day || 0;
+    const weight = r.weight_kg || 0;
+    const x = padding.left + (day / maxDays) * plotW;
+    const y = padding.top + plotH * (1 - weight / A);
+    ctx.beginPath();
+    ctx.fillStyle = "#f59e0b";
+    ctx.arc(x, y, 4, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Legend
+  ctx.font = "10px sans-serif";
+  ctx.fillStyle = "#22c55e";
+  ctx.fillRect(w - 150, 10, 10, 10);
+  ctx.fillStyle = "#9ca3af";
+  ctx.textAlign = "left";
+  ctx.fillText("Predicho", w - 135, 19);
+  ctx.fillStyle = "#f59e0b";
+  ctx.fillRect(w - 150, 25, 10, 10);
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText("Real", w - 135, 34);
+}
+
+function drawRadar(bird, gompertz) {
+  const canvas = document.getElementById("radar-chart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.parentElement.clientWidth;
+  const h = 260;
+  canvas.width = w; canvas.height = h;
+  const cx = w/2, cy = h/2 + 5, R = Math.min(w,h)/2 - 30;
+
+  // Attributes — use real data or breed-based defaults
+  const attrs = [
+    {label:"Plumaje", val: bird.scores?.plumage || 7},
+    {label:"Talla",   val: bird.scores?.size    || (gompertz.gompertz_params ? Math.min(10, Math.round(gompertz.gompertz_params.A * 3)) : 6)},
+    {label:"Vigor",   val: bird.scores?.vigor   || 7},
+    {label:"Puesta",  val: bird.scores?.laying  || (isFemale ? 8 : 3)},
+    {label:"Cresta",  val: bird.scores?.crest   || 7},
+    {label:"Conformación", val: bird.scores?.conformation || 7},
+  ];
+  const n = attrs.length;
+  const angleStep = (Math.PI * 2) / n;
+
+  ctx.fillStyle = "#111827";
+  ctx.fillRect(0, 0, w, h);
+
+  // Concentric rings
+  for (let ring = 2; ring <= 10; ring += 2) {
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= n; i++) {
+      const a = -Math.PI/2 + i * angleStep;
+      const r = R * ring / 10;
+      const px = cx + r * Math.cos(a);
+      const py = cy + r * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  // Axes + labels
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI/2 + i * angleStep;
+    ctx.beginPath();
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + R * Math.cos(a), cy + R * Math.sin(a));
+    ctx.stroke();
+    const lx = cx + (R + 18) * Math.cos(a);
+    const ly = cy + (R + 18) * Math.sin(a);
+    ctx.fillStyle = "#9ca3af";
+    ctx.fillText(attrs[i].label, lx, ly + 4);
+  }
+
+  // Data polygon
+  ctx.beginPath();
+  ctx.fillStyle = "rgba(34,197,94,0.2)";
+  ctx.strokeStyle = "#22c55e";
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= n; i++) {
+    const idx = i % n;
+    const a = -Math.PI/2 + idx * angleStep;
+    const r = R * attrs[idx].val / 10;
+    const px = cx + r * Math.cos(a);
+    const py = cy + r * Math.sin(a);
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  // Value dots
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI/2 + i * angleStep;
+    const r = R * attrs[i].val / 10;
+    ctx.beginPath();
+    ctx.fillStyle = "#22c55e";
+    ctx.arc(cx + r * Math.cos(a), cy + r * Math.sin(a), 3.5, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawTracking(positions) {
+  const map = document.getElementById("minimap");
+  if (!map) return;
+  const W = map.clientWidth;
+  const H = map.clientHeight;
+
+  // Draw trail (older positions as small faded dots)
+  positions.slice(0, -1).forEach((p, i) => {
+    const dot = document.createElement("div");
+    dot.className = "trail";
+    dot.style.left = (p.x / 30 * W) + "px";
+    dot.style.top = ((15 - p.y) / 15 * H) + "px";
+    dot.style.opacity = 0.15 + 0.5 * (i / positions.length);
+    map.appendChild(dot);
+  });
+
+  // Latest position as main dot
+  const last = positions[positions.length - 1];
+  if (last) {
+    const dot = document.createElement("div");
+    dot.className = "dot";
+    dot.style.left = (last.x / 30 * W) + "px";
+    dot.style.top = ((15 - last.y) / 15 * H) + "px";
+    map.appendChild(dot);
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("es-ES", {day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  } catch(e) { return iso; }
+}
+
+function openZoom(src) {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;cursor:zoom-out";
+  const img = document.createElement("img");
+  img.src = src;
+  img.style.cssText = "max-width:95vw;max-height:95vh;border-radius:8px";
+  overlay.appendChild(img);
+  overlay.addEventListener("click", () => overlay.remove());
+  document.addEventListener("keydown", function esc(e) { if(e.key==="Escape"){overlay.remove();document.removeEventListener("keydown",esc)} });
+  document.body.appendChild(overlay);
+}
+
+async function fetchTimelineEvents(birdId) {
+  try {
+    const r = await fetch(`${SEEDY_API}/birds/${birdId}/events`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const tl = document.getElementById("timeline");
+    if (!tl || !data.events || !data.events.length) return;
+    const icons = {vaccination:'💉', weighing:'⚖️', treatment:'💊', observation:'👁️', photo:'📸', reid:'🔍', transfer:'🔄'};
+    data.events.forEach(ev => {
+      const el = document.createElement("div");
+      el.className = "event";
+      el.innerHTML = `<div class="date">${formatDate(ev.date)}</div>${icons[ev.type] || '📋'} ${ev.description}`;
+      // Insert before the last event ("Última detección")
+      const lastEvent = tl.querySelector(".event:last-of-type");
+      if (lastEvent) tl.insertBefore(el, lastEvent);
+      else tl.appendChild(el);
+    });
+  } catch(e) { /* silent */ }
+}
+
+async function loadBird3DModel(birdId) {
+  const container = document.getElementById("model-container");
+  const genArea = document.getElementById("generate-3d-area");
+  const loading = document.getElementById("model-loading");
+  try {
+    const resp = await fetch(`${SEEDY_API}/api/birds/${birdId}/model.glb`, {method: "HEAD"});
+    if (resp.ok) {
+      container.innerHTML = `<model-viewer
+        src="${SEEDY_API}/api/birds/${birdId}/model.glb"
+        alt="Modelo 3D del ave"
+        shadow-intensity="1"
+        camera-controls touch-action="pan-y"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="30deg"
+        environment-image="neutral" exposure="1.1"
+        style="width:100%;height:100%;background-color:#1a1a2e">
+        <div slot="poster" style="display:flex;align-items:center;justify-content:center;height:100%;color:#aaa">\u23f3 Cargando modelo 3D...</div>
+      </model-viewer>`;
+      if (genArea) genArea.style.display = "none";
+    } else {
+      // No .glb — check for reference image
+      const refResp = await fetch(`${SEEDY_API}/api/birds/${birdId}/reference-image.png`, {method: "HEAD"});
+      if (refResp.ok) {
+        container.innerHTML = `<div style="text-align:center;padding:20px">
+          <img src="${SEEDY_API}/api/birds/${birdId}/reference-image.png" alt="Referencia FLUX" style="max-height:440px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
+          <p style="color:#9ca3af;font-size:.8em;margin-top:10px">\ud83c\udfa8 Imagen de referencia IA (FLUX). Modelo 3D rotable pendiente.</p>
+        </div>`;
+      } else {
+        if (loading) loading.innerHTML = '<span style="color:#6b7280">\ud83e\uddec Modelo 3D no generado a\u00fan</span>';
+      }
+      if (genArea) genArea.style.display = "block";
+    }
+  } catch(e) {
+    if (loading) loading.innerHTML = '<span style="color:#6b7280">\ud83e\uddec Modelo 3D no disponible</span>';
+    if (genArea) genArea.style.display = "block";
+  }
+}
+
+async function generateBird3D(birdId) {
+  const btn = document.getElementById("gen3d-btn");
+  btn.textContent = "\u23f3 Generando modelo 3D...";
+  btn.disabled = true;
+  try {
+    const resp = await fetch(`${SEEDY_API}/api/birds/${birdId}/generate-3d`, {method: "POST"});
+    const data = await resp.json();
+    if (data.status === "success" || data.status === "exists") {
+      btn.textContent = "\u2705 Modelo generado";
+      loadBird3DModel(birdId);
+    } else if (data.status === "ref_only") {
+      // No Tripo key — show the FLUX reference image instead
+      const container = document.getElementById("model-container");
+      container.innerHTML = `<div style="text-align:center;padding:20px">
+        <img src="${SEEDY_API}${data.reference_image}" alt="Referencia FLUX" style="max-height:440px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
+        <p style="color:#9ca3af;font-size:.8em;margin-top:10px">\ud83c\udfa8 Imagen de referencia FLUX generada. Modelo 3D pendiente de Tripo3D.</p>
+      </div>`;
+      btn.textContent = "\u2705 Imagen generada";
+      document.getElementById("generate-3d-area").style.display = "none";
+    } else if (data.status === "generating") {
+      btn.textContent = "\u23f3 Generando... (puede tardar 1-2 min)";
+      // Poll every 10s
+      const poll = setInterval(async () => {
+        const r = await fetch(`${SEEDY_API}/api/birds/${birdId}/model.glb`, {method: "HEAD"});
+        if (r.ok) {
+          clearInterval(poll);
+          loadBird3DModel(birdId);
+        }
+      }, 10000);
+      setTimeout(() => clearInterval(poll), 300000);
+    } else {
+      btn.textContent = "\u26a0\ufe0f " + (data.detail || data.error || "Error");
+      setTimeout(() => { btn.textContent = "\ud83e\uddec Generar modelo 3D (Tripo AI)"; btn.disabled = false; }, 4000);
+    }
+  } catch(e) {
+    btn.textContent = "\u274c Error de conexi\u00f3n";
+    setTimeout(() => { btn.textContent = "\ud83e\uddec Generar modelo 3D (Tripo AI)"; btn.disabled = false; }, 3000);
+  }
+}
+
+async function captureIdentify(birdId) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = "⏳ Capturando...";
+  try {
+    const r = await fetch(`${SEEDY_API}/vision/identify/bird/ovosfera/${birdId}/capture-identify`, {method:"POST"});
+    const data = await r.json();
+    if (data.success) {
+      btn.textContent = "✅ Capturado";
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      btn.textContent = "⚠️ " + (data.message || "Error");
+      setTimeout(() => { btn.textContent = "📸 Capturar + Identificar"; btn.disabled = false; }, 3000);
+    }
+  } catch(e) {
+    btn.textContent = "❌ Error";
+    setTimeout(() => { btn.textContent = "📸 Capturar + Identificar"; btn.disabled = false; }, 3000);
+  }
+}
+
+// Init
+loadBird();
+</script>
+</body>
+</html>
