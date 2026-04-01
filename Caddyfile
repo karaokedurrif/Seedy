@@ -1,0 +1,18 @@
+# ── Split-Horizon: proxy local para bypass Cloudflare ────────
+# Cuando /etc/hosts apunta *.neofarm.io a la IP local,
+# Caddy termina TLS con certs mkcert y reenvía a los servicios.
+
+seedy-api.neofarm.io {
+	reverse_proxy fastapi:8000
+	tls /etc/caddy/certs/seedy-api.neofarm.io+2.pem /etc/caddy/certs/seedy-api.neofarm.io+2-key.pem
+}
+
+seedy.neofarm.io {
+	reverse_proxy OpenWebUI:8080
+	tls /etc/caddy/certs/seedy-api.neofarm.io+2.pem /etc/caddy/certs/seedy-api.neofarm.io+2-key.pem
+}
+
+seedy-grafana.neofarm.io {
+	reverse_proxy grafana:3000
+	tls /etc/caddy/certs/seedy-api.neofarm.io+2.pem /etc/caddy/certs/seedy-api.neofarm.io+2-key.pem
+}

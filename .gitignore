@@ -39,6 +39,14 @@ autobalancer_data/
 # YOLO training artifacts (managed by Docker volumes)
 yolo_dataset/
 yolo_models/
+yolo_breed_dataset
+yolo_breed_models
+
+# TLS certs (private keys)
+certs/
+
+# Symlinks to 2TB disk (heavy data)
+hf_datasets
 
 # Progress files
 .cda_progress.json
