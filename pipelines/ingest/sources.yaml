@@ -53,3 +53,47 @@ sources:
     type: url
     reliability: 50
     tags: [porcino, genetica, nutricion]
+
+  # ── Avicultura intensiva ───────────────────────────
+  - name: "Avicultura.com"
+    url: "https://avicultura.com/feed/"
+    type: rss
+    reliability: 50
+    tags: [avicultura_intensiva, nutricion]
+
+  - name: "Selecciones Avícolas"
+    url: "https://seleccionesavicolas.com/feed/"
+    type: rss
+    reliability: 50
+    tags: [avicultura_intensiva, nutricion, genetica]
+
+  - name: "AviNews"
+    url: "https://avinews.com/feed/"
+    type: rss
+    reliability: 45
+    tags: [avicultura_intensiva, nutricion, sanidad]
+
+  # ── Bodegas y Vino ─────────────────────────────────
+  - name: "Vinetur"
+    url: "https://www.vinetur.com/rss/"
+    type: rss
+    reliability: 45
+    tags: [bodegas_vino, enoturismo]
+
+  - name: "Tecnovino"
+    url: "https://www.tecnovino.com/feed/"
+    type: rss
+    reliability: 50
+    tags: [bodegas_vino, viticultura]
+
+  - name: "Interempresas Vitivinícola"
+    url: "https://www.interempresas.net/Vitivinicola/Noticias/rss/"
+    type: rss
+    reliability: 50
+    tags: [bodegas_vino, viticultura]
+
+  - name: "OIVE Interprofesional Vino"
+    url: "https://www.interprofesionaldelvino.es/"
+    type: url
+    reliability: 55
+    tags: [bodegas_vino, normativa, estrategia]

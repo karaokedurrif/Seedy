@@ -53,6 +53,11 @@ CATEGORY_TO_COLLECTION = {
     "fr_breeds":     "genetica",
     "it_breeds":     "genetica",
     "de_breeds":     "genetica",
+    # New verticals
+    "avicultura_intensiva":    "avicultura_intensiva",
+    "avicultura_intensiva_en": "avicultura_intensiva",
+    "vino":                    "bodegas_vino",
+    "vino_en":                 "bodegas_vino",
 }
 
 WIKI_DIR = Path(__file__).parent / "wikipedia_articles"

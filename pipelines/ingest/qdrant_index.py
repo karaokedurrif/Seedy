@@ -20,6 +20,8 @@ DOMAIN_TO_COLLECTION = {
     "porcino": "iot_hardware",       # IoT + porcino → iot_hardware
     "vacuno": "digital_twins",       # vacuno extensivo → digital_twins
     "avicultura": "avicultura",
+    "avicultura_intensiva": "avicultura_intensiva",
+    "bodegas_vino": "bodegas_vino",
     "nutricion": "nutricion",
     "genetica": "genetica",
     "normativa": "normativa",

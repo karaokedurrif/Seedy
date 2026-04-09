@@ -8,7 +8,7 @@ Los datos persisten en un fichero JSON en /app/data/.
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
@@ -101,10 +101,79 @@ async def list_birds(
 
 @router.get("/{bird_id}")
 async def get_bird(bird_id: str):
-    """Obtiene un ave por su ID."""
+    """Obtiene un ave por su ID, incluyendo comportamiento, montas y datos OvoSfera."""
     for b in _registry:
         if b["bird_id"] == bird_id:
-            return b
+            result = {**b}
+            gallinero = b.get("gallinero", "")
+
+            # Datos OvoSfera (fuente de verdad del ganadero)
+            try:
+                import httpx
+                import os
+                ovo_api = os.environ.get("OVOSFERA_API_URL", "https://hub.ovosfera.com/api/ovosfera")
+                ovo_farm = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(f"{ovo_api}/farms/{ovo_farm}/aves")
+                    if resp.status_code == 200:
+                        aves = resp.json()
+                        ovo = next((a for a in aves if a.get("anilla") == bird_id), None)
+                        if ovo:
+                            result["ovosfera"] = {
+                                "id": ovo.get("id"),
+                                "raza": ovo.get("raza"),
+                                "color": ovo.get("color"),
+                                "sexo": ovo.get("sexo"),
+                                "tipo": ovo.get("tipo"),
+                                "gallinero": ovo.get("gallinero"),
+                                "peso": ovo.get("peso"),
+                                "fecha_nacimiento": ovo.get("fecha_nacimiento"),
+                                "estado": ovo.get("estado"),
+                                "notas": ovo.get("notas"),
+                            }
+                            gallinero = ovo.get("gallinero") or gallinero
+            except Exception:
+                pass  # OvoSfera not available, use Seedy data only
+
+            # Comportamiento (7 dimensiones, 24h)
+            try:
+                from services.behavior_inference import get_bird_behavior
+                from services.behavior_serializer import to_api_response
+
+                inference = get_bird_behavior(bird_id, gallinero, "24h")
+                beh_resp = to_api_response(inference)
+                result["behavior"] = beh_resp
+            except Exception:
+                result["behavior"] = None
+
+            # Montas (últimos 7 días)
+            try:
+                from services.mating_detector import query_mating_events
+
+                end_ts = datetime.now(timezone.utc)
+                start_ts = end_ts - timedelta(days=7)
+                events = query_mating_events(gallinero, start_ts, end_ts, bird_id=bird_id)
+                as_mounter = sum(1 for e in events if e.get("mounter", {}).get("bird_id") == bird_id)
+                as_mounted = sum(1 for e in events if e.get("mounted", {}).get("bird_id") == bird_id)
+                partners = set()
+                for e in events:
+                    m_id = e.get("mounter", {}).get("bird_id", "")
+                    f_id = e.get("mounted", {}).get("bird_id", "")
+                    if m_id == bird_id and f_id:
+                        partners.add(f_id)
+                    elif f_id == bird_id and m_id:
+                        partners.add(m_id)
+                result["mating_7d"] = {
+                    "as_mounter": as_mounter,
+                    "as_mounted": as_mounted,
+                    "total_events": len(events),
+                    "partners": sorted(partners),
+                    "recent_events": events[-5:],  # Últimos 5 eventos
+                }
+            except Exception:
+                result["mating_7d"] = None
+
+            return result
     raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
 
 

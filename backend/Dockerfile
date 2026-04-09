@@ -5,7 +5,9 @@ WORKDIR /app
 # System deps (incluye libgl para OpenCV/YOLO)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl build-essential libgl1 libglib2.0-0 \
-    fonts-dejavu-core && \
+    fonts-dejavu-core \
+    libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 \
+    libcairo2 libgdk-pixbuf-xlib-2.0-0 libffi-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Python deps

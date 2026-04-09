@@ -1,0 +1,29 @@
+# Zigbee2MQTT Configuration — Gallineros Palacio
+# Bridge: Mini PC 192.168.20.53 → Mosquitto 192.168.20.131:1883
+
+homeassistant: false
+
+# MQTT broker (Mosquitto en servidor Seedy)
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://192.168.20.131:1883
+
+# Dongle Zigbee genérico (CH340 USB-Serial)
+serial:
+  port: /dev/ttyUSB0
+
+# Web UI para gestión de dispositivos
+frontend:
+  port: 8080
+
+advanced:
+  log_level: info
+  network_key: GENERATE
+  pan_id: GENERATE
+  channel: 15
+
+# Permitir pairing (se desactivará después de vincular los 2 sensores)
+permit_join: true
+
+# Los dispositivos se configuran aquí después de vincular
+devices: {}

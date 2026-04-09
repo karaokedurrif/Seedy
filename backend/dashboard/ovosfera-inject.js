@@ -901,6 +901,92 @@
       font-size: 12px;
       color: #9ca3af;
     }
+
+    /* ── Devices / IoT page ── */
+    .seedy-devices-page { padding: 20px 24px; }
+    .seedy-devices-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .seedy-devices-header h2 {
+      margin: 0; font-size: 1.4em; font-weight: 700;
+      color: var(--neutral-100, #f3f4f6);
+    }
+    .seedy-devices-header .seedy-z2m-link {
+      font-size: 0.75em; color: #3b82f6; text-decoration: none;
+      padding: 4px 10px; border: 1px solid #3b82f6; border-radius: 6px;
+    }
+    .seedy-devices-header .seedy-z2m-link:hover { background: rgba(59,130,246,0.15); }
+    .seedy-devices-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .seedy-device-card {
+      background: var(--neutral-900, #111827);
+      border: 1px solid var(--neutral-800, #1f2937);
+      border-radius: 14px; padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+    .seedy-device-card:hover { border-color: #3b82f6; }
+    .seedy-device-card.offline { opacity: 0.5; }
+    .seedy-device-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .seedy-device-card-header h3 {
+      margin: 0; font-size: 1.05em; font-weight: 600;
+      color: var(--neutral-100, #f3f4f6);
+    }
+    .seedy-device-card-header .seedy-device-status {
+      font-size: 0.7em; font-weight: 600; padding: 3px 8px;
+      border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .seedy-device-card-header .seedy-device-status.online {
+      background: rgba(34,197,94,0.15); color: #22c55e;
+    }
+    .seedy-device-card-header .seedy-device-status.offline {
+      background: rgba(107,114,128,0.15); color: #6b7280;
+    }
+    .seedy-device-readings {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .seedy-reading {
+      background: var(--neutral-800, #1f2937);
+      border-radius: 10px; padding: 12px; text-align: center;
+    }
+    .seedy-reading-icon { font-size: 1.3em; margin-bottom: 4px; }
+    .seedy-reading-value {
+      font-size: 1.4em; font-weight: 700;
+      color: var(--neutral-100, #f3f4f6);
+    }
+    .seedy-reading-label {
+      font-size: 0.65em; color: var(--neutral-500, #6b7280);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;
+    }
+    .seedy-device-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.75em; color: var(--neutral-500, #6b7280);
+      border-top: 1px solid var(--neutral-800, #1f2937);
+      padding-top: 10px;
+    }
+    .seedy-device-meta .seedy-lqi-bar {
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .seedy-lqi-bar span {
+      display: inline-block; width: 3px; border-radius: 2px;
+      background: var(--neutral-700, #374151);
+    }
+    .seedy-lqi-bar span.active { background: #22c55e; }
+    .seedy-devices-empty {
+      text-align: center; padding: 60px 20px;
+      color: var(--neutral-500, #6b7280);
+    }
+    .seedy-devices-empty .seedy-empty-icon { font-size: 3em; margin-bottom: 12px; }
+    @keyframes seedy-device-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+    }
   `;
 
   // ── Inject CSS ──
@@ -2061,6 +2147,10 @@
     return window.location.pathname.match(/\/farm\/[^/]+\/aves\/\d+/);
   }
 
+  function isDevicesPage() {
+    return window.location.pathname.match(/\/farm\/[^/]+\/devices/);
+  }
+
   function isTargetFarm() {
     // Solo inyectar en el tenant configurado (palacio)
     var m = window.location.pathname.match(/\/farm\/([^/]+)/);
@@ -3028,6 +3118,26 @@
 
     siteGroup.appendChild(siteLink);
     sistemaGroup.parentNode.insertBefore(siteGroup, sistemaGroup);
+
+    // Create the Devices link (IoT sensors)
+    if (!document.getElementById("seedy-devices-link")) {
+      var devGroup = document.createElement("div");
+      devGroup.id = "seedy-devices-link";
+      var devLink = document.createElement("a");
+      var farmSlug = (window.location.pathname.match(/\/farm\/([^/]+)/) || [])[1] || SEEDY_FARM;
+      devLink.href = "/farm/" + farmSlug + "/devices";
+      devLink.className = "nf-nav-item";
+      devLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2a3 3 0 0 0-3 3v1H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h1v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5h1a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>'
+        + '<span class="nf-nav-text">Dispositivos</span>';
+      devLink.addEventListener("click", function(e) {
+        e.preventDefault();
+        window.history.pushState({}, "", devLink.href);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        onPageChange();
+      });
+      devGroup.appendChild(devLink);
+      siteGroup.parentNode.insertBefore(devGroup, sistemaGroup);
+    }
   }
 
   // ── Inject Site landing page content ──
@@ -3072,6 +3182,159 @@
     });
   }
 
+  // ── Devices / IoT Sensors page ──
+  var _devicesRefreshTimer = null;
+
+  function injectDevicesPage() {
+    if (document.getElementById("seedy-devices-injected")) return;
+
+    var main = document.querySelector("main.nf-main") || document.querySelector("main");
+    if (!main) return;
+
+    // Hide existing page content
+    Array.from(main.children).forEach(function (child) {
+      if (child.classList && child.classList.contains("nf-status-bar")) return;
+      child.style.display = "none";
+      child.dataset.seedyDevicesHidden = "1";
+    });
+
+    var container = document.createElement("div");
+    container.id = "seedy-devices-injected";
+    container.className = "seedy-devices-page";
+    container.innerHTML = '<div class="seedy-devices-header">'
+      + '<h2>🌡️ Dispositivos IoT</h2>'
+      + '<a href="http://192.168.20.53:8080" target="_blank" class="seedy-z2m-link">⚙️ Zigbee2MQTT</a>'
+      + '</div>'
+      + '<div class="seedy-devices-grid" id="seedy-devices-grid">'
+      + '<div class="seedy-devices-empty"><div class="seedy-empty-icon">📡</div>Cargando sensores...</div>'
+      + '</div>';
+    main.appendChild(container);
+
+    // Load data immediately + auto-refresh
+    _refreshDevicesData();
+    _devicesRefreshTimer = setInterval(_refreshDevicesData, 15000);
+  }
+
+  function _refreshDevicesData() {
+    fetch(SEEDY_API + "/ovosfera/devices/status")
+      .then(function (r) { return r.json(); })
+      .then(function (statusData) {
+        return fetch(SEEDY_API + "/ovosfera/devices")
+          .then(function (r2) { return r2.json(); })
+          .then(function (devData) {
+            _renderDevicesGrid(devData.devices || [], statusData.gallineros || {});
+          });
+      })
+      .catch(function (e) {
+        console.error("Seedy devices fetch error:", e);
+        var grid = document.getElementById("seedy-devices-grid");
+        if (grid) grid.innerHTML = '<div class="seedy-devices-empty"><div class="seedy-empty-icon">⚠️</div>Error cargando sensores</div>';
+      });
+  }
+
+  function _renderDevicesGrid(devices, gallineros) {
+    var grid = document.getElementById("seedy-devices-grid");
+    if (!grid) return;
+
+    if (!devices.length) {
+      grid.innerHTML = '<div class="seedy-devices-empty">'
+        + '<div class="seedy-empty-icon">📡</div>'
+        + '<p>No hay sensores conectados.</p>'
+        + '<p style="font-size:0.85em">Abre <a href="http://192.168.20.53:8080" target="_blank" style="color:#3b82f6">Zigbee2MQTT</a> para emparejar.</p>'
+        + '</div>';
+      return;
+    }
+
+    var html = '';
+    devices.forEach(function (dev) {
+      var fname = dev.friendly_name || '';
+      var gName = dev.gallinero_name || 'Sin asignar';
+      var temp = dev.last_temperature;
+      var hum = dev.last_humidity;
+      var bat = dev.last_battery;
+      var lqi = dev.last_linkquality;
+      var seen = dev.last_seen;
+      var isOnline = seen !== null && seen !== undefined;
+
+      // If we have data from status endpoint, override
+      if (dev.gallinero_id && gallineros[dev.gallinero_id]) {
+        var gs = gallineros[dev.gallinero_id];
+        if (gs.temperature !== null && gs.temperature !== undefined) temp = gs.temperature;
+        if (gs.humidity !== null && gs.humidity !== undefined) hum = gs.humidity;
+        if (gs.battery !== null && gs.battery !== undefined) bat = gs.battery;
+        if (gs.linkquality !== null && gs.linkquality !== undefined) lqi = gs.linkquality;
+        if (gs.last_seen) { seen = gs.last_seen; isOnline = true; }
+      }
+
+      var tempStr = temp !== null && temp !== undefined ? temp.toFixed(1) + '°C' : '—';
+      var humStr = hum !== null && hum !== undefined ? hum.toFixed(1) + '%' : '—';
+      var batStr = bat !== null && bat !== undefined ? bat + '%' : '—';
+      var seenStr = '—';
+      if (seen) {
+        try {
+          var d = new Date(seen);
+          var now = new Date();
+          var diffMin = Math.floor((now - d) / 60000);
+          if (diffMin < 1) seenStr = 'ahora';
+          else if (diffMin < 60) seenStr = 'hace ' + diffMin + ' min';
+          else if (diffMin < 1440) seenStr = 'hace ' + Math.floor(diffMin/60) + 'h';
+          else seenStr = d.toLocaleDateString('es');
+        } catch(e) { seenStr = '?'; }
+      }
+
+      // LQI signal bars (0-255)
+      var lqiBars = '';
+      var lqiLevel = lqi ? Math.min(Math.ceil(lqi / 51), 5) : 0;
+      for (var i = 1; i <= 5; i++) {
+        var h = 6 + i * 3;
+        lqiBars += '<span style="height:' + h + 'px" class="' + (i <= lqiLevel ? 'active' : '') + '"></span>';
+      }
+
+      // Temperature color
+      var tempColor = '#f3f4f6';
+      if (temp !== null && temp !== undefined) {
+        if (temp < 10) tempColor = '#3b82f6';
+        else if (temp < 18) tempColor = '#22c55e';
+        else if (temp < 28) tempColor = '#f59e0b';
+        else tempColor = '#ef4444';
+      }
+
+      html += '<div class="seedy-device-card ' + (isOnline ? '' : 'offline') + '">'
+        + '<div class="seedy-device-card-header">'
+        + '<h3>🏠 ' + _escHtml(gName) + '</h3>'
+        + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
+        + '</div>'
+        + '<div class="seedy-device-readings">'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🌡️</div><div class="seedy-reading-value" style="color:' + tempColor + '">' + tempStr + '</div><div class="seedy-reading-label">Temperatura</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">💧</div><div class="seedy-reading-value">' + humStr + '</div><div class="seedy-reading-label">Humedad</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🔋</div><div class="seedy-reading-value">' + batStr + '</div><div class="seedy-reading-label">Batería</div></div>'
+        + '</div>'
+        + '<div class="seedy-device-meta">'
+        + '<span>📡 ' + _escHtml(fname) + ' · ' + seenStr + '</span>'
+        + '<span class="seedy-lqi-bar" title="Señal: ' + (lqi || 0) + '/255">' + lqiBars + '</span>'
+        + '</div>'
+        + '</div>';
+    });
+
+    grid.innerHTML = html;
+  }
+
+  function _escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function cleanupDevicesPage() {
+    if (_devicesRefreshTimer) { clearInterval(_devicesRefreshTimer); _devicesRefreshTimer = null; }
+    var el = document.getElementById("seedy-devices-injected");
+    if (el) el.remove();
+    document.querySelectorAll("[data-seedy-devices-hidden]").forEach(function (child) {
+      child.style.display = "";
+      delete child.dataset.seedyDevicesHidden;
+    });
+  }
+
   function onPageChange() {
     if (!isTargetFarm()) {
       stopRefreshLoop();
@@ -3084,12 +3347,15 @@
       stopRefreshLoop();
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
     } else if (isSitePage()) {
       stopRefreshLoop();
       cleanupDashboardPanel();
+      cleanupDevicesPage();
       setTimeout(function () { injectSitePage(); }, 400);
     } else if (isDashboardPage()) {
       cleanupSitePage();
+      cleanupDevicesPage();
       setTimeout(() => {
         injectDashboardPanel();
         // NO injectCameras() on dashboard — only small thumbnails in the panel
@@ -3100,6 +3366,7 @@
     } else if (isGallineroDetailPage()) {
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
       // /gallineros/:id — HERE we show full camera streams
       setTimeout(() => {
         injectCameras();
@@ -3111,17 +3378,25 @@
       stopRefreshLoop();
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
       setTimeout(() => injectGallineroListThumbnails(), 800);
       retryInjection(() => injectGallineroListThumbnails(), 30000);
+    } else if (isDevicesPage()) {
+      stopRefreshLoop();
+      cleanupDashboardPanel();
+      cleanupSitePage();
+      setTimeout(() => { injectDevicesPage(); }, 400);
     } else if (isAveDetailPage()) {
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
       setTimeout(() => {
         injectBirdMonitor();
       }, 800);
     } else if (isAvesPage()) {
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
       setTimeout(() => {
         interceptAvesListClicks();
         injectAvesListMonitor();
@@ -3131,10 +3406,12 @@
       stopRefreshLoop();
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
     } else {
       stopRefreshLoop();
       cleanupDashboardPanel();
       cleanupSitePage();
+      cleanupDevicesPage();
     }
   }
 
@@ -3540,6 +3817,8 @@
           injectCameras();
         } else if (isAveDetailPage()) {
           injectBirdMonitor();
+        } else if (isDevicesPage() && !document.getElementById("seedy-devices-injected")) {
+          injectDevicesPage();
         } else if (isAvesPage()) {
           interceptAvesListClicks();
           injectAvesListMonitor();

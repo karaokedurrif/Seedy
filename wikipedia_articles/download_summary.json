@@ -1,7 +1,7 @@
 {
-  "total_requested": 219,
-  "downloaded": 157,
-  "failed_count": 62,
+  "total_requested": 347,
+  "downloaded": 228,
+  "failed_count": 119,
   "failed": [
     "Pollo de engorde (es)",
     "Gallina ponedora (es)",
@@ -45,13 +45,11 @@
     "Manchega (oveja) (es)",
     "Segureña (es)",
     "Silo (almacén) (es)",
-    "Maíz (es)",
     "Torta de soja (es)",
     "Ración (alimentación) (es)",
     "Conversión alimenticia (es)",
     "Valor genético (es)",
     "BLUP (es)",
-    "Gemelo digital (es)",
     "LPWAN (es)",
     "NB-IoT (es)",
     "PAC (Unión Europea) (es)",
@@ -63,14 +61,73 @@
     "Retinta cattle (en)",
     "Avileña-Black Iberian cattle (en)",
     "Angus cattle (en)",
-    "Digital twin (en)",
-    "Estimated breeding value (en)"
+    "Estimated breeding value (en)",
+    "Pollo de engorde (es)",
+    "Gallina ponedora (es)",
+    "Incubadora (avicultura) (es)",
+    "Nave avícola (es)",
+    "Coccidiosis aviar (es)",
+    "Conversión alimenticia (es)",
+    "Industria avícola (es)",
+    "Matadero avícola (es)",
+    "Poultry farming (es)",
+    "Broiler industry (es)",
+    "Battery cage (es)",
+    "Free-range eggs (es)",
+    "Furnished cage (es)",
+    "Poultry house (es)",
+    "Hatchery (es)",
+    "Egg incubation (es)",
+    "Avian influenza (es)",
+    "Marek's disease (es)",
+    "Ross 308 (es)",
+    "Cobb 500 (es)",
+    "Lohmann Brown (es)",
+    "Hy-Line (es)",
+    "Poultry science (es)",
+    "Poultry feed (es)",
+    "Poultry slaughter (es)",
+    "Poultry processing (es)",
+    "Ventilation (industrial) (es)",
+    "Barrica (es)",
+    "Crianza (vino) (es)",
+    "Reserva (vino) (es)",
+    "Rías Baixas (DO) (es)",
+    "Rueda (DO) (es)",
+    "Somontano (DO) (es)",
+    "Jumilla (DO) (es)",
+    "Bierzo (DO) (es)",
+    "Penedés (DO) (es)",
+    "Cava (vino) (es)",
+    "Jerez-Xérès-Sherry (es)",
+    "Coupage (es)",
+    "Acidez (enología) (es)",
+    "Clarificación (enología) (es)",
+    "Filtración (enología) (es)",
+    "Embotellado (es)",
+    "Oenology (es)",
+    "Viticulture (es)",
+    "Winemaking (es)",
+    "Grape (es)",
+    "Appellation (es)",
+    "Wine tasting (es)",
+    "Rioja wine (es)",
+    "Priorat wine (es)",
+    "Spanish wine (es)",
+    "Barrel (es)",
+    "Oak (wine) (es)",
+    "Wine barrel (es)",
+    "Malolactic fermentation (es)",
+    "Wine fault (es)",
+    "Powdery mildew (es)",
+    "Organic wine (es)",
+    "Biodynamic wine (es)"
   ],
-  "total_chars": 1902942,
+  "total_chars": 2701159,
   "categories": {
     "avicultura": {
       "count": 15,
-      "total_chars": 91577
+      "total_chars": 91643
     },
     "porcino": {
       "count": 18,
@@ -78,15 +135,15 @@
     },
     "vacuno": {
       "count": 25,
-      "total_chars": 412762
+      "total_chars": 412772
     },
     "ovino_caprino": {
       "count": 13,
-      "total_chars": 195356
+      "total_chars": 194129
     },
     "nutricion": {
-      "count": 24,
-      "total_chars": 317570
+      "count": 25,
+      "total_chars": 364489
     },
     "genetica": {
       "count": 12,
@@ -94,19 +151,35 @@
     },
     "sanidad": {
       "count": 15,
-      "total_chars": 207142
+      "total_chars": 207137
     },
     "tecnologia": {
-      "count": 11,
-      "total_chars": 311576
+      "count": 12,
+      "total_chars": 329884
     },
     "normativa": {
       "count": 4,
       "total_chars": 46892
     },
     "en_breeds": {
-      "count": 20,
-      "total_chars": 89777
+      "count": 21,
+      "total_chars": 107734
+    },
+    "avicultura_intensiva": {
+      "count": 6,
+      "total_chars": 50992
+    },
+    "avicultura_intensiva_en": {
+      "count": 3,
+      "total_chars": 8380
+    },
+    "vino": {
+      "count": 49,
+      "total_chars": 598362
+    },
+    "vino_en": {
+      "count": 10,
+      "total_chars": 58455
     }
   }
 }

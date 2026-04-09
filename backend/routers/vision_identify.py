@@ -18,6 +18,7 @@ import io
 import json
 import httpx
 import logging
+import time
 import os
 from datetime import datetime, timezone
 
@@ -221,6 +222,10 @@ _last_results: dict[str, dict] = {}
 _task: asyncio.Task | None = None
 _night_logged = False  # evita spam de log nocturno
 MIN_BRIGHTNESS = 25   # luminancia mínima para procesar (0-255)
+
+# ── Gemini rate limiter (solo identification loop, NO afecta al chat) ──
+_GEMINI_LOOP_COOLDOWN = 300  # 5 min entre llamadas Gemini desde el loop
+_gemini_last_call: float = 0.0  # timestamp de la última llamada
 
 # ── Breed YOLO → Census mapping ──
 # Mapea clase del modelo de razas a (breed, color, sex) del censo
@@ -441,62 +446,106 @@ def _map_sex(sex_str: str) -> str:
     return "unknown"
 
 
+# Máximo de aves para procesar un frame (1-5 = identificable)
+_QUALITY_MAX_BIRDS = 5
+# Mínimo de confianza para considerar un ave
+_QUALITY_MIN_CONF = 0.40
+# Mínimo área del frame que debe cubrir el ave
+_QUALITY_MIN_AREA = 0.008  # 0.8%, relajado desde 1.5%
+# Margen de borde
+_QUALITY_BORDER_MARGIN = 0.02  # 2%, relajado desde 3%
+# Mínimo de nitidez
+_QUALITY_MIN_SHARPNESS = 30  # relajado desde 50
+
+
 def _quality_gate(frame_bytes: bytes, yolo_result: dict) -> dict | None:
-    """Quality gate: solo procede si hay 1 ave aislada, bien encuadrada y nítida.
+    """Quality gate: selecciona la MEJOR ave candidata del frame.
+
+    Acepta frames con 1 a _QUALITY_MAX_BIRDS aves.
+    Elige la mejor candidata por: tamaño (40%) + confianza (30%) + centrado (30%).
 
     Returns dict con métricas de calidad si pasa, None si no.
     """
     detections = yolo_result.get("detections", [])
-    if len(detections) != 1:
-        return None  # No es un ave aislada
-
-    det = detections[0]
-    bbox = det.get("bbox_norm", [])
-    conf = det.get("confidence", 0)
-
-    if conf < 0.50:
-        return None  # Confianza insuficiente
-
-    if len(bbox) != 4:
+    n_birds = len(detections)
+    if n_birds == 0 or n_birds > _QUALITY_MAX_BIRDS:
         return None
 
-    x1, y1, x2, y2 = bbox
-    w = x2 - x1
-    h = y2 - y1
-    area = w * h
-
-    # El ave debe cubrir al menos 1.5% del frame
-    if area < 0.015:
-        return None
-
-    # El ave no debe estar cortada en los bordes (margen 3%)
-    MARGIN = 0.03
-    if x1 < MARGIN or y1 < MARGIN or x2 > (1 - MARGIN) or y2 > (1 - MARGIN):
-        return None
-
-    # Check de nitidez sobre el crop del ave
-    sharpness = None
+    # Pre-carga imagen para sharpness (una vez)
+    img = None
+    ih, iw = 0, 0
     try:
         import cv2
         import numpy as np
         nparr = np.frombuffer(frame_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         ih, iw = img.shape[:2]
-        crop = img[int(y1*ih):int(y2*ih), int(x1*iw):int(x2*iw)]
-        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-        sharpness = cv2.Laplacian(gray, cv2.CV_64F).var()
-        if sharpness < 50:
-            return None
     except Exception:
-        pass  # Si falla el check de nitidez, continuamos
+        pass
 
-    return {
-        "detection": det,
-        "bbox": bbox,
-        "area": area,
-        "confidence": conf,
-        "sharpness": sharpness,
-    }
+    best = None
+    best_score = -1
+
+    for det in detections:
+        bbox = det.get("bbox_norm", [])
+        conf = det.get("confidence", 0)
+
+        if conf < _QUALITY_MIN_CONF:
+            continue
+        if len(bbox) != 4:
+            continue
+
+        x1, y1, x2, y2 = bbox
+        w = x2 - x1
+        h = y2 - y1
+        area = w * h
+
+        if area < _QUALITY_MIN_AREA:
+            continue
+
+        # Borde: descartar si está cortada
+        if x1 < _QUALITY_BORDER_MARGIN or y1 < _QUALITY_BORDER_MARGIN:
+            continue
+        if x2 > (1 - _QUALITY_BORDER_MARGIN) or y2 > (1 - _QUALITY_BORDER_MARGIN):
+            continue
+
+        # Sharpness
+        sharpness = None
+        if img is not None:
+            try:
+                import cv2
+                crop = img[int(y1*ih):int(y2*ih), int(x1*iw):int(x2*iw)]
+                if crop.size > 0:
+                    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+                    sharpness = cv2.Laplacian(gray, cv2.CV_64F).var()
+                    if sharpness < _QUALITY_MIN_SHARPNESS:
+                        continue
+            except Exception:
+                pass
+
+        # Score: tamaño (40%) + confianza (30%) + centrado (30%)
+        cx = (x1 + x2) / 2
+        cy = (y1 + y2) / 2
+        center_dist = ((cx - 0.5)**2 + (cy - 0.5)**2) ** 0.5
+        center_score = max(0, 1 - center_dist / 0.7071)  # 0.7071 = esquina
+
+        score = (
+            0.40 * min(area / 0.10, 1.0)  # normalizar: 10% del frame = max
+            + 0.30 * conf
+            + 0.30 * center_score
+        )
+
+        if score > best_score:
+            best_score = score
+            best = {
+                "detection": det,
+                "bbox": bbox,
+                "area": area,
+                "confidence": conf,
+                "sharpness": sharpness,
+            }
+
+    return best
 
 
 async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "", *, imgsz: int | None = None, use_tiled: bool = False, force_gemini: bool = False) -> dict | None:
@@ -554,8 +603,16 @@ async def _analyze_frame(frame_bytes: bytes, gallinero_id: str = "", *, imgsz: i
             }
 
     # 5) Gemini: si quedan aves sin identificar, o force_gemini
+    #    Rate limiter: en el identification loop, no llamar Gemini más de 1/5min
     if yolo_count > 0 or force_gemini:
-        gemini_result = await _identify_breeds_gemini(frame_bytes, gallinero_id)
+        global _gemini_last_call
+        now = time.time()
+        gemini_available = force_gemini or (now - _gemini_last_call >= _GEMINI_LOOP_COOLDOWN)
+
+        gemini_result = None
+        if gemini_available:
+            _gemini_last_call = now
+            gemini_result = await _identify_breeds_gemini(frame_bytes, gallinero_id)
         if gemini_result:
             # Enriquecer con datos YOLO (bboxes más precisos)
             _merge_yolo_gemini(yolo_result, gemini_result)
@@ -875,12 +932,14 @@ def _merge_yolo_gemini(yolo_result: dict, gemini_result: dict):
 
 
 def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
-    """Ejecuta tracker + pest alerts + health en cada ciclo YOLO."""
+    """Ejecuta tracker + pest alerts + health + behavior snapshots + mating en cada ciclo YOLO."""
     try:
         from services.yolo_detector import detect
         from services.bird_tracker import get_tracker
         from services.pest_alert import get_pest_manager
         from services.health_analyzer import get_growth_tracker
+        from services.behavior_event_store import get_event_store
+        from services.mating_detector import get_mating_detector
 
         result = detect(frame_bytes)
         if not result or not result.get("detections"):
@@ -890,7 +949,22 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
         tracker = get_tracker(gallinero_id)
         tracker.update(result["detections"])
 
-        # 2. Pest alerts
+        # 2. Behavior event store: snapshot periódico (respeta intervalo interno)
+        try:
+            event_store = get_event_store()
+            event_store.snapshot(gallinero_id, tracker)
+        except Exception as e:
+            logger.debug(f"Behavior snapshot failed ({gallinero_id}): {e}")
+
+        # 3. Mating detection: detectar montas entre tracks activos
+        try:
+            mating = get_mating_detector(gallinero_id)
+            mating_events = mating.process_frame(tracker)
+            # Los eventos ya se logean y persisten dentro del detector
+        except Exception as e:
+            logger.debug(f"Mating detection failed ({gallinero_id}): {e}")
+
+        # 4. Pest alerts
         if result.get("pest_count", 0) > 0:
             pest_mgr = get_pest_manager()
             alerts = pest_mgr.process_detections(gallinero_id, result)
@@ -900,11 +974,42 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
                     f"{[a['pest_type'] for a in alerts]}"
                 )
 
-        # 3. Growth tracking (registrar tamaños)
+        # 5. Growth tracking (registrar tamaños)
         growth = get_growth_tracker()
         for t in tracker.tracks.values():
             if t.active and t.sizes:
                 growth.record(t.track_id, t.sizes[-1])
+
+        # 6. ML conductual: analizar anomalías en tiempo real
+        try:
+            import asyncio
+            from services.behavior_ml import get_behavior_ml_engine
+            ml_engine = get_behavior_ml_engine()
+            for t in tracker.tracks.values():
+                if not t.active or not t.bird_id:
+                    continue
+                total_zone = max(sum(t.zone_time.values()), 1)
+                snapshot = {
+                    "bird_id": t.bird_id,
+                    "zone_nido_pct": t.zone_time.get("nido", 0) / total_zone,
+                    "zone_comedero_pct": t.zone_time.get("comedero", 0) / total_zone,
+                    "zone_bebedero_pct": t.zone_time.get("bebedero", 0) / total_zone,
+                    "zone_aseladero_pct": t.zone_time.get("aseladero", 0) / total_zone,
+                    "zone_libre_pct": t.zone_time.get("zona_libre", 0) / total_zone,
+                    "avg_speed": 0.0,
+                    "distance_moved": 0.0,
+                    "social_proximity": 0,
+                    "interactions_count": 0,
+                    "ts": result.get("timestamp", ""),
+                }
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(ml_engine.analyze_snapshot(gallinero_id, snapshot))
+                except RuntimeError:
+                    pass
+        except Exception as e:
+            logger.debug(f"ML analysis failed ({gallinero_id}): {e}")
 
     except Exception as e:
         logger.debug(f"Tracking enrichment failed ({gallinero_id}): {e}")
@@ -1019,12 +1124,60 @@ async def _sync_photo_to_ovosfera(vision_id: str, photo_b64: str):
         logger.debug(f"Photo sync failed: {e}")
 
 
+# ── Mapa de normalización: variantes de Gemini → (breed, color) del censo ──
+_BREED_NORM_MAP: dict[str, tuple[str, str | None]] = {
+    "vorwerk": ("Vorwerk", "dorado"),
+    "vorwerk dorado": ("Vorwerk", "dorado"),
+    "sussex": ("Sussex", None),  # color varía según variedad
+    "sussex silver": ("Sussex", "silver"),
+    "sussex white": ("Sussex", "white"),
+    "sussex armiñada": ("Sussex", "white"),
+    "bresse": ("Bresse", "blanco"),
+    "bresse blanco": ("Bresse", "blanco"),
+    "marans": ("Marans", "negro cobrizo"),
+    "marans negro cobrizo": ("Marans", "negro cobrizo"),
+    "sulmtaler": ("Sulmtaler", "trigueño"),
+    "sulmtaler trigueño": ("Sulmtaler", "trigueño"),
+    "f1 (cruce)": ("F1 (cruce)", "variado"),
+    "f1 (cruce) variado": ("F1 (cruce)", "variado"),
+    "andaluza azul": ("Andaluza Azul", "azul"),
+    "andaluza azul azul": ("Andaluza Azul", "azul"),
+    "pita pinta": ("Pita Pinta", "pinta"),
+    "pita pinta pinta": ("Pita Pinta", "pinta"),
+    "araucana": ("Araucana", "trigueña"),
+    "araucana trigueña": ("Araucana", "trigueña"),
+    "araucana negra": ("Araucana", "negra"),
+    "ameraucana": ("Ameraucana", "trigueño"),
+}
+
+
 def _normalize_to_census(gallinero_id: str, breed: str, color: str, sex: str) -> tuple[str, str, str]:
     """Normaliza breed/color/sex al censo de la cabaña.
 
-    Si Gemini dice "Marrans negro cobrizo" pero el censo dice "Marans negro cobrizo",
-    lo corrige. Usa fuzzy matching simple (Levenshtein no necesario para razas cortas).
+    Pipeline:
+    1. Mapa directo BREED_NORM_MAP (cubre >95% de variantes de Gemini)
+    2. Fallback: fuzzy match contra entradas del censo
     """
+    breed_key = breed.lower().strip()
+
+    # 1. Mapa directo
+    norm = _BREED_NORM_MAP.get(breed_key)
+    if norm:
+        canon_breed, canon_color = norm
+        if canon_color is None:
+            # Sussex: determinar color del original
+            cl = color.lower()
+            if "silver" in cl or "plat" in cl:
+                canon_color = "silver"
+            elif "white" in cl or "blanc" in cl or "armiñ" in cl:
+                canon_color = "white"
+            elif "negra" in cl or "negr" in cl:
+                canon_color = "negra"
+            else:
+                canon_color = "silver"
+        return canon_breed, canon_color, sex
+
+    # 2. Fuzzy match contra censo
     try:
         from services.flock_census import get_expected_breeds
     except ImportError:
@@ -1224,6 +1377,9 @@ async def _register_or_update_birds(detected: list[dict], gallinero: str, frame_
                 new_count = max(0, seen_n - have_n)
                 if quota > 0:
                     new_count = min(new_count, max(0, quota - have_n))
+                else:
+                    # quota=0 → raza/gallinero no en censo, no registrar nuevas
+                    new_count = 0
 
                 for i in range(new_count):
                     # Crop individual si tenemos bbox
@@ -1337,13 +1493,13 @@ async def _identification_loop():
             # Tracking + pest alerts (siempre)
             _enrich_with_tracking(gallinero_id, frame)
 
-            # ── QUALITY GATE: solo 1 ave aislada y bien encuadrada ──
+            # ── QUALITY GATE: selecciona la mejor ave candidata ──
             quality = _quality_gate(frame, yolo_result)
             if not quality:
                 reason = (
-                    f"{yolo_count} aves (requiere 1)"
-                    if yolo_count != 1
-                    else "calidad insuficiente (tamaño/borde/nitidez)"
+                    f"{yolo_count} aves (máx {_QUALITY_MAX_BIRDS})"
+                    if yolo_count > _QUALITY_MAX_BIRDS or yolo_count == 0
+                    else "calidad insuficiente (conf/tamaño/borde/nitidez)"
                 )
                 _last_results[gallinero_id] = {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1366,7 +1522,7 @@ async def _identification_loop():
             # ── QUALITY PASSED: pipeline completo de identificación ──
             sharp_str = f", sharp={quality['sharpness']:.0f}" if quality.get('sharpness') else ""
             logger.info(
-                f"[{cam_config['name']}] Quality OK: 1 ave aislada "
+                f"[{cam_config['name']}] ✅ Quality OK: mejor de {yolo_count} aves "
                 f"(conf={quality['confidence']:.0%}, area={quality['area']:.1%}{sharp_str})"
             )
 
@@ -1395,6 +1551,22 @@ async def _identification_loop():
                     f"{bird.get('color', '')} {bird.get('sex', '')} "
                     f"(engine={analysis.get('engine', '?')})"
                 )
+
+                # ── Curación automática de crops para fine-tune ──
+                try:
+                    from services.crop_curator import get_crop_curator
+                    curator = get_crop_curator()
+                    for b in detected_birds:
+                        if b.get("breed") and b["breed"] != "Desconocida":
+                            await curator.evaluate_and_save(
+                                frame_bytes=frame,
+                                bird_result=b,
+                                camera_id=cam_config["name"],
+                                gallinero_id=gallinero_id,
+                                trigger_event="identification_loop",
+                            )
+                except Exception as e:
+                    logger.debug(f"Crop curation skip: {e}")
 
         await asyncio.sleep(INTERVAL)
 

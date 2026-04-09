@@ -65,6 +65,32 @@ QUERIES = [
     # ── BIENESTAR / NORMATIVA ──
     {"q": "animal welfare regulation European Union livestock", "topic": "normativa_bienestar"},
     {"q": "livestock environmental impact sustainability circular", "topic": "normativa_sostenibilidad"},
+
+    # ── AVICULTURA INTENSIVA ──
+    {"q": "broiler production efficiency feed conversion ratio", "topic": "avi_intensiva_broiler"},
+    {"q": "poultry house ventilation heating cooling system", "topic": "avi_intensiva_naves"},
+    {"q": "laying hen cage-free production welfare", "topic": "avi_intensiva_ponedoras"},
+    {"q": "poultry biosecurity disease prevention avian influenza", "topic": "avi_intensiva_bioseguridad"},
+    {"q": "hatchery incubation technology egg fertility hatching", "topic": "avi_intensiva_incubacion"},
+    {"q": "poultry processing plant automation slaughter quality", "topic": "avi_intensiva_procesado"},
+    {"q": "broiler genetics growth rate Cobb Ross performance", "topic": "avi_intensiva_genetica"},
+    {"q": "poultry litter management ammonia emission welfare", "topic": "avi_intensiva_cama"},
+    {"q": "precision poultry farming sensor monitoring behavior", "topic": "avi_intensiva_precision"},
+    {"q": "broiler gut health microbiome antibiotic alternative", "topic": "avi_intensiva_salud"},
+
+    # ── BODEGAS / VINO / VITICULTURA ──
+    {"q": "wine quality fermentation oenology phenolic compounds", "topic": "vino_enologia"},
+    {"q": "vineyard precision viticulture remote sensing NDVI", "topic": "vino_viticultura_precision"},
+    {"q": "Tempranillo grape variety wine sensory quality Spain", "topic": "vino_tempranillo"},
+    {"q": "wine aging barrel oak volatile compounds", "topic": "vino_crianza"},
+    {"q": "grapevine disease powdery mildew downy management", "topic": "vino_sanidad_vid"},
+    {"q": "climate change viticulture grape adaptation Mediterranean", "topic": "vino_cambio_climatico"},
+    {"q": "organic biodynamic viticulture wine production", "topic": "vino_ecologico"},
+    {"q": "winery technology malolactic fermentation yeast", "topic": "vino_tecnologia"},
+    {"q": "wine grape variety Garnacha Monastrell Bobal Spain", "topic": "vino_variedades_esp"},
+    {"q": "terroir soil vineyard wine quality influence", "topic": "vino_terroir"},
+    {"q": "sparkling wine cava production method", "topic": "vino_espumoso"},
+    {"q": "wine tourism enotourism rural development", "topic": "vino_enoturismo"},
 ]
 
 def reconstruct_abstract(inverted_index: dict) -> str:

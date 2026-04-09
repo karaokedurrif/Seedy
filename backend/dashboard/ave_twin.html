@@ -75,6 +75,10 @@
     .hero-photo{width:150px;height:150px}
     .hero-stats{grid-template-columns:repeat(2,1fr)}
   }
+  /* Behavior cards and tables inside sections */
+  .section table{width:100%;border-collapse:collapse;margin-top:6px}
+  .section table th,.section table td{padding:6px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.06);font-size:.85em;color:#d1d5db}
+  .section table th{color:#6b7280;font-size:.75em;text-transform:uppercase;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -103,7 +107,7 @@ async function loadBird() {
   }
 
   try {
-    // Parallel fetch: bird data, photos, tracking, gompertz
+    // Parallel fetch: bird data (includes OvoSfera + behavior + mating), photos, tracking, gompertz
     const [birdResp, photosResp, trackingResp, gompertzResp] = await Promise.all([
       fetch(`${SEEDY_API}/birds/${birdId}`),
       fetch(`${SEEDY_API}/birds/${birdId}/photos`),
@@ -116,6 +120,22 @@ async function loadBird() {
     const photos = photosResp.ok ? await photosResp.json() : {photos:[]};
     const tracking = trackingResp.ok ? await trackingResp.json() : {positions:[]};
     const gompertz = gompertzResp.ok ? await gompertzResp.json() : {gompertz_params:null};
+
+    // Merge OvoSfera data (fetched server-side by Seedy backend)
+    const ovo = bird.ovosfera;
+    if (ovo) {
+      bird._ovo = ovo;
+      bird._ovo_id = ovo.id;
+      if (ovo.raza) bird.breed = ovo.raza;
+      if (ovo.color) bird.color = ovo.color;
+      if (ovo.sexo) bird.sex = ovo.sexo === "M" ? "male" : ovo.sexo === "H" ? "female" : bird.sex;
+      if (ovo.gallinero) bird.gallinero = ovo.gallinero;
+      if (ovo.tipo) bird._tipo = ovo.tipo;
+      if (ovo.peso) bird._peso = ovo.peso;
+      if (ovo.fecha_nacimiento) bird._birth_date = ovo.fecha_nacimiento;
+      if (ovo.estado) bird._estado = ovo.estado;
+      if (ovo.notas && !bird.notes) bird.notes = ovo.notas;
+    }
 
     renderBird(bird, photos, tracking, gompertz);
   } catch(e) {
@@ -132,6 +152,14 @@ function renderBird(bird, photos, tracking, gompertz) {
   const isMale = bird.sex === "M" || bird.sex === "male";
   const isFemale = bird.sex === "H" || bird.sex === "F" || bird.sex === "female";
   const sexIcon = isMale ? "♂" : isFemale ? "♀" : "?";
+  const ovoId = bird._ovo_id || bird.bird_id.split("-").pop();
+
+  // Behavior data from Seedy API
+  const beh = bird.behavior || {};
+  const inferences = beh.inferences || {};
+  const mating = bird.mating_7d || {};
+
+  document.title = `${nombre} · Digital Twin`;
 
   document.title = `${nombre} · Digital Twin`;
 
@@ -162,9 +190,10 @@ function renderBird(bird, photos, tracking, gompertz) {
           <div class="hero-stat"><div class="val">${bird.confidence ? Math.round(bird.confidence*100) + "%" : "—"}</div><div class="lbl">Confianza IA</div></div>
         </div>
         <div class="actions" style="margin-top:14px">
-          <a href="/farm/${FARM}/aves/${bird.bird_id.split("-").pop()}" class="btn-primary">📝 Editar en OvoSfera</a>
+          <a href="/farm/${FARM}/aves/${ovoId}" class="btn-primary">📝 Editar en OvoSfera</a>
           <button class="btn-warning" onclick="captureIdentify('${bird.bird_id}')">📸 Capturar + Identificar</button>
         </div>
+        ${bird._ovo ? '<div style="font-size:.7em;color:#4a8c1c;margin-top:6px">✅ Datos sincronizados con OvoSfera</div>' : '<div style="font-size:.7em;color:#f59e0b;margin-top:6px">⚠️ Sin sincronizar con OvoSfera</div>'}
       </div>
     </div>
 
@@ -190,7 +219,23 @@ function renderBird(bird, photos, tracking, gompertz) {
         <div class="field"><label>Gallinero</label><span>${bird.gallinero || "Sin asignar"}</span></div>
         <div class="field"><label>Primera detección</label><span>${formatDate(bird.first_seen)}</span></div>
         <div class="field"><label>Última detección</label><span>${formatDate(bird.last_seen)}</span></div>
+        ${bird._tipo ? `<div class="field"><label>Tipo</label><span>${bird._tipo}</span></div>` : ""}
+        ${bird._peso ? `<div class="field"><label>Peso</label><span>${bird._peso} kg</span></div>` : ""}
+        ${bird._birth_date ? `<div class="field"><label>Nacimiento</label><span>${formatDate(bird._birth_date)}</span></div>` : ""}
+        ${bird._estado ? `<div class="field"><label>Estado</label><span>${bird._estado}</span></div>` : ""}
       </div>
+    </div>
+
+    <!-- Comportamiento conductual -->
+    <div class="section">
+      <h2>🧠 Comportamiento (7 dimensiones)</h2>
+      ${renderBehaviorSection(inferences, beh)}
+    </div>
+
+    <!-- Montas / Reproducción -->
+    <div class="section">
+      <h2>💕 Reproducción y montas (7 días)</h2>
+      ${renderMatingSection(mating, isMale)}
     </div>
 
     <!-- Radar conformación + Gompertz — side by side -->
@@ -623,6 +668,122 @@ async function captureIdentify(birdId) {
     btn.textContent = "❌ Error";
     setTimeout(() => { btn.textContent = "📸 Capturar + Identificar"; btn.disabled = false; }, 3000);
   }
+}
+
+// ── Behavior rendering helpers ──
+
+const DIM_LABELS = {
+  aggressiveness: {icon:"⚔️", name:"Agresividad"},
+  dominance: {icon:"👑", name:"Dominancia"},
+  subordination: {icon:"🔽", name:"Subordinación"},
+  feeding_level: {icon:"🍽️", name:"Alimentación"},
+  stress: {icon:"⚠️", name:"Estrés"},
+  sociality: {icon:"🤝", name:"Sociabilidad"},
+  nesting_pattern: {icon:"🪺", name:"Patrón de nido"},
+};
+
+const LABEL_COLORS = {
+  normal: "#22c55e", social_normal: "#22c55e", normal_nesting: "#22c55e",
+  inconclusive: "#6b7280",
+  possible_aggressive: "#ef4444", possible_dominant: "#f59e0b", probable_dominant: "#f59e0b",
+  possible_subordinate: "#3b82f6", low_feeding: "#f59e0b", high_feeding: "#06b6d4",
+  possible_stress: "#ef4444", high_stress: "#dc2626",
+  possible_asocial: "#8b5cf6", possible_highly_social: "#06b6d4",
+  possible_early_brooding: "#f59e0b", no_nesting: "#6b7280",
+};
+
+const LABEL_ES = {
+  normal: "Normal", social_normal: "Normal", normal_nesting: "Normal", no_nesting: "Sin actividad",
+  inconclusive: "Sin datos suficientes",
+  possible_aggressive: "Posible agresividad", possible_dominant: "Posible dominante",
+  probable_dominant: "Probable dominante", possible_subordinate: "Posible subordinada",
+  low_feeding: "Alimentación baja", high_feeding: "Alimentación alta",
+  possible_stress: "Posible estrés", high_stress: "Estrés alto",
+  possible_asocial: "Posible asocial", possible_highly_social: "Muy social",
+  possible_early_brooding: "Posible clueca",
+};
+
+function renderBehaviorSection(inferences, beh) {
+  if (!inferences || Object.keys(inferences).length === 0) {
+    return '<div style="color:#6b7280;font-size:.9em;padding:16px">⏳ Sin datos conductuales. El análisis se activa tras acumular suficientes detecciones del tracker.</div>';
+  }
+
+  const completeness = beh.data_completeness || 0;
+  let html = `<div style="font-size:.75em;color:#6b7280;margin-bottom:12px">Completitud datos: ${Math.round(completeness*100)}% · Ventana: ${beh.time_window || "24h"}</div>`;
+
+  // Grid of 7 dimensions
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">';
+  for (const [dim, meta] of Object.entries(DIM_LABELS)) {
+    const inf = inferences[dim] || {};
+    const label = inf.label || "inconclusive";
+    const score = inf.score || 0;
+    const color = LABEL_COLORS[label] || "#6b7280";
+    const labelEs = LABEL_ES[label] || label;
+    const evidence = (inf.evidence || []).slice(0, 2);
+
+    html += `<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px">
+      <div style="font-size:.85em;font-weight:600;color:#d1d5db;margin-bottom:6px">${meta.icon} ${meta.name}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color}"></span>
+        <span style="color:${color};font-size:.85em;font-weight:500">${labelEs}</span>
+      </div>
+      ${score > 0 ? `<div style="background:rgba(255,255,255,.06);border-radius:4px;height:4px;margin:6px 0"><div style="width:${Math.round(score*100)}%;height:100%;background:${color};border-radius:4px"></div></div>` : ''}
+      ${evidence.length > 0 ? `<div style="font-size:.7em;color:#9ca3af;margin-top:4px">${evidence.join("<br>")}</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+
+  // Anomalies
+  const anomalies = beh.anomalies || [];
+  if (anomalies.length > 0) {
+    html += `<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:.85em">
+      <strong style="color:#ef4444">⚡ Anomalías detectadas:</strong><br>
+      ${anomalies.map(a => `<span style="color:#fca5a5">• ${a}</span>`).join("<br>")}
+    </div>`;
+  }
+
+  return html;
+}
+
+function renderMatingSection(mating, isMale) {
+  if (!mating || (mating.total_events === 0 && !mating.as_mounter && !mating.as_mounted)) {
+    return '<div style="color:#6b7280;font-size:.9em;padding:16px">Sin eventos de monta registrados en los últimos 7 días.</div>';
+  }
+
+  const asM = mating.as_mounter || 0;
+  const asF = mating.as_mounted || 0;
+  const partners = mating.partners || [];
+  const events = mating.recent_events || [];
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px">';
+  html += `<div class="hero-stat"><div class="val">${mating.total_events || 0}</div><div class="lbl">Eventos totales</div></div>`;
+  if (isMale) {
+    html += `<div class="hero-stat"><div class="val">🐓 ${asM}</div><div class="lbl">Como mounter</div></div>`;
+  } else {
+    html += `<div class="hero-stat"><div class="val">🐔 ${asF}</div><div class="lbl">Montada</div></div>`;
+  }
+  html += `<div class="hero-stat"><div class="val">${partners.length}</div><div class="lbl">Parejas</div></div>`;
+  html += '</div>';
+
+  if (partners.length > 0) {
+    html += '<div style="font-size:.85em;color:#d1d5db;margin-bottom:8px"><strong>Parejas:</strong> ';
+    html += partners.map(p => `<a href="${SEEDY_API}/dashboard/ave_twin.html?id=${p}" style="color:#22c55e">${p}</a>`).join(", ");
+    html += '</div>';
+  }
+
+  if (events.length > 0) {
+    html += '<div style="font-size:.8em;margin-top:8px"><strong style="color:#d1d5db">Últimos eventos:</strong>';
+    html += '<table style="width:100%;margin-top:6px;font-size:.9em"><tr><th style="text-align:left;color:#6b7280">Fecha</th><th style="text-align:left;color:#6b7280">Mounter</th><th style="text-align:left;color:#6b7280">Mounted</th><th style="color:#6b7280">Duración</th></tr>';
+    events.forEach(ev => {
+      const mounter = (ev.mounter || {}).bird_id || "?";
+      const mounted = (ev.mounted || {}).bird_id || "?";
+      const dur = ev.estimated_duration_sec ? ev.estimated_duration_sec.toFixed(0) + "s" : "—";
+      html += `<tr><td>${formatDate(ev.timestamp)}</td><td>${mounter}</td><td>${mounted}</td><td style="text-align:center">${dur}</td></tr>`;
+    });
+    html += '</table></div>';
+  }
+
+  return html;
 }
 
 // Init

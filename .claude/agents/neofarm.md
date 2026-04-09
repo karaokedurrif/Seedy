@@ -47,6 +47,18 @@ Eres un agente experto en el ecosistema **NeoFarm/Seedy**, especializado en:
 - Parrot Bebop 2: disuasión autónoma de gorriones
 - Puente HTTP (Olympe SDK) en Dell Latitude (192.168.20.102)
 
+### 7. Zigbee IoT Hub — Gallineros (Jun 2026)
+- **Mini PC**: 192.168.20.53 (user: karaoke, Linux Mint 22.2), Docker 29.3.1
+- **Dongle**: CH340/CC2652, ZStack3x0, `/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0`
+- **Zigbee2MQTT**: v2.9.2 (Docker, port 8080), adapter: zstack, channel 15, permit_join: true
+- **Sensores**: 2× eWeLink CK-TLSR8656-SS5-01(7014) — temp, humidity, battery, voltage, linkquality
+  - `gallinero_durrif_1` → Durrif I (id:2)
+  - `gallinero_durrif_2` → Durrif II (id:3)
+- **Router**: 1× Tuya TS011F_plug_3 (`router_gallineros`) en caseta (~20m)
+- **Flujo**: Sensor → Dongle USB → Z2M (mini PC) → MQTT (192.168.20.131) → telemetry.py → InfluxDB (gallinero_climate)
+- **API**: `/ovosfera/devices`, `/ovosfera/devices/assign`, `/ovosfera/devices/status`, `/ovosfera/devices/history`
+- **OvoSfera**: página /devices con tarjetas sensor (temp/humedad/batería, barras LQI, auto-refresh 15s)
+
 ## Arquitectura del Proyecto
 
 ```
@@ -60,12 +72,14 @@ Seedy/
 │   │   ├── openai_compat.py    # OpenAI-compatible endpoint
 │   │   ├── genetics.py         # Simulación genética
 │   │   ├── birds.py            # CRUD registro de aves
+│   │   ├── devices.py          # Sensores Zigbee: listado, estado, histórico
 │   │   ├── dron.py             # Control Bebop 2
 │   │   └── ...
 │   ├── services/               # 20+ servicios
 │   │   ├── yolo_detector.py    # YOLO local GPU
 │   │   ├── gemini_vision.py    # Gemini 2.5 Flash
 │   │   ├── rag.py              # Búsqueda vectorial
+│   │   ├── telemetry.py        # MQTT subscriber + InfluxDB writer (Zigbee sensors)
 │   │   ├── sparrow_deterrent.py # Disuasión autónoma
 │   │   └── ...
 │   └── dashboard/              # HTML/JS dashboards
@@ -105,7 +119,8 @@ Seedy/
 Internet ← Cloudflare Tunnel ← MSI (192.168.30.x, RTX 5080)
                                   ├── Cámaras Dahua (10.10.10.x)
                                   ├── NAS OMV (192.168.30.100)
-                                  └── Dell Latitude (192.168.20.102) ← Bebop 2 WiFi
+                                  ├── Dell Latitude (192.168.20.102) ← Bebop 2 WiFi
+                                  └── Mini PC Zigbee (192.168.20.53) ← CH340 dongle ← sensors
 ```
 
 ## Directrices al Trabajar

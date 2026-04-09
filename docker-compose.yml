@@ -34,7 +34,7 @@ services:
 
   # ── Open WebUI (interfaz ganadero) ─────────────────
   open-webui:
-    image: open-webui:0.8.8-local
+    image: ghcr.io/open-webui/open-webui:v0.8.12
     container_name: open-webui
     restart: unless-stopped
     ports:
@@ -112,6 +112,7 @@ services:
     container_name: seedy-backend
     restart: unless-stopped
     runtime: nvidia
+    shm_size: '2gb'
     ports:
       - "8000:8000"
     env_file:
@@ -131,6 +132,21 @@ services:
       - YOLO_BREED_MODEL=/app/yolo_models/seedy_breeds_best.pt
       - YOLO_DATA_DIR=/app/yolo_dataset
       - YOLO_MODELS_DIR=/app/yolo_models
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - WEBUI_DB_PATH=/app/backend/open-webui-data/webui.db
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - REPORT_EMAIL=${REPORT_EMAIL:-durrif@gmail.com}
+      - KNOWLEDGE_AGENT_INTERVAL=${KNOWLEDGE_AGENT_INTERVAL:-14400}
+      - KNOWLEDGE_AGENT_MAX_QUERIES=${KNOWLEDGE_AGENT_MAX_QUERIES:-25}
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-neofarm}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-porcidata}
     volumes:
       - ./backend:/app
       - ./genetics:/app/genetics:ro
@@ -141,6 +157,7 @@ services:
       - yolo_models:/app/yolo_models
       - hf_cache:/root/.cache/huggingface
       - ./backend/dashboard:/app/dashboard:ro
+      - open_webui_data:/app/backend/open-webui-data:ro
     deploy:
       resources:
         reservations:
@@ -153,6 +170,10 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      mosquitto:
+        condition: service_started
+      influxdb:
+        condition: service_started
     networks:
       ai_default:
         aliases:

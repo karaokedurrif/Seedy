@@ -25,10 +25,19 @@ from routers import render
 from routers import bird_3d
 from routers import runtime as runtime_router
 from routers import dron
+from routers import report
+from routers import devices as devices_router
+from routers import behavior as behavior_router
+from routers import curated as curated_router
+from routers import behavior_ml as behavior_ml_router
+from routers import merit_index as merit_index_router
 from services import embeddings, rag
 from services import gemini_vision
 from services.reranker import warmup as reranker_warmup
 from services.daily_update import run_daily_update
+from services.auto_learn import start_all_loops as start_auto_learn_loops
+from services.telemetry import start_mqtt_listener, stop_mqtt_listener
+from services.capture_manager import start_capture_manager, stop_capture_manager
 
 # Logging
 logging.basicConfig(
@@ -64,15 +73,42 @@ async def lifespan(app: FastAPI):
     # Warmup go2rtc streams (pre-connect RTSP → evita cold start de 5s)
     asyncio.create_task(_warmup_go2rtc_streams())
 
-    # Auto-start bird identification loop — DESACTIVADO hasta validar estrategia quality-first
-    # asyncio.create_task(_auto_start_identification())
+    # Auto-learning loops (YOLO retrain, DPO snapshot, Vision stats)
+    auto_learn_tasks = start_auto_learn_loops()
+    app.state.auto_learn_tasks = auto_learn_tasks
+
+    # MQTT listener para telemetría Zigbee (sensores gallineros)
+    start_mqtt_listener()
+
+    # Inicializar singletons de comportamiento (eager, no lazy en primera request)
+    try:
+        from services.behavior_event_store import get_event_store
+        from services.behavior_baseline import get_baseline
+        _store = get_event_store()  # cleanup al startup incluido
+        _bl = get_baseline()
+        logger.info("[Behavior] Event store y baseline inicializados")
+    except Exception as e:
+        logger.warning(f"[Behavior] Init degradado: {e}")
+
+    # Auto-start bird identification loop (quality-first: solo 1 ave aislada por frame)
+    asyncio.create_task(_auto_start_identification())
+
+    # Dual-stream capture manager (sub-stream tracking + main-stream event-driven)
+    asyncio.create_task(_start_capture_manager())
+
+    # Behavior ML autolearn (cada 6h)
+    asyncio.create_task(_autolearn_behavior_ml())
 
     logger.info("🌱 Seedy Backend listo")
     yield
 
     # Cleanup
     daily_task.cancel()
+    for t in auto_learn_tasks:
+        t.cancel()
+    stop_mqtt_listener()
     vision_identify.stop_loop()
+    await stop_capture_manager()
     await embeddings.close()
     await gemini_vision.close()
     rag.close()
@@ -102,6 +138,41 @@ async def _auto_start_identification():
         logger.info("🐔 Bird identification loop auto-started")
     except Exception as e:
         logger.warning(f"Auto-start identification failed: {e}")
+
+
+async def _start_capture_manager():
+    """Inicia el CaptureManager dual-stream tras warmup."""
+    await asyncio.sleep(20)  # esperar a go2rtc + identification loop
+    try:
+        # Optimizar cámaras Dahua
+        from services.dahua_optimizer import optimize_dahua_settings
+        from services.capture_manager import CAMERAS
+        for cam in CAMERAS.values():
+            if cam.is_dahua and cam.optimize_exposure:
+                await optimize_dahua_settings(cam.ip, cam.username, cam.password)
+
+        await start_capture_manager()
+        logger.info("📹 Capture Manager auto-started")
+    except Exception as e:
+        logger.warning(f"Capture Manager auto-start failed: {e}")
+
+
+BEHAVIOR_ML_TRAIN_INTERVAL = 6 * 3600  # 6 horas
+
+
+async def _autolearn_behavior_ml():
+    """Entrena modelos ML conductuales cada 6 horas."""
+    await asyncio.sleep(600)  # 10 min tras arranque
+    while True:
+        try:
+            from services.behavior_ml import get_behavior_ml_engine
+            engine = get_behavior_ml_engine()
+            for gallinero_id in ["gallinero_durrif_1", "gallinero_durrif_2"]:
+                result = await engine.train_all(gallinero_id, days=14)
+                logger.info(f"[BehaviorML] Train {gallinero_id}: {result}")
+        except Exception as e:
+            logger.error(f"[BehaviorML] Train failed: {e}")
+        await asyncio.sleep(BEHAVIOR_ML_TRAIN_INTERVAL)
 
 
 async def _warmup_go2rtc_streams():
@@ -140,7 +211,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     """
 
     OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models"}
-    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/")
+    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/", "/reports/")
 
     async def dispatch(self, request: Request, call_next):
         if not _valid_keys:
@@ -204,6 +275,12 @@ app.include_router(runtime_router.router)
 app.include_router(render.router)
 app.include_router(bird_3d.router)
 app.include_router(dron.router)
+app.include_router(report.router)
+app.include_router(devices_router.router)
+app.include_router(behavior_router.router)
+app.include_router(curated_router.router)
+app.include_router(behavior_ml_router.router)
+app.include_router(merit_index_router.router)
 
 
 # ── Stub: tracking activity feed (returns empty until real YOLO pipeline is connected) ──
@@ -220,6 +297,11 @@ import pathlib
 _DASHBOARD_DIR = pathlib.Path("/app/dashboard")
 if _DASHBOARD_DIR.exists():
     app.mount("/dashboard", StaticFiles(directory=str(_DASHBOARD_DIR), html=True), name="dashboard")
+
+# Directorio de informes PDF generados (servido estáticamente)
+_REPORTS_DIR = pathlib.Path("/app/data/reports")
+_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/reports", StaticFiles(directory=str(_REPORTS_DIR)), name="reports")
 
 
 # No-cache para .js del dashboard (evita cache de Cloudflare CDN)

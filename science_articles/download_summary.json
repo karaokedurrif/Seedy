@@ -1,127 +1,149 @@
 {
-  "total_articles": 546,
-  "total_abstracts_chars": 839710,
+  "total_articles": 974,
+  "total_abstracts_chars": 1430621,
   "by_topic": {
-    "avicultura_capones": 23,
-    "avicultura_engorde": 18,
-    "avicultura_razas": 21,
+    "avicultura_capones": 25,
+    "avicultura_engorde": 22,
+    "avicultura_razas": 23,
     "avicultura_capones_calidad": 17,
-    "avicultura_ponedoras": 19,
-    "avicultura_bienestar": 17,
-    "avicultura_nutricion": 13,
-    "porcino_iberico": 17,
+    "avicultura_ponedoras": 22,
+    "avicultura_bienestar": 18,
+    "avicultura_nutricion": 18,
+    "porcino_iberico": 19,
     "porcino_nutricion": 15,
-    "porcino_genetica": 14,
+    "porcino_genetica": 19,
     "porcino_bienestar": 17,
-    "porcino_calidad": 19,
-    "porcino_reproduccion": 14,
+    "porcino_calidad": 21,
+    "porcino_reproduccion": 20,
     "porcino_iot": 22,
     "porcino_sanidad": 20,
-    "porcino_microbioma": 11,
-    "vacuno_extensivo": 15,
-    "vacuno_genetica": 16,
-    "vacuno_calidad": 17,
-    "vacuno_lechero": 10,
-    "vacuno_iot": 13,
-    "vacuno_cria": 14,
-    "vacuno_medioambiente": 14,
-    "nutricion_formulacion": 11,
-    "nutricion_eficiencia": 5,
-    "nutricion_micotoxinas": 13,
-    "nutricion_aminoacidos": 5,
-    "nutricion_suplementacion": 7,
-    "genetica_genomica": 10,
-    "genetica_cruzamiento": 20,
-    "genetica_consanguinidad": 16,
-    "iot_digital_twin": 19,
-    "iot_sensores": 18,
+    "porcino_microbioma": 17,
+    "vacuno_extensivo": 16,
+    "vacuno_genetica": 17,
+    "vacuno_calidad": 18,
+    "vacuno_lechero": 16,
+    "vacuno_iot": 14,
+    "vacuno_cria": 16,
+    "vacuno_medioambiente": 16,
+    "nutricion_formulacion": 12,
+    "nutricion_eficiencia": 6,
+    "nutricion_micotoxinas": 15,
+    "nutricion_aminoacidos": 7,
+    "nutricion_suplementacion": 8,
+    "genetica_genomica": 20,
+    "genetica_cruzamiento": 23,
+    "genetica_consanguinidad": 21,
+    "iot_digital_twin": 18,
+    "iot_sensores": 19,
     "iot_vision": 13,
-    "iot_analytics": 7,
-    "iot_rfid": 8,
-    "normativa_bienestar": 10,
-    "normativa_sostenibilidad": 8
+    "iot_analytics": 10,
+    "iot_rfid": 6,
+    "normativa_bienestar": 13,
+    "normativa_sostenibilidad": 8,
+    "avi_intensiva_broiler": 3,
+    "avi_intensiva_naves": 16,
+    "avi_intensiva_ponedoras": 10,
+    "avi_intensiva_bioseguridad": 19,
+    "avi_intensiva_incubacion": 21,
+    "avi_intensiva_procesado": 14,
+    "avi_intensiva_genetica": 23,
+    "avi_intensiva_cama": 13,
+    "avi_intensiva_precision": 8,
+    "avi_intensiva_salud": 16,
+    "vino_enologia": 18,
+    "vino_viticultura_precision": 21,
+    "vino_tempranillo": 19,
+    "vino_crianza": 14,
+    "vino_sanidad_vid": 21,
+    "vino_cambio_climatico": 15,
+    "vino_ecologico": 19,
+    "vino_tecnologia": 13,
+    "vino_variedades_esp": 10,
+    "vino_terroir": 15,
+    "vino_espumoso": 15,
+    "vino_enoturismo": 24
   },
-  "avg_citations": 323.95054945054943,
+  "avg_citations": 282.3141683778234,
   "top_journals": [
     [
-      "IEEE Access",
-      24
-    ],
-    [
       "PLoS ONE",
-      22
-    ],
-    [
-      "Sustainability",
-      18
-    ],
-    [
-      "Frontiers in Sustainable Food Systems",
-      12
+      42
     ],
     [
       "Scientific Reports",
-      12
+      36
     ],
     [
-      "Annals of Animal Science",
-      11
-    ],
-    [
-      "Journal of Dairy Science",
-      11
-    ],
-    [
-      "Frontiers in Veterinary Science",
-      10
-    ],
-    [
-      "Asian-Australasian Journal of Animal Sciences",
-      9
-    ],
-    [
-      "EFSA Journal",
-      9
-    ],
-    [
-      "Sensors",
-      9
-    ],
-    [
-      "Animals",
-      8
-    ],
-    [
-      "Frontiers in Genetics",
-      8
-    ],
-    [
-      "Agriculture",
-      8
+      "Sustainability",
+      29
     ],
     [
       "Nature Communications",
-      8
+      28
+    ],
+    [
+      "IEEE Access",
+      26
+    ],
+    [
+      "Frontiers in Microbiology",
+      18
+    ],
+    [
+      "Agriculture",
+      17
+    ],
+    [
+      "EFSA Journal",
+      16
     ],
     [
       "Agronomy",
-      7
+      14
     ],
     [
-      "Foods",
-      7
+      "Remote Sensing",
+      14
     ],
     [
-      "Proceedings of the National Academy of Sciences",
-      7
+      "Frontiers in Sustainable Food Systems",
+      13
     ],
     [
-      "PLoS Genetics",
-      7
+      "Microbiome",
+      12
     ],
     [
-      "Applied Sciences",
-      7
+      "Animals",
+      11
+    ],
+    [
+      "Sensors",
+      11
+    ],
+    [
+      "Fermentation",
+      11
+    ],
+    [
+      "BMC Genomics",
+      10
+    ],
+    [
+      "Journal of Dairy Science",
+      10
+    ],
+    [
+      "Frontiers in Veterinary Science",
+      9
+    ],
+    [
+      "Annals of Animal Science",
+      9
+    ],
+    [
+      "Poultry Science",
+      9
     ]
   ]
 }

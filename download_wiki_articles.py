@@ -137,6 +137,70 @@ ARTICLES = {
         "Animal nutrition", "Feed conversion ratio",
         "Heterosis", "Estimated breeding value",
     ],
+
+    # ── AVICULTURA INTENSIVA ──
+    "avicultura_intensiva": [
+        "Avicultura", "Pollo de engorde", "Gallina ponedora",
+        "Incubación artificial", "Incubadora (avicultura)",
+        "Nave avícola", "Bioseguridad", "Gripe aviar",
+        "Enfermedad de Newcastle", "Coccidiosis aviar",
+        "Salmonelosis", "Conversión alimenticia",
+        "Industria avícola", "Matadero avícola",
+    ],
+    "avicultura_intensiva_en": [
+        "Poultry farming", "Broiler industry", "Broiler",
+        "Battery cage", "Free-range eggs", "Furnished cage",
+        "Poultry house", "Hatchery", "Egg incubation",
+        "Avian influenza", "Coccidiosis", "Marek's disease",
+        "Ross 308", "Cobb 500", "Lohmann Brown", "Hy-Line",
+        "Poultry science", "Poultry feed",
+        "Poultry slaughter", "Poultry processing",
+        "Ventilation (industrial)", "Ammonia",
+    ],
+
+    # ── BODEGAS / VINO / VITICULTURA ──
+    "vino": [
+        "Vino", "Enología", "Viticultura", "Vinificación",
+        "Vendimia", "Uva", "Vid", "Vitis vinifera",
+        "Fermentación alcohólica", "Fermentación maloláctica",
+        "Bodega", "Barrica", "Crianza (vino)", "Reserva (vino)",
+        "Denominación de origen", "Enoturismo",
+        # Variedades de uva españolas
+        "Tempranillo", "Garnacha tinta", "Monastrell",
+        "Bobal", "Mencía", "Cariñena (uva)", "Graciano",
+        "Albariño", "Verdejo", "Godello", "Macabeo",
+        "Xarel·lo", "Parellada", "Malvasía",
+        "Cabernet Sauvignon", "Merlot", "Syrah", "Chardonnay",
+        "Sauvignon blanc", "Pinot noir",
+        # DO españolas
+        "Denominación de Origen Rioja",
+        "Denominación de Origen Ribera del Duero",
+        "Denominación de Origen Calificada Priorato",
+        "Rías Baixas (DO)", "Rueda (DO)", "Somontano (DO)",
+        "Jumilla (DO)", "Toro (DO)", "Bierzo (DO)",
+        "Penedés (DO)", "Cava (vino)",
+        "Jerez-Xérès-Sherry", "Manzanilla de Sanlúcar",
+        # Procesos y técnica
+        "Coupage", "Tanino", "Polifenol",
+        "Sulfito", "Levadura", "Acidez (enología)",
+        "Clarificación (enología)", "Filtración (enología)",
+        "Embotellado", "Corcho",
+        "Poda de la vid", "Espaldera", "Portainjerto",
+        "Filoxera", "Mildiu", "Oídio",
+    ],
+    "vino_en": [
+        "Wine", "Oenology", "Viticulture", "Winemaking",
+        "Grape", "Terroir", "Appellation",
+        "Wine tasting", "Sommelier",
+        "Tempranillo", "Garnacha", "Monastrell",
+        "Albariño", "Verdejo",
+        "Rioja wine", "Ribera del Duero",
+        "Priorat wine", "Spanish wine",
+        "Barrel", "Oak (wine)", "Wine barrel",
+        "Malolactic fermentation", "Wine fault",
+        "Phylloxera", "Powdery mildew",
+        "Organic wine", "Biodynamic wine",
+    ],
 }
 
 def fetch_wiki_article(title: str, lang: str = "es") -> dict | None:

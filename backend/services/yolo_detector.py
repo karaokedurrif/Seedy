@@ -37,10 +37,13 @@ YOLO_IMGSZ = int(os.environ.get("YOLO_IMGSZ", "1280"))
 # Filtramos solo las que nos interesan del modelo COCO preentrenado
 COCO_CLASSES_OF_INTEREST = {
     14: "bird",       # ave genérica (gallinas + gorriones + todo)
-    15: "cat",        # depredador
-    16: "dog",        # depredador / perro guardián
-    21: "cow",        # vaca (puede colarse si hay pasto cerca)
+    15: "cat",        # depredador — conf mínima 0.5 (ver filtro abajo)
+    # 16: dog — eliminado: falsos positivos constantes en cámaras avícolas
+    # 21: cow — eliminado: falsos positivos constantes en cámaras avícolas
 }
+
+# Confianza mínima para pest classes COCO (evitar falsos positivos)
+COCO_PEST_MIN_CONFIDENCE = 0.50
 
 # ── Taxonomía Seedy completa ──
 # Estas son las clases objetivo del modelo custom
@@ -183,7 +186,13 @@ def detect(frame_bytes: bytes, confidence: float | None = None, imgsz: int | Non
                     continue
                 class_name = COCO_CLASSES_OF_INTEREST[cls_id]
                 # Reclasificar para coherencia interna
-                category = "poultry" if cls_id == 14 else "pest"
+                if cls_id == 14:
+                    category = "poultry"
+                else:
+                    # Pest: exigir confianza alta para evitar falsos positivos
+                    if cls_conf < COCO_PEST_MIN_CONFIDENCE:
+                        continue
+                    category = "pest"
             else:
                 class_name = _custom_classes.get(cls_id, f"class_{cls_id}")
                 if cls_id in SEEDY_POULTRY_CLASSES:

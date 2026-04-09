@@ -1,0 +1,24 @@
+# ── Zigbee Bridge — Mini PC (192.168.20.53) ──────────
+# Conecta sensores Zigbee de los gallineros al broker MQTT de Seedy.
+#
+# Instalación:
+#   scp -r zigbee-bridge/ davidia@192.168.20.53:~/zigbee-bridge/
+#   ssh davidia@192.168.20.53
+#   cd ~/zigbee-bridge && docker compose up -d
+#
+# El dongle se monta en /dev/ttyUSB0 (CH340 genérico).
+# Los datos se publican a Mosquitto en el servidor Seedy (192.168.20.200).
+
+services:
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:latest
+    container_name: zigbee2mqtt
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # Web UI para gestionar dispositivos
+    volumes:
+      - ./data:/app/data
+    devices:
+      - /dev/serial/by-id/usb-la86-USB-Serial-if00-port0:/dev/ttyUSB0
+    environment:
+      - TZ=Europe/Madrid
