@@ -1,13 +1,14 @@
 {
-  "total": 358,
+  "total": 462,
   "by_breed": {
-    "F1 (cruce)": 242,
-    "Sussex": 46,
-    "Pita Pinta": 44,
-    "Andaluza Azul": 11,
-    "Bresse": 8,
-    "Marans": 4,
-    "Ameraucana": 3
+    "F1 (cruce)": 328,
+    "Sussex": 57,
+    "Pita Pinta": 45,
+    "Andaluza Azul": 14,
+    "Bresse": 9,
+    "Marans": 5,
+    "Ameraucana": 3,
+    "Araucana": 1
   },
-  "updated": "2026-04-09T17:19:32.629068"
+  "updated": "2026-04-09T18:55:49.408527"
 }

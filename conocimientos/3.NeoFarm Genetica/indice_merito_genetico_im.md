@@ -71,6 +71,8 @@ Cuando se sacrifica y cata un capón de prueba, el resultado de la cata (score 1
 ## Relación con otros módulos genéticos
 
 - El IM **NO sustituye** al COI de Wright. Ambos coexisten. Un ave con IM alto pero COI >0.25 con su pareja propuesta NO se aparea.
+- El endpoint `/genetics/merit/evaluate-pairing` verifica ambos criterios: calcula el IM de padre y madre, y bloquea el apareamiento si el COI esperado de la descendencia supera 0.25.
+- COI entre 0.125 y 0.25 genera un warning de precaución (equivalente a primos hermanos).
 - El IM se calcula en momentos clave: semanas 4, 8, 12, 16, 20 (se guarda historial temporal).
 - El IM alimenta al "Generational River" del frontend genético.
 - Los modelos BLUP/GBLUP existentes calculan EBV (valores de cría estimados) que son complementarios al IM.
@@ -79,11 +81,12 @@ Cuando se sacrifica y cata un capón de prueba, el resultado de la cata (score 1
 
 | Endpoint | Método | Función |
 |----------|--------|---------|
-| `/genetics/merit/calculate` | POST | Calcular IM de un ave individual |
+| `/genetics/merit/calculate` | POST | Calcular IM de un ave individual (acepta weights custom) |
 | `/genetics/merit/batch` | POST | Calcular IM de un lote (ordenado por score) |
 | `/genetics/merit/ranking` | POST | Ranking completo con estadísticas |
 | `/genetics/merit/history/{bird_id}` | GET | Historial temporal del IM de un ave |
 | `/genetics/merit/gompertz-target` | GET | Peso objetivo Gompertz para edad/gallinero/raza |
+| `/genetics/merit/evaluate-pairing` | POST | Evaluar apareamiento: IM de ambos + guard COI (bloquea si COI > 0.25) |
 
 ## Ejemplo de uso
 

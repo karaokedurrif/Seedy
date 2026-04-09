@@ -1,1 +1,4 @@
 {"bird_id": "TEST-004", "im_score": 0.845, "category": "produccion", "components": {"peso": 1.0, "conformacion": 1.0, "conversion": 0.5, "viabilidad": 1.0, "docilidad": 0.2}, "age_weeks": 20, "calculated_at": "2026-04-09T16:34:28.321623"}
+{"bird_id": "TEST-004", "im_score": 0.845, "category": "produccion", "components": {"peso": 1.0, "conformacion": 1.0, "conversion": 0.5, "viabilidad": 1.0, "docilidad": 0.2}, "age_weeks": 20, "calculated_at": "2026-04-09T17:45:49.379517"}
+{"bird_id": "TEST-004", "im_score": 0.845, "category": "produccion", "components": {"peso": 1.0, "conformacion": 1.0, "conversion": 0.5, "viabilidad": 1.0, "docilidad": 0.2}, "age_weeks": 20, "calculated_at": "2026-04-09T17:58:42.723940"}
+{"bird_id": "TEST-004", "im_score": 0.845, "category": "produccion", "components": {"peso": 1.0, "conformacion": 1.0, "conversion": 0.5, "viabilidad": 1.0, "docilidad": 0.2}, "age_weeks": 20, "calculated_at": "2026-04-09T17:58:47.553288"}

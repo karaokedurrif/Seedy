@@ -20,6 +20,48 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/birds", tags=["birds"])
 
+# ─── Color/Breed alias matching ──────────────────────
+
+_COLOR_ALIASES: dict[str, set[str]] = {
+    "silver":          {"light (silver)", "plateado", "plateada"},
+    "light (silver)":  {"silver", "plateado"},
+    "dorado":          {"gold-black", "gold", "dorada"},
+    "gold-black":      {"dorado", "gold"},
+    "blanco":          {"white", "blanca"},
+    "white":           {"blanco", "blanca"},
+    "negro cobrizo":   {"black copper", "negra cobriza"},
+    "black copper":    {"negro cobrizo"},
+    "trigueño":        {"wheaten (weizenfarbig)", "wheaten", "trigueña"},
+    "wheaten (weizenfarbig)": {"trigueño", "wheaten", "trigueña"},
+    "trigueña":        {"trigueño", "wheaten"},
+    "variado":         {"varied", "variada"},
+    "pinta":           {"mottled"},
+    "azul":            {"blue"},
+    "negra":           {"negro", "black"},
+}
+
+_BREED_ALIASES: dict[str, set[str]] = {
+    "f1 (cruce)":  {"cruce f1", "cruce", "f1"},
+    "cruce f1":    {"f1 (cruce)", "cruce", "f1"},
+    "pita pinta":  {"pita pinta asturiana"},
+    "pita pinta asturiana": {"pita pinta"},
+}
+
+
+def _match_color(stored: str, query: str) -> bool:
+    a, b = stored.lower().strip(), query.lower().strip()
+    if a == b:
+        return True
+    return b in _COLOR_ALIASES.get(a, set()) or a in _COLOR_ALIASES.get(b, set())
+
+
+def _match_breed(stored: str, query: str) -> bool:
+    a, b = stored.lower().strip(), query.lower().strip()
+    if a == b:
+        return True
+    return b in _BREED_ALIASES.get(a, set()) or a in _BREED_ALIASES.get(b, set())
+
+
 # ─── Persistencia ────────────────────────────────────
 
 _DATA_PATH = Path("/app/data/birds_registry.json")
@@ -82,6 +124,13 @@ def _get_ia_vision_number(breed: str, color: str) -> int:
 
 # ─── Endpoints ───────────────────────────────────────
 
+@router.post("/reload")
+async def reload_registry():
+    """Recarga el registro desde disco."""
+    _load_registry()
+    return {"status": "reloaded", "total": len(_registry), "next_seq": _next_seq}
+
+
 @router.get("/")
 async def list_birds(
     gallinero: str | None = Query(None, description="Filtrar por gallinero"),
@@ -93,9 +142,9 @@ async def list_birds(
     if gallinero:
         birds = [b for b in birds if b["gallinero"] == gallinero]
     if breed:
-        birds = [b for b in birds if b["breed"].lower() == breed.lower()]
+        birds = [b for b in birds if _match_breed(b["breed"], breed)]
     if color:
-        birds = [b for b in birds if b.get("color", "").lower() == color.lower()]
+        birds = [b for b in birds if _match_color(b.get("color", ""), color)]
     return {"birds": birds, "total": len(birds)}
 
 
@@ -172,6 +221,111 @@ async def get_bird(bird_id: str):
                 }
             except Exception:
                 result["mating_7d"] = None
+
+            # Índice de Mérito Genético (IM)
+            try:
+                from services.merit_index import calculate_merit_index, get_target_weight, get_history
+                from models.merit_index import MeritInput
+
+                # Obtener datos para el cálculo
+                ovo = result.get("ovosfera", {})
+                beh = result.get("behavior") or {}
+                inferences = beh.get("inferences", {})
+
+                # Edad en semanas: desde fecha_nacimiento de OvoSfera o estimada desde first_seen
+                age_weeks = None
+                fecha_nac = ovo.get("fecha_nacimiento")
+                if fecha_nac:
+                    try:
+                        from datetime import date
+                        nac = date.fromisoformat(str(fecha_nac)[:10])
+                        age_weeks = (date.today() - nac).days // 7
+                    except Exception:
+                        pass
+                # Fallback: estimar edad desde first_seen (asumiendo ave joven al registrar)
+                if age_weeks is None and b.get("first_seen"):
+                    try:
+                        from datetime import date
+                        first = date.fromisoformat(str(b["first_seen"])[:10])
+                        weeks_since_reg = (date.today() - first).days // 7
+                        # Estimar que tenían ~8 semanas al registrarse por primera vez
+                        age_weeks = weeks_since_reg + 8
+                    except Exception:
+                        pass
+
+                # Peso: de OvoSfera (kg → g)
+                peso_g = None
+                if ovo.get("peso"):
+                    peso_g = float(ovo["peso"]) * 1000
+
+                # Conformación: inferida de behavior (stress bajo + feeding alto → buena conformación)
+                # Default: 3.0 (neutral) si no hay datos
+                conf_score = 3.0
+                stress = inferences.get("stress", {})
+                feeding = inferences.get("feeding_level", {})
+                if stress.get("score") is not None and feeding.get("score") is not None:
+                    # Bajo estrés + alta alimentación → buena conformación
+                    conf_score = max(1.0, min(5.0,
+                        3.0 + (feeding["score"] - 0.5) * 2 - stress["score"] * 2
+                    ))
+
+                # Docilidad: inferida de agresividad (invertida)
+                doc_score = 3.0
+                aggr = inferences.get("aggressiveness", {})
+                if aggr.get("score") is not None:
+                    doc_score = max(1.0, min(5.0, 5.0 - aggr["score"] * 4))
+
+                # Mapeo gallinero Seedy → gallinero genético (G1-G5)
+                gall_map = {
+                    "gallinero_durrif_1": "G1",
+                    "gallinero_durrif_2": "G2",
+                }
+                gall_gen = gall_map.get(gallinero)
+
+                # Solo calcular si tenemos edad y peso (datos mínimos)
+                if age_weeks is not None and age_weeks > 0 and peso_g is not None and peso_g > 0:
+                    merit_input = MeritInput(
+                        bird_id=bird_id,
+                        gallinero=gall_gen,
+                        sex=b.get("sex"),
+                        age_weeks=age_weeks,
+                        weight_grams=peso_g,
+                        conformacion_score=round(conf_score, 1),
+                        docilidad_score=round(doc_score, 1),
+                    )
+                    merit_result = calculate_merit_index(merit_input)
+                    result["merit_index"] = {
+                        "im_score": merit_result.im_score,
+                        "category": merit_result.category.value,
+                        "components": merit_result.components,
+                        "recommendation": merit_result.recommendation,
+                        "age_weeks": age_weeks,
+                        "weight_grams": peso_g,
+                        "data_source": {
+                            "weight": "ovosfera",
+                            "age": "ovosfera" if fecha_nac else "estimated_from_first_seen",
+                            "conformacion": "behavior_ai" if inferences else "default",
+                            "docilidad": "behavior_ai" if aggr.get("score") is not None else "default",
+                        },
+                    }
+                else:
+                    # Sin datos suficientes: mostrar peso objetivo y último historial
+                    target = None
+                    breed_lower = b.get("breed", "").lower()
+                    if age_weeks and age_weeks > 0:
+                        target = round(get_target_weight(age_weeks, gall_gen, breed_lower), 1)
+                    history = get_history(bird_id)
+                    result["merit_index"] = {
+                        "im_score": None,
+                        "category": None,
+                        "message": "Datos insuficientes para calcular IM. Se necesita peso y fecha de nacimiento en OvoSfera.",
+                        "gompertz_target": target,
+                        "age_weeks": age_weeks,
+                        "history": history[-3:] if history else [],
+                    }
+            except Exception as e:
+                logger.warning(f"[Birds] Error calculando IM para {bird_id}: {e}")
+                result["merit_index"] = None
 
             return result
     raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")

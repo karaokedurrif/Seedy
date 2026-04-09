@@ -68,8 +68,22 @@ CAMERAS = {
         "distant": False,
         "yolo_imgsz": 1920,
         "use_tiled": False,
+        "gallinero": "gallinero_durrif_1",  # Mapea al censo real (sauna está dentro de G1)
     },
 }
+
+
+def _census_gallinero(cam_key: str) -> str:
+    """Resuelve la clave de cámara al gallinero real del censo.
+
+    Ej: 'sauna_durrif_1' → 'gallinero_durrif_1' (vía campo 'gallinero' en CAMERAS).
+    Si no tiene mapeo, devuelve la clave tal cual.
+    """
+    cam = CAMERAS.get(cam_key)
+    if cam:
+        return cam.get("gallinero", cam_key)
+    return cam_key
+
 
 # Prompt especializado para identificar aves individuales
 BIRD_ID_PROMPT = """Analiza esta imagen de un gallinero.
@@ -246,10 +260,12 @@ _BREED_YOLO_TO_CENSUS = {
     "ameraucana_gallina":      ("Ameraucana",     "trigueño",      "female"),
 }
 
-# Razas que NO están en YOLO → se detectan por descarte del censo
-_FALLBACK_BREEDS = {
-    "F1 (cruce)":       {"color": "variado",   "sexo": "female"},
-    "Araucana (negra)": {"color": "negra",     "sexo": "female"},
+# Razas+color que NO están en YOLO → se detectan por descarte del censo
+# Key: (raza_lower, color_lower) — debe coincidir con flock_census.json
+_FALLBACK_BREEDS: set[tuple[str, str]] = {
+    ("f1 (cruce)", "variado"),
+    ("araucana",   "negra"),
+    ("por determinar", "desconocido"),
 }
 
 
@@ -762,30 +778,28 @@ def _resolve_unknown_by_census(gallinero_id: str, birds: list[dict]) -> list[dic
     if not census:
         return birds
 
-    # Contar cuántas de cada raza ya identificó breed YOLO
+    # Contar cuántas de cada raza+color+sexo ya identificó breed YOLO
     from collections import Counter
     identified_counts: Counter = Counter()
     for b in birds:
         if b["breed"] != "Desconocida":
-            key = (b["breed"].lower(), b["sex"])
+            key = (b["breed"].lower(), b.get("color", "").lower(), b["sex"])
             identified_counts[key] += 1
 
     # Calcular qué razas del censo NO están cubiertas por breed YOLO
     unmatched_census = []  # [(breed, color, sex, remaining_count)]
     for entry in census:
         raza = entry["raza"]
-        if raza == "Por determinar":
-            continue
         color = entry["color"]
         sexo = entry["sexo"]
         cantidad = entry.get("cantidad", 0)
 
-        # ¿Cuántas de esta raza ya identificó YOLO?
-        key = (raza.lower(), sexo)
+        # ¿Cuántas de esta raza+color ya identificó YOLO?
+        key = (raza.lower(), color.lower(), sexo)
         already = identified_counts.get(key, 0)
         remaining = max(0, cantidad - already)
 
-        if remaining > 0 and raza in _FALLBACK_BREEDS:
+        if remaining > 0 and (raza.lower(), color.lower()) in _FALLBACK_BREEDS:
             for _ in range(remaining):
                 unmatched_census.append((raza, color, sexo))
 
@@ -1441,10 +1455,12 @@ async def _identification_loop():
     logger.info("🐔 Identification loop started (quality-first, single-bird)")
 
     while _running:
-        for gallinero_id, cam_config in CAMERAS.items():
+        for cam_key, cam_config in CAMERAS.items():
             if not _running:
                 break
 
+            # Gallinero real del censo (sauna_durrif_1 → gallinero_durrif_1)
+            gallinero_id = cam_config.get("gallinero", cam_key)
             cam_imgsz = cam_config.get("yolo_imgsz")
             use_tiled = cam_config.get("use_tiled", False)
 
@@ -1632,6 +1648,7 @@ async def snapshot_identify(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
+    census_gal = _census_gallinero(gallinero_id)
     is_distant = cam.get("distant", False)
     frame = await _capture_from_cam(cam, force_hires=True)
     if not frame:
@@ -1639,7 +1656,7 @@ async def snapshot_identify(gallinero_id: str):
 
     analysis = await _analyze_frame(
         frame,
-        gallinero_id,
+        census_gal,
         imgsz=cam.get("yolo_imgsz"),
         use_tiled=cam.get("use_tiled", False),
         force_gemini=is_distant,
@@ -1648,7 +1665,7 @@ async def snapshot_identify(gallinero_id: str):
         raise HTTPException(503, "Gemini no pudo analizar la imagen")
 
     # Registrar aves detectadas (comparación por conteo)
-    await _register_or_update_birds(analysis.get("birds", []), gallinero_id, frame)
+    await _register_or_update_birds(analysis.get("birds", []), census_gal, frame)
 
     n_birds = len(analysis.get("birds", []))
     if log_agent_run:
@@ -1776,6 +1793,7 @@ async def snapshot_annotated(gallinero_id: str):
         raise HTTPException(404, f"Gallinero {gallinero_id} no configurado")
 
     cam = CAMERAS[gallinero_id]
+    census_gal = _census_gallinero(gallinero_id)
     is_distant = cam.get("distant", False)
     frame = await _capture_from_cam(cam, force_hires=True)
     if not frame:
@@ -1785,7 +1803,7 @@ async def snapshot_annotated(gallinero_id: str):
     use_tiled = cam.get("use_tiled", False)
 
     analysis = await _analyze_frame(
-        frame, gallinero_id,
+        frame, census_gal,
         imgsz=cam_imgsz,
         use_tiled=use_tiled,
         force_gemini=is_distant,
@@ -1801,10 +1819,10 @@ async def snapshot_annotated(gallinero_id: str):
     birds = analysis.get("birds", [])
 
     # Registrar nuevas aves
-    await _register_or_update_birds(birds, gallinero_id, frame)
+    await _register_or_update_birds(birds, census_gal, frame)
 
     # Dibujar anotaciones
-    annotated = _draw_annotations(frame, birds, gallinero_id)
+    annotated = _draw_annotations(frame, birds, census_gal)
 
     return Response(
         content=annotated,
@@ -1856,11 +1874,7 @@ async def snapshot_yolo_only(gallinero_id: str):
 
 async def _get_gallinero_aves(gallinero_id: str) -> list[dict]:
     """Obtiene las aves de OvoSfera asignadas a este gallinero."""
-    # Mapear cámaras que ven el mismo gallinero
-    _CAMERA_TO_GALLINERO = {
-        "sauna_durrif_1": "gallinero_durrif_1",  # sauna ve G1 y G2
-    }
-    census_key = _CAMERA_TO_GALLINERO.get(gallinero_id, gallinero_id)
+    census_key = _census_gallinero(gallinero_id)
 
     try:
         from services.flock_census import _load, _census
@@ -1984,10 +1998,11 @@ async def snapshot_detect(gallinero_id: str):
 
     # Obtener aves conocidas de OvoSfera para este gallinero (match asistido)
     known_aves = await _get_gallinero_aves(gallinero_id)
-    # Censo de razas esperadas
+    # Censo de razas esperadas (incluye visitantes + sin_asignar)
+    census_gal = _census_gallinero(gallinero_id)
     try:
         from services.flock_census import get_expected_breeds
-        census = get_expected_breeds(gallinero_id)
+        census = get_expected_breeds(census_gal)
     except Exception:
         census = []
 
@@ -2128,6 +2143,24 @@ async def manual_assign(body: dict):
 
     # Guardar crop en galería local (acumula fotos para re-entrenar YOLO breed)
     _save_crop_to_gallery(ove_ave_id, crop_b64, breed, color, sex)
+
+    # ── Sincronizar con registro local de Seedy (birds_registry.json) ──
+    anilla = ave.get("anilla", "")
+    vision_id = update_data.get("ai_vision_id", "")
+    if anilla and vision_id:
+        try:
+            async with httpx.AsyncClient(timeout=5.0, base_url="http://localhost:8000") as client:
+                resp = await client.get(f"/birds/{anilla}")
+                if resp.status_code == 200:
+                    # Ave ya existe → actualizar ai_vision_id
+                    await client.patch(f"/birds/{anilla}", json={
+                        "ai_vision_id": vision_id,
+                    })
+                    logger.info(f"📋 Local registry updated: {anilla} → ai_vision_id={vision_id}")
+                else:
+                    logger.debug(f"📋 {anilla} not in local registry (will sync on next sighting)")
+        except Exception as e:
+            logger.debug(f"Local registry sync failed: {e}")
 
     return {
         "status": "assigned",
@@ -2506,7 +2539,7 @@ async def full_analysis(gallinero_id: str):
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
     analysis = await _analyze_frame(
-        frame, gallinero_id,
+        frame, _census_gallinero(gallinero_id),
         imgsz=cam.get("yolo_imgsz"),
         use_tiled=cam.get("use_tiled", False),
         force_gemini=is_distant,
@@ -2518,7 +2551,7 @@ async def full_analysis(gallinero_id: str):
 
     # Registrar aves detectadas
     detected = analysis.get("birds", [])
-    await _register_or_update_birds(detected, gallinero_id, frame)
+    await _register_or_update_birds(detected, _census_gallinero(gallinero_id), frame)
 
     return {
         "gallinero": gallinero_id,
@@ -2691,7 +2724,7 @@ async def sync_birds(gallinero_id: str, reset: bool = False):
         raise HTTPException(503, f"No se pudo capturar frame de {cam['name']}")
 
     analysis = await _analyze_frame(
-        frame, gallinero_id,
+        frame, _census_gallinero(gallinero_id),
         imgsz=cam.get("yolo_imgsz"),
         use_tiled=cam.get("use_tiled", False),
         force_gemini=True,
@@ -2700,7 +2733,7 @@ async def sync_birds(gallinero_id: str, reset: bool = False):
         raise HTTPException(503, "Gemini no pudo analizar el frame")
 
     detected = analysis.get("birds", [])
-    await _register_or_update_birds(detected, gallinero_id, frame)
+    await _register_or_update_birds(detected, _census_gallinero(gallinero_id), frame)
 
     from routers.birds import _registry as reg
     synced = [b for b in reg if b.get("gallinero") == gallinero_id]

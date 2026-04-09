@@ -1,0 +1,4 @@
+{"bird_id": "PAL-2026-0008", "im_score": 0.532, "category": "descarte", "components": {"peso": 0.707, "conformacion": 0.6, "conversion": 0.5, "viabilidad": 0.0, "docilidad": 0.6}, "age_weeks": 16, "calculated_at": "2026-04-09T17:53:45.509150"}
+{"bird_id": "PAL-2026-0008", "im_score": 0.532, "category": "descarte", "components": {"peso": 0.707, "conformacion": 0.6, "conversion": 0.5, "viabilidad": 0.0, "docilidad": 0.6}, "age_weeks": 16, "calculated_at": "2026-04-09T17:54:21.571587"}
+{"bird_id": "PAL-2026-0008", "im_score": 0.775, "category": "produccion", "components": {"peso": 1.0, "conformacion": 0.4, "conversion": 0.5, "viabilidad": 1.0, "docilidad": 1.0}, "age_weeks": 10, "calculated_at": "2026-04-09T17:58:24.225850"}
+{"bird_id": "PAL-2026-0008", "im_score": 0.775, "category": "produccion", "components": {"peso": 1.0, "conformacion": 0.4, "conversion": 0.5, "viabilidad": 1.0, "docilidad": 1.0}, "age_weeks": 10, "calculated_at": "2026-04-09T17:58:33.762896"}

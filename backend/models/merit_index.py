@@ -33,6 +33,7 @@ class MeritInput(BaseModel):
     """Datos de entrada para calcular el IM de un ave."""
     bird_id: str
     gallinero: Optional[str] = None
+    sex: Optional[str] = Field(None, pattern="^(male|female)$", description="male o female")
     age_weeks: int = Field(ge=0)
     weight_grams: float = Field(ge=0)
     target_weight_grams: Optional[float] = Field(None, ge=0, description="Si None, se calcula por Gompertz")

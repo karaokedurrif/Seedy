@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seedy — Identificar Aves</title>
+<style>
+  :root {
+    --bg: #0a0e14; --card: #141a24; --border: #1e2a3a;
+    --text: #e6edf3; --muted: #8b949e; --primary: #b07d2b;
+    --ok: #22c55e; --alert: #ef4444; --radius: 12px;
+    --blue: #3b82f6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height:100vh; }
+
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+  }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header h1 span { color: var(--primary); }
+  .header .nav { display: flex; gap: 12px; }
+  .header .nav a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  .header .nav a:hover { color: var(--text); }
+
+  .toolbar {
+    display: flex; gap: 12px; padding: 16px 24px; align-items: center;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  select, button {
+    font-family: inherit; font-size: 13px;
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); cursor: pointer;
+  }
+  button:hover { background: var(--border); }
+  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+  button.primary:hover { opacity: 0.85; }
+  button.ok { background: var(--ok); color: #000; border-color: var(--ok); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .status-bar {
+    padding: 8px 24px; font-size: 12px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .status-bar .count { color: var(--primary); font-weight: 700; }
+
+  /* Frame preview */
+  .frame-container {
+    position: relative; padding: 16px 24px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .frame-preview {
+    flex: 1; min-width: 400px; position: relative;
+  }
+  .frame-preview img {
+    width: 100%; border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .frame-preview .bbox-overlay {
+    position: absolute; border: 2px solid; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .frame-preview .bbox-overlay:hover { border-width: 3px; }
+  .frame-preview .bbox-overlay .bbox-label {
+    position: absolute; top: -20px; left: 0; font-size: 10px;
+    padding: 1px 6px; border-radius: 3px; white-space: nowrap;
+    font-weight: 600;
+  }
+
+  /* Detections panel */
+  .detections-panel {
+    flex: 0 0 380px; max-height: 80vh; overflow-y: auto;
+  }
+  .detection-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 12px; overflow: hidden; transition: border-color 0.2s;
+  }
+  .detection-card.active { border-color: var(--primary); }
+  .detection-card.assigned { border-color: var(--ok); opacity: 0.7; }
+
+  .det-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .det-crop {
+    width: 64px; height: 64px; object-fit: cover; border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .det-info { flex: 1; }
+  .det-info .breed { font-weight: 600; font-size: 14px; }
+  .det-info .conf { font-size: 11px; color: var(--muted); }
+  .det-info .assigned-to { font-size: 11px; color: var(--ok); font-weight: 600; }
+
+  .det-suggestions {
+    padding: 8px 12px; display: none;
+  }
+  .detection-card.active .det-suggestions { display: block; }
+
+  .suggestion {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px; border-radius: 8px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .suggestion:hover { background: rgba(176,125,43,0.1); }
+  .suggestion.selected { background: rgba(176,125,43,0.2); border: 1px solid var(--primary); }
+
+  .sug-photo {
+    width: 40px; height: 40px; object-fit: cover; border-radius: 6px;
+    background: var(--border);
+  }
+  .sug-info { flex: 1; }
+  .sug-info .anilla { font-weight: 600; font-size: 12px; }
+  .sug-info .raza { font-size: 11px; color: var(--muted); }
+  .sug-score { font-size: 11px; color: var(--primary); font-weight: 600; }
+
+  .det-actions {
+    padding: 8px 12px; display: flex; gap: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Loading */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--muted);
+    border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    text-align: center; padding: 60px 24px; color: var(--muted);
+  }
+  .empty-state h2 { margin-bottom: 8px; color: var(--text); }
+
+  /* Colors for boxes */
+  .color-0 { --c: #f59e0b; } .color-1 { --c: #3b82f6; } .color-2 { --c: #ef4444; }
+  .color-3 { --c: #10b981; } .color-4 { --c: #8b5cf6; } .color-5 { --c: #ec4899; }
+  .color-6 { --c: #06b6d4; } .color-7 { --c: #f97316; } .color-8 { --c: #6366f1; }
+  .color-9 { --c: #14b8a6; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🐔 <span>Seedy</span> — Identificar Aves</h1>
+  <div class="nav">
+    <a href="/dashboard/gallineros.html">📹 Cámaras</a>
+    <a href="/dashboard/">🏠 Dashboard</a>
+  </div>
+</div>
+
+<div class="toolbar">
+  <select id="cameraSelect">
+    <option value="gallinero_durrif_1">📷 VIGI — Gallinero I</option>
+    <option value="sauna_durrif_1">📷 Dahua — Gallinero I (sauna)</option>
+    <option value="gallinero_durrif_2">📷 VIGI — Gallinero II</option>
+  </select>
+  <button class="primary" id="captureBtn" onclick="capture()">📸 Capturar y detectar</button>
+  <button id="refreshBtn" onclick="capture()" style="display:none">🔄 Recapturar</button>
+  <span id="loadingIndicator" style="display:none"><span class="spinner"></span> Procesando…</span>
+</div>
+
+<div class="status-bar" id="statusBar">
+  Selecciona una cámara y pulsa "Capturar" para detectar aves.
+</div>
+
+<div id="emptyState" class="empty-state">
+  <h2>Sin capturas</h2>
+  <p>Pulsa el botón "Capturar y detectar" para que YOLO busque aves en la cámara seleccionada.</p>
+  <p style="margin-top:16px; font-size:12px">Los endpoints usan imágenes 4K de go2rtc para máxima resolución.</p>
+</div>
+
+<div class="frame-container" id="mainArea" style="display:none">
+  <div class="frame-preview" id="framePreview">
+    <img id="frameImg" src="" alt="Frame capturado">
+    <!-- BBox overlays added dynamically -->
+  </div>
+  <div class="detections-panel" id="detectionsPanel">
+    <!-- Detection cards added dynamically -->
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let currentDetections = [];
+let activeIndex = -1;
+let assignments = {}; // index → { ove_ave_id, anilla, breed, color, sex }
+
+async function capture() {
+  const cam = document.getElementById('cameraSelect').value;
+  const btn = document.getElementById('captureBtn');
+  const loading = document.getElementById('loadingIndicator');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  btn.disabled = true;
+  loading.style.display = 'inline';
+  document.getElementById('statusBar').textContent = 'Capturando frame 4K y ejecutando YOLO…';
+
+  try {
+    const resp = await fetch(`${API}/vision/identify/snapshot/${cam}/detect`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const data = await resp.json();
+
+    currentDetections = data.detections || [];
+    assignments = {};
+    activeIndex = -1;
+
+    renderFrame(data);
+    renderDetections(data);
+
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('mainArea').style.display = 'flex';
+    refreshBtn.style.display = 'inline';
+
+    document.getElementById('statusBar').innerHTML =
+      `<span class="count">${data.count}</span> ave(s) detectada(s) — ` +
+      `${data.camera} — ${data.inference_ms.toFixed(0)}ms — ` +
+      `${new Date(data.timestamp).toLocaleTimeString('es-ES')}`;
+
+    if (data.count === 0) {
+      document.getElementById('detectionsPanel').innerHTML =
+        '<div style="padding:20px;text-align:center;color:var(--muted)">' +
+        '<p>😔 YOLO no detectó aves.</p>' +
+        '<p style="font-size:11px;margin-top:8px">¿Es de noche? ¿Las aves están fuera de plano?</p></div>';
+    }
+  } catch(e) {
+    document.getElementById('statusBar').textContent = '❌ Error: ' + e.message;
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    loading.style.display = 'none';
+  }
+}
+
+function renderFrame(data) {
+  const container = document.getElementById('framePreview');
+  const img = document.getElementById('frameImg');
+  img.src = 'data:image/jpeg;base64,' + data.frame_b64;
+
+  // Remove old overlays
+  container.querySelectorAll('.bbox-overlay').forEach(el => el.remove());
+
+  // Add bbox overlays
+  data.detections.forEach((det, i) => {
+    if (!det.bbox || det.bbox.length < 4) return;
+    const [x1, y1, x2, y2] = det.bbox;
+    const colorClass = `color-${i % 10}`;
+
+    const overlay = document.createElement('div');
+    overlay.className = `bbox-overlay ${colorClass}`;
+    overlay.style.cssText = `
+      left: ${x1 * 100}%; top: ${y1 * 100}%;
+      width: ${(x2 - x1) * 100}%; height: ${(y2 - y1) * 100}%;
+      border-color: var(--c);
+    `;
+    overlay.onclick = () => setActive(i);
+
+    const label = document.createElement('div');
+    label.className = 'bbox-label';
+    label.style.cssText = `background: var(--c); color: #000;`;
+    label.textContent = `#${i + 1} ${det.breed_guess} ${(det.confidence * 100).toFixed(0)}%`;
+    overlay.appendChild(label);
+
+    container.appendChild(overlay);
+  });
+}
+
+function renderDetections(data) {
+  const panel = document.getElementById('detectionsPanel');
+  panel.innerHTML = '';
+
+  data.detections.forEach((det, i) => {
+    const card = document.createElement('div');
+    card.className = `detection-card color-${i % 10}`;
+    card.id = `det-card-${i}`;
+
+    const sexIcon = det.breed_sex === 'male' ? '♂' : det.breed_sex === 'female' ? '♀' : '?';
+
+    card.innerHTML = `
+      <div class="det-header" onclick="setActive(${i})">
+        ${det.crop_b64
+          ? `<img class="det-crop" src="data:image/jpeg;base64,${det.crop_b64}" alt="Ave #${i+1}">`
+          : `<div class="det-crop" style="display:flex;align-items:center;justify-content:center;background:var(--border);color:var(--muted);font-size:20px">🐔</div>`
+        }
+        <div class="det-info">
+          <div class="breed" style="color:var(--c)">#${i+1} — ${det.breed_guess} ${sexIcon}</div>
+          <div class="conf">YOLO: ${(det.confidence*100).toFixed(0)}% · Raza: ${(det.breed_confidence*100).toFixed(0)}%</div>
+          <div class="assigned-to" id="assigned-label-${i}"></div>
+        </div>
+      </div>
+      <div class="det-suggestions" id="sugs-${i}">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">
+          ¿A qué ave del inventario corresponde?
+        </div>
+        ${renderSuggestions(det, i)}
+      </div>
+      <div class="det-actions" id="actions-${i}" style="display:none">
+        <button class="ok" onclick="confirmAssign(${i})">✅ Confirmar asignación</button>
+        <button onclick="clearAssign(${i})">✖ Cancelar</button>
+      </div>
+    `;
+    panel.appendChild(card);
+  });
+}
+
+function renderSuggestions(det, detIndex) {
+  if (!det.suggested_aves || !det.suggested_aves.length) {
+    return '<div style="padding:8px;color:var(--muted);font-size:12px">Sin sugerencias de OvoSfera</div>';
+  }
+
+  return det.suggested_aves.map((sug, j) => {
+    const foto = sug.foto
+      ? `<img class="sug-photo" src="${sug.foto}" alt="${sug.anilla}">`
+      : `<div class="sug-photo" style="display:flex;align-items:center;justify-content:center;font-size:14px">🐔</div>`;
+
+    const sexTxt = sug.sexo === 'H' || sug.sexo === 'female' ? '♀' : sug.sexo === 'M' || sug.sexo === 'male' ? '♂' : '?';
+    const hasVisionId = sug.ai_vision_id ? `<span style="color:var(--ok)">✓ ${sug.ai_vision_id}</span>` : '<span style="color:var(--alert)">sin ID</span>';
+
+    return `
+      <div class="suggestion" id="sug-${detIndex}-${j}"
+           onclick="selectSuggestion(${detIndex}, ${j}, ${sug.id}, '${(sug.anilla||'').replace(/'/g,"\\'")}', '${(sug.raza||'').replace(/'/g,"\\'")}', '${(sug.color||'').replace(/'/g,"\\'")}', '${sug.sexo||''}')">
+        ${foto}
+        <div class="sug-info">
+          <div class="anilla">${sug.anilla || 'Sin anilla'} ${sexTxt}</div>
+          <div class="raza">${sug.raza || '?'} ${sug.color || ''} — ${hasVisionId}</div>
+        </div>
+        <div class="sug-score">${sug.score}pts</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setActive(index) {
+  // Deactivate old
+  document.querySelectorAll('.detection-card').forEach(c => c.classList.remove('active'));
+  // Activate new
+  const card = document.getElementById(`det-card-${index}`);
+  if (card) {
+    card.classList.add('active');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  activeIndex = index;
+}
+
+function selectSuggestion(detIndex, sugIndex, oveId, anilla, breed, color, sex) {
+  // Clear previous selection in this detection
+  document.querySelectorAll(`[id^="sug-${detIndex}-"]`).forEach(el => el.classList.remove('selected'));
+  // Select this one
+  document.getElementById(`sug-${detIndex}-${sugIndex}`).classList.add('selected');
+  // Store assignment
+  assignments[detIndex] = { ove_ave_id: oveId, anilla, breed, color, sex };
+  // Show confirm button
+  document.getElementById(`actions-${detIndex}`).style.display = 'flex';
+}
+
+async function confirmAssign(detIndex) {
+  const assign = assignments[detIndex];
+  if (!assign) return;
+
+  const det = currentDetections[detIndex];
+  const cam = document.getElementById('cameraSelect').value;
+
+  const btn = document.querySelector(`#actions-${detIndex} .ok`);
+  btn.disabled = true;
+  btn.textContent = '⏳ Guardando…';
+
+  try {
+    const resp = await fetch(`${API}/vision/identify/manual-assign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ove_ave_id: assign.ove_ave_id,
+        crop_b64: det.crop_b64 || '',
+        breed: assign.breed,
+        color: assign.color,
+        sex: assign.sex,
+        gallinero: cam,
+      }),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const result = await resp.json();
+
+    // Mark as assigned
+    const card = document.getElementById(`det-card-${detIndex}`);
+    card.classList.add('assigned');
+    card.classList.remove('active');
+
+    const label = document.getElementById(`assigned-label-${detIndex}`);
+    label.textContent = `✅ → ${result.anilla} (${result.ai_vision_id})`;
+
+    document.getElementById(`actions-${detIndex}`).style.display = 'none';
+    document.getElementById(`sugs-${detIndex}`).style.display = 'none';
+
+    // Update status
+    const assigned = Object.keys(assignments).filter(k => {
+      const c = document.getElementById(`det-card-${k}`);
+      return c && c.classList.contains('assigned');
+    }).length;
+    document.getElementById('statusBar').innerHTML +=
+      ` — <span style="color:var(--ok)">${assigned} asignada(s)</span>`;
+
+  } catch(e) {
+    btn.textContent = '❌ Error — reintentar';
+    btn.disabled = false;
+    console.error('Assign error:', e);
+  }
+}
+
+function clearAssign(detIndex) {
+  delete assignments[detIndex];
+  document.querySelectorAll(`[id^="sug-${detIndex}-"]`).forEach(el => el.classList.remove('selected'));
+  document.getElementById(`actions-${detIndex}`).style.display = 'none';
+}
+</script>
+</body>
+</html>
