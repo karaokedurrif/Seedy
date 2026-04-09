@@ -1,0 +1,33 @@
+{
+  "started_at": "2026-04-03T06:02:39.164961+00:00",
+  "gaps_detected": [
+    {
+      "topic": "estrategia/diversidad_fuentes",
+      "score": 0.15,
+      "reason": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+    },
+    {
+      "topic": "avicultura_intensiva/diversidad_fuentes",
+      "score": 0.22,
+      "reason": "Baja diversidad: 22 fuentes únicas en 100 chunks"
+    },
+    {
+      "topic": "avicultura_intensiva/exceso_ingles",
+      "score": 0.44086021505376344,
+      "reason": "44% del contenido en inglés (debería ser <40%)"
+    }
+  ],
+  "searches_performed": 2,
+  "chunks_indexed": 10,
+  "chunks_promoted": 50,
+  "errors": [],
+  "promote_by_collection": {
+    "estrategia": 15,
+    "iot_hardware": 3,
+    "normativa": 13,
+    "avicultura": 14,
+    "genetica": 5
+  },
+  "finished_at": "2026-04-03T06:03:43.405743+00:00",
+  "duration_seconds": 64.240782
+}

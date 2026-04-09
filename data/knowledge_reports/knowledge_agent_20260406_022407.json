@@ -1,0 +1,23 @@
+{
+  "started_at": "2026-04-06T02:24:07.125978+00:00",
+  "gaps_detected": [
+    {
+      "topic": "estrategia/diversidad_fuentes",
+      "score": 0.15,
+      "reason": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+    }
+  ],
+  "searches_performed": 1,
+  "chunks_indexed": 5,
+  "chunks_promoted": 50,
+  "errors": [],
+  "promote_by_collection": {
+    "estrategia": 15,
+    "iot_hardware": 3,
+    "normativa": 13,
+    "avicultura": 14,
+    "genetica": 5
+  },
+  "finished_at": "2026-04-06T02:26:46.631321+00:00",
+  "duration_seconds": 159.505343
+}

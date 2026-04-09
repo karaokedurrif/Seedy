@@ -1,0 +1,116 @@
+{
+  "analysis": {
+    "periodo": {
+      "desde": "2026-04-04T02:30:39.683722+00:00",
+      "hasta": "2026-04-05T02:30:39.683722+00:00",
+      "generado": "2026-04-05T02:30:39.683722+00:00"
+    },
+    "actividad": {
+      "total_mensajes": 0,
+      "mensajes_usuario": 0,
+      "respuestas_asistente": 0,
+      "conversaciones_unicas": 0,
+      "títulos_chats": []
+    },
+    "categorias": {},
+    "critic": {
+      "total_evaluaciones": 0,
+      "pass": 0,
+      "block": 0,
+      "tasa_bloqueo": "0.0%",
+      "razones_bloqueo": {},
+      "latencia_media_ms": 0
+    },
+    "gold_capture": {
+      "sft_nuevos": 0,
+      "dpo_nuevos": 0
+    },
+    "knowledge_agent": {
+      "ciclos": 6,
+      "busquedas": 51,
+      "chunks_indexados": 223,
+      "chunks_promovidos": 300,
+      "errores": 0,
+      "gaps_detectados": [
+        {
+          "tema": "estrategia/diversidad_fuentes",
+          "score": 0.15,
+          "razon": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "avicultura_intensiva/diversidad_fuentes",
+          "score": 0.28,
+          "razon": "Baja diversidad: 28 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "estrategia/diversidad_fuentes",
+          "score": 0.15,
+          "razon": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "avicultura_intensiva/diversidad_fuentes",
+          "score": 0.28,
+          "razon": "Baja diversidad: 28 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "estrategia/diversidad_fuentes",
+          "score": 0.15,
+          "razon": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "avicultura_intensiva/diversidad_fuentes",
+          "score": 0.28,
+          "razon": "Baja diversidad: 28 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "estrategia/diversidad_fuentes",
+          "score": 0.15,
+          "razon": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "avicultura_intensiva/diversidad_fuentes",
+          "score": 0.28,
+          "razon": "Baja diversidad: 28 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "estrategia/diversidad_fuentes",
+          "score": 0.15,
+          "razon": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "avicultura_intensiva/diversidad_fuentes",
+          "score": 0.28,
+          "razon": "Baja diversidad: 28 fuentes únicas en 100 chunks"
+        },
+        {
+          "tema": "estrategia/diversidad_fuentes",
+          "score": 0.15,
+          "razon": "Baja diversidad: 15 fuentes únicas en 100 chunks"
+        }
+      ]
+    },
+    "qdrant": {
+      "total_chunks": 82141,
+      "por_coleccion": {
+        "estrategia": 35934,
+        "avicultura": 10626,
+        "genetica": 9990,
+        "normativa": 7042,
+        "nutricion": 5206,
+        "fresh_web": 4164,
+        "digital_twins": 3184,
+        "iot_hardware": 1988,
+        "bodegas_vino": 1864,
+        "avicultura_intensiva": 1172,
+        "geotwin": 971
+      }
+    },
+    "queries_sin_respuesta": [],
+    "temas_recurrentes": [],
+    "mejoras_propuestas": [],
+    "mejoras_ejecutadas": []
+  },
+  "improvements": [],
+  "email_sent": true,
+  "email_to": "durrif@gmail.com"
+}

@@ -1,0 +1,25 @@
+{
+  "_comment": "Config generado automáticamente por auto_learn.py",
+  "generated_at": "2026-04-01T17:48:33.771824+00:00",
+  "dataset_dir": "/app/vision_dataset",
+  "dataset_jsonl": "/app/vision_dataset/dataset.jsonl",
+  "total_pairs": 152,
+  "total_images": 152,
+  "disk_mb": 94.1,
+  "llama_factory_config": {
+    "stage": "sft",
+    "model_name_or_path": "Qwen/Qwen2.5-VL-7B-Instruct",
+    "dataset": "seedy_vision",
+    "template": "qwen2_vl",
+    "finetuning_type": "lora",
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_target": "all",
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 1e-05,
+    "num_train_epochs": 3,
+    "bf16": true,
+    "max_samples": 5000
+  }
+}
