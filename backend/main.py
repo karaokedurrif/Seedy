@@ -20,24 +20,12 @@ from routers import chat, health, vision, genetics, openai_compat, ingest, birds
 from routers import vision_identify
 from routers import ovosfera_bridge
 from routers import survey
-from routers import bim
-from routers import render
-from routers import bird_3d
-from routers import runtime as runtime_router
-from routers import dron
-from routers import report
-from routers import devices as devices_router
-from routers import behavior as behavior_router
 from routers import curated as curated_router
 from routers import behavior_ml as behavior_ml_router
-from routers import merit_index as merit_index_router
 from services import embeddings, rag
 from services import gemini_vision
 from services.reranker import warmup as reranker_warmup
 from services.daily_update import run_daily_update
-from services.auto_learn import start_all_loops as start_auto_learn_loops
-from services.telemetry import start_mqtt_listener, stop_mqtt_listener
-from services.capture_manager import start_capture_manager, stop_capture_manager
 
 # Logging
 logging.basicConfig(
@@ -73,42 +61,19 @@ async def lifespan(app: FastAPI):
     # Warmup go2rtc streams (pre-connect RTSP → evita cold start de 5s)
     asyncio.create_task(_warmup_go2rtc_streams())
 
-    # Auto-learning loops (YOLO retrain, DPO snapshot, Vision stats)
-    auto_learn_tasks = start_auto_learn_loops()
-    app.state.auto_learn_tasks = auto_learn_tasks
+    # Optimizar configuración cámara Dahua al startup
+    asyncio.create_task(_dahua_startup_optimize())
 
-    # MQTT listener para telemetría Zigbee (sensores gallineros)
-    start_mqtt_listener()
-
-    # Inicializar singletons de comportamiento (eager, no lazy en primera request)
-    try:
-        from services.behavior_event_store import get_event_store
-        from services.behavior_baseline import get_baseline
-        _store = get_event_store()  # cleanup al startup incluido
-        _bl = get_baseline()
-        logger.info("[Behavior] Event store y baseline inicializados")
-    except Exception as e:
-        logger.warning(f"[Behavior] Init degradado: {e}")
-
-    # Auto-start bird identification loop (quality-first: solo 1 ave aislada por frame)
-    asyncio.create_task(_auto_start_identification())
-
-    # Dual-stream capture manager (sub-stream tracking + main-stream event-driven)
-    asyncio.create_task(_start_capture_manager())
-
-    # Behavior ML autolearn (cada 6h)
-    asyncio.create_task(_autolearn_behavior_ml())
+    # ML adaptativo: entrenamiento periódico cada 6h
+    ml_task = asyncio.create_task(_ml_autolearn_loop())
+    app.state.ml_task = ml_task
 
     logger.info("🌱 Seedy Backend listo")
     yield
 
     # Cleanup
     daily_task.cancel()
-    for t in auto_learn_tasks:
-        t.cancel()
-    stop_mqtt_listener()
-    vision_identify.stop_loop()
-    await stop_capture_manager()
+    ml_task.cancel()
     await embeddings.close()
     await gemini_vision.close()
     rag.close()
@@ -130,58 +95,13 @@ async def _daily_update_loop():
         await asyncio.sleep(86400)
 
 
-async def _auto_start_identification():
-    """Auto-inicia el loop de identificación de aves tras warmup."""
-    await asyncio.sleep(15)  # esperar a que go2rtc esté listo
-    try:
-        vision_identify.start_loop()
-        logger.info("🐔 Bird identification loop auto-started")
-    except Exception as e:
-        logger.warning(f"Auto-start identification failed: {e}")
-
-
-async def _start_capture_manager():
-    """Inicia el CaptureManager dual-stream tras warmup."""
-    await asyncio.sleep(20)  # esperar a go2rtc + identification loop
-    try:
-        # Optimizar cámaras Dahua
-        from services.dahua_optimizer import optimize_dahua_settings
-        from services.capture_manager import CAMERAS
-        for cam in CAMERAS.values():
-            if cam.is_dahua and cam.optimize_exposure:
-                await optimize_dahua_settings(cam.ip, cam.username, cam.password)
-
-        await start_capture_manager()
-        logger.info("📹 Capture Manager auto-started")
-    except Exception as e:
-        logger.warning(f"Capture Manager auto-start failed: {e}")
-
-
-BEHAVIOR_ML_TRAIN_INTERVAL = 6 * 3600  # 6 horas
-
-
-async def _autolearn_behavior_ml():
-    """Entrena modelos ML conductuales cada 6 horas."""
-    await asyncio.sleep(600)  # 10 min tras arranque
-    while True:
-        try:
-            from services.behavior_ml import get_behavior_ml_engine
-            engine = get_behavior_ml_engine()
-            for gallinero_id in ["gallinero_durrif_1", "gallinero_durrif_2"]:
-                result = await engine.train_all(gallinero_id, days=14)
-                logger.info(f"[BehaviorML] Train {gallinero_id}: {result}")
-        except Exception as e:
-            logger.error(f"[BehaviorML] Train failed: {e}")
-        await asyncio.sleep(BEHAVIOR_ML_TRAIN_INTERVAL)
-
-
 async def _warmup_go2rtc_streams():
     """Pre-calienta streams go2rtc para evitar cold start RTSP (~5s)."""
     import httpx
     go2rtc = os.environ.get("GO2RTC_URL", "http://go2rtc:1984")
     streams = [
-        "gallinero_durrif_1_sub", "gallinero_durrif_2_sub",
-        "gallinero_durrif_1", "gallinero_durrif_2",
+        "gallinero_durrif_1_sub", "gallinero_durrif_2_sub", "sauna_durrif_1_sub",
+        "gallinero_durrif_1", "gallinero_durrif_2", "sauna_durrif_1",
     ]
     await asyncio.sleep(5)  # dar tiempo a go2rtc para arrancar
     for s in streams:
@@ -191,6 +111,31 @@ async def _warmup_go2rtc_streams():
                 logger.info(f"🔥 Stream warmup {s}: {resp.status_code} ({len(resp.content)} bytes)")
         except Exception as e:
             logger.debug(f"Stream warmup {s} failed: {e}")
+
+
+async def _dahua_startup_optimize():
+    """Configura cámara Dahua WizSense al startup (exposición, WDR, streams)."""
+    await asyncio.sleep(10)
+    try:
+        from services.dahua_optimizer import optimize_dahua_settings
+        result = await optimize_dahua_settings()
+        logger.info(f"📷 Dahua optimizer: {result}")
+    except Exception as e:
+        logger.warning(f"Dahua optimizer failed: {e}")
+
+
+async def _ml_autolearn_loop():
+    """Entrena modelos ML adaptativos cada 6h."""
+    await asyncio.sleep(600)  # esperar 10 min tras arranque
+    while True:
+        try:
+            from services.behavior_ml import get_ml_engine
+            engine = get_ml_engine()
+            result = await engine.train_gallinero("gallinero_durrif", days=14)
+            logger.info(f"🧠 ML autolearn: {result}")
+        except Exception as e:
+            logger.warning(f"ML autolearn failed: {e}")
+        await asyncio.sleep(21600)  # 6h
 
 
 app = FastAPI(
@@ -211,7 +156,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     """
 
     OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models"}
-    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/", "/reports/")
+    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/")
 
     async def dispatch(self, request: Request, call_next):
         if not _valid_keys:
@@ -257,6 +202,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "X-Birds-Detected", "X-Inference-Ms", "X-Engine", "X-Model",
+        "X-Total-Visible", "X-Conditions",
+    ],
 )
 
 # Routers
@@ -270,24 +219,8 @@ app.include_router(birds.router)
 app.include_router(vision_identify.router)
 app.include_router(ovosfera_bridge.router)
 app.include_router(survey.router)
-app.include_router(bim.router)
-app.include_router(runtime_router.router)
-app.include_router(render.router)
-app.include_router(bird_3d.router)
-app.include_router(dron.router)
-app.include_router(report.router)
-app.include_router(devices_router.router)
-app.include_router(behavior_router.router)
 app.include_router(curated_router.router)
 app.include_router(behavior_ml_router.router)
-app.include_router(merit_index_router.router)
-
-
-# ── Stub: tracking activity feed (returns empty until real YOLO pipeline is connected) ──
-@app.get("/api/tracking/{farm}/latest")
-async def tracking_latest_stub(farm: str):
-    return []
-
 
 # ── Dashboard gallineros (HTML estático) ──
 from fastapi.staticfiles import StaticFiles
@@ -297,11 +230,6 @@ import pathlib
 _DASHBOARD_DIR = pathlib.Path("/app/dashboard")
 if _DASHBOARD_DIR.exists():
     app.mount("/dashboard", StaticFiles(directory=str(_DASHBOARD_DIR), html=True), name="dashboard")
-
-# Directorio de informes PDF generados (servido estáticamente)
-_REPORTS_DIR = pathlib.Path("/app/data/reports")
-_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/reports", StaticFiles(directory=str(_REPORTS_DIR)), name="reports")
 
 
 # No-cache para .js del dashboard (evita cache de Cloudflare CDN)

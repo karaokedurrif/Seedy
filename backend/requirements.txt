@@ -23,6 +23,9 @@ python-dotenv==1.*
 # MQTT (para publicar eventos vision)
 paho-mqtt>=2.0
 
+# Z2M WebSocket API (seed estado inicial sensores)
+websocket-client>=1.6
+
 # Vision (thumbnails de aves)
 Pillow>=10.0
 
@@ -30,8 +33,5 @@ Pillow>=10.0
 ultralytics>=8.3
 opencv-python-headless>=4.9
 
-# ML adaptativo (behavior models)
+# ML adaptativo (behavior_ml)
 scikit-learn>=1.4
-
-weasyprint>=61.0
-markdown>=3.5
