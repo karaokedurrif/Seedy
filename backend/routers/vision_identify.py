@@ -53,7 +53,7 @@ CAMERAS = {
         "gallinero": "gallinero_durrif",
         "distant": False,      # cámara dentro del recinto, cerca
         "yolo_imgsz": 1280,
-        "use_tiled": False,
+        "use_tiled": True,     # Tileado para mejor detección en 4K
         "use_breed": True,     # breed model detects chickens much better than COCO
     },
     "sauna_durrif_1": {
@@ -1658,6 +1658,10 @@ async def snapshot_detect_json(gallinero_id: str):
 
     inference_ms = yolo_result["inference_ms"] if yolo_result else 0
 
+    # Curación automática (Track A crops + Track B frames anotados)
+    if yolo_result:
+        await _curate_detections(frame, yolo_result, camera_id=gallinero_id)
+
     return {
         "detections": detections_out,
         "count": len(detections_out),
@@ -1872,6 +1876,9 @@ async def yolo_detect(gallinero_id: str):
 
     # Alimentar tracker, pest alerts y health con cada detección
     _enrich_with_tracking(gallinero_id, frame)
+
+    # Curación automática (Track A crops + Track B frames anotados)
+    await _curate_detections(frame, result, camera_id=gallinero_id)
 
     return {
         "gallinero": gallinero_id,

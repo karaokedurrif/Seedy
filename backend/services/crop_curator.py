@@ -42,9 +42,9 @@ CURATION_MAX_PER_CLASS_DAY = 50
 #  Track B: Curación de FRAMES ANOTADOS para detección
 # ══════════════════════════════════════════════════════
 
-FRAME_MIN_BIRDS = 3              # Mín aves detectadas para guardar frame
-FRAME_MAX_PER_CAMERA_DAY = 100
-FRAME_MIN_INTERVAL = 30          # segundos entre frames guardados
+FRAME_MIN_BIRDS = 1              # Mín 1 ave para guardar frame (antes 3, pero con COCO detectamos 0-2)
+FRAME_MAX_PER_CAMERA_DAY = 500   # Subido — queremos acumular 500 frames rápido (3 cámaras × ~170)
+FRAME_MIN_INTERVAL = 10          # 10s entre frames por cámara — suficiente variedad de poses
 
 # Clases para el dataset de detección YOLO
 DETECTION_CLASSES = [
@@ -262,6 +262,8 @@ class CropCurator:
         self._last_frame_save[camera_id] = now
 
         logger.info(f"🖼️ Frame curado: {camera_id} {saved_count} aves → {img_path.name}")
+
+        self._update_stats()
 
         return CuratedFrame(
             image_path=str(img_path), label_path=str(label_path),

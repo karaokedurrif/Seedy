@@ -75,22 +75,22 @@ class YOLODetectorV4:
         self._breed_names: Dict[int, str] = {}
 
     def _load_coco(self):
-        """Carga lazy del modelo COCO."""
+        """Carga lazy del modelo COCO vía loader centralizado."""
         if self._coco_model is None:
-            from ultralytics import YOLO
+            from services.yolo_loader import load_model
             logger.info(f"Cargando COCO model: {YOLO_MODEL} en device={self.device}")
-            self._coco_model = YOLO(YOLO_MODEL)
+            self._coco_model = load_model(YOLO_MODEL, self.device)
             logger.info("COCO model cargado OK")
 
     def _load_breed(self):
-        """Carga lazy del modelo breed (clasificador)."""
+        """Carga lazy del modelo breed vía loader centralizado."""
         if self._breed_model is None:
             if not os.path.exists(YOLO_BREED_MODEL):
                 logger.warning(f"Breed model no encontrado: {YOLO_BREED_MODEL}")
                 return
-            from ultralytics import YOLO
+            from services.yolo_loader import load_model
             logger.info(f"Cargando Breed model: {YOLO_BREED_MODEL}")
-            self._breed_model = YOLO(YOLO_BREED_MODEL)
+            self._breed_model = load_model(YOLO_BREED_MODEL, self.device)
             self._breed_names = dict(self._breed_model.names) if self._breed_model else {}
             logger.info(f"Breed model cargado: {len(self._breed_names)} clases")
 
