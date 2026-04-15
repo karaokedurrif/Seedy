@@ -28,6 +28,7 @@ from config import get_settings
 from services.embeddings import embed_texts, close as close_embeddings
 from services.rag import get_qdrant, ensure_collections, FRESH_WEB_COLLECTION, close as close_qdrant
 from ingestion.chunker import chunk_text, compute_sparse_vector
+from services.quality_gate import validate_chunk
 from qdrant_client.models import PointStruct, SparseVector, Filter, FieldCondition, MatchValue
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -360,15 +361,32 @@ async def index_fresh_results(results: list[dict], topic: str, batch_size: int =
 
     # Fase 2: Indexar (chunkeando textos largos de deep crawl)
     all_items = []  # (text, result) pairs ready to index
+    quality_rejected = 0
     for result in results:
         text = f"{result['title']}\n{result['content']}"
         if result.get("_deep_crawled") and len(text) > 1200:
             # Chunkear artículos largos
             chunks = chunk_text(text, chunk_size=800, overlap=150)
             for i, chunk in enumerate(chunks):
-                all_items.append((chunk, result, i))
+                # Quality gate: validar cada chunk antes de indexar
+                passed, score, reasons = validate_chunk(
+                    chunk, collection="fresh_web", min_quality=0.20
+                )
+                if passed:
+                    all_items.append((chunk, result, i))
+                else:
+                    quality_rejected += 1
         else:
-            all_items.append((text, result, 0))
+            passed, score, reasons = validate_chunk(
+                text, collection="fresh_web", min_quality=0.20
+            )
+            if passed:
+                all_items.append((text, result, 0))
+            else:
+                quality_rejected += 1
+
+    if quality_rejected:
+        logger.info(f"  ⚠ Quality Gate: {quality_rejected} chunks rechazados de {len(results)} results")
 
     for batch_start in range(0, len(all_items), batch_size):
         batch = all_items[batch_start:batch_start + batch_size]
@@ -430,8 +448,8 @@ async def index_fresh_results(results: list[dict], topic: str, batch_size: int =
     return total
 
 
-async def expire_old_content(max_age_days: int = 60):
-    """Elimina contenido de fresh_web más antiguo que max_age_days."""
+async def expire_old_content(max_age_days: int = 30):
+    """Elimina contenido de fresh_web más antiguo que max_age_days (default 30d)."""
     client = get_qdrant()
     cutoff = datetime.now(timezone.utc).timestamp() - (max_age_days * 86400)
     cutoff_iso = datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
@@ -546,8 +564,8 @@ async def run_daily_update(target_topic: str | None = None, dry_run: bool = Fals
             logger.info(f"  ✅ Indexados: {count} chunks en fresh_web")
 
     if not dry_run:
-        # Expirar contenido viejo
-        await expire_old_content(max_age_days=60)
+        # Expirar contenido viejo (>30 días)
+        await expire_old_content(max_age_days=30)
 
     logger.info(f"\n🎉 Actualización completa:")
     logger.info(f"   Total resultados: {grand_total}")

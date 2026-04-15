@@ -5,6 +5,7 @@ Multi-label devuelve lista de categorías con pesos para buscar en
 múltiples colecciones Qdrant simultáneamente.
 """
 
+import asyncio
 import hashlib
 import time
 import logging
@@ -20,6 +21,7 @@ _CACHE_TTL = 600  # 10 minutos
 _CACHE_MAX = 256
 _classify_cache: dict[str, tuple[str, float]] = {}  # hash → (category, timestamp)
 _classify_multi_cache: dict[str, tuple[list[tuple[str, float]], float]] = {}
+_cache_lock = asyncio.Lock()
 
 
 def _query_hash(query: str, prev_cat: str | None) -> str:
@@ -109,9 +111,10 @@ async def classify_query(query: str, prev_category: str | None = None) -> str:
         logger.warning("TOGETHER_API_KEY no configurada, usando categoría GENERAL")
         return "GENERAL"
 
-    # Comprobar cache
     h = _query_hash(query, prev_category)
-    cached = _cache_get(h)
+
+    async with _cache_lock:
+        cached = _cache_get(h)
     if cached:
         logger.info(f"Query clasificada como: {cached} (cache)")
         return cached
@@ -149,7 +152,8 @@ async def classify_query(query: str, prev_category: str | None = None) -> str:
         for cat in CATEGORIES:
             if cat in raw:
                 logger.info(f"Query clasificada como: {cat}")
-                _cache_put(h, cat)
+                async with _cache_lock:
+                    _cache_put(h, cat)
                 return cat
 
         logger.warning(f"Categoría no reconocida '{raw}', usando GENERAL")
@@ -179,7 +183,9 @@ async def classify_query_multi(
         return [("GENERAL", 1.0)]
 
     h = _query_hash(query, prev_category)
-    cached = _cache_get_multi(h)
+
+    async with _cache_lock:
+        cached = _cache_get_multi(h)
     if cached:
         logger.info(f"Query multi-clasificada como: {cached} (cache)")
         return cached
@@ -214,7 +220,8 @@ async def classify_query_multi(
 
         if results:
             logger.info(f"Query multi-clasificada: {results}")
-            _cache_put_multi(h, results)
+            async with _cache_lock:
+                _cache_put_multi(h, results)
             return results
 
     except Exception as e:

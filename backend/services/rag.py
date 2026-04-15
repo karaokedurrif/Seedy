@@ -1,6 +1,7 @@
 """Seedy Backend — Servicio RAG con Qdrant (búsqueda híbrida dense + sparse)."""
 
 import logging
+import time
 from qdrant_client import QdrantClient, models
 from qdrant_client.models import Distance, VectorParams, SparseVectorParams, SparseIndexParams
 
@@ -11,6 +12,8 @@ from ingestion.chunker import compute_sparse_vector
 logger = logging.getLogger(__name__)
 
 _client: QdrantClient | None = None
+_last_health_check: float = 0.0
+_HEALTH_CHECK_INTERVAL = 30.0  # segundos entre health checks
 
 # Mapeo de carpetas de conocimientos → colección Qdrant
 FOLDER_TO_COLLECTION = {
@@ -35,12 +38,30 @@ FRESH_WEB_COLLECTION = "fresh_web"
 ALL_COLLECTIONS = list(set(FOLDER_TO_COLLECTION.values())) + [FRESH_WEB_COLLECTION, "porcino", "bovino"]
 
 
+def _create_qdrant() -> QdrantClient:
+    settings = get_settings()
+    return QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+
+
 def get_qdrant() -> QdrantClient:
-    """Singleton del cliente Qdrant."""
-    global _client
+    """Singleton del cliente Qdrant con reconexión automática (health check cada 30s)."""
+    global _client, _last_health_check
+    now = time.monotonic()
     if _client is None:
-        settings = get_settings()
-        _client = QdrantClient(host=settings.qdrant_host, port=settings.qdrant_port)
+        _client = _create_qdrant()
+        _last_health_check = now
+    elif now - _last_health_check > _HEALTH_CHECK_INTERVAL:
+        try:
+            _client.get_collections()
+            _last_health_check = now
+        except Exception:
+            logger.warning("Qdrant health-check fallido — reconectando...")
+            try:
+                _client.close()
+            except Exception:
+                pass
+            _client = _create_qdrant()
+            _last_health_check = now
     return _client
 
 
