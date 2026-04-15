@@ -286,3 +286,38 @@ async def accumulation_status():
         "frames_total": stats.get("frames_annotated", 0),
         "frames_target": _accumulation_status["target"],
     }
+
+
+# ══════════════════════════════════════════════════════
+#  CaptureManager endpoints
+# ══════════════════════════════════════════════════════
+
+
+@router.get("/capture-manager/status")
+async def capture_manager_status():
+    """Estado del CaptureManager (sub-stream tracking + behavior)."""
+    from services.capture_manager import get_capture_manager
+    mgr = get_capture_manager()
+    return mgr.get_status()
+
+
+@router.post("/capture-manager/start")
+async def capture_manager_start():
+    """Inicia el CaptureManager manualmente."""
+    from services.capture_manager import get_capture_manager
+    mgr = get_capture_manager()
+    if mgr._running:
+        return {"status": "already_running", **mgr.get_status()}
+    await mgr.start()
+    return {"status": "started", **mgr.get_status()}
+
+
+@router.post("/capture-manager/stop")
+async def capture_manager_stop():
+    """Detiene el CaptureManager."""
+    from services.capture_manager import get_capture_manager
+    mgr = get_capture_manager()
+    if not mgr._running:
+        return {"status": "not_running"}
+    await mgr.stop()
+    return {"status": "stopped"}

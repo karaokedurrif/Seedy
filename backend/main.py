@@ -68,12 +68,23 @@ async def lifespan(app: FastAPI):
     ml_task = asyncio.create_task(_ml_autolearn_loop())
     app.state.ml_task = ml_task
 
+    # CaptureManager: sub-stream tracking continuo + triggers 4K
+    cm_task = asyncio.create_task(_start_capture_manager())
+    app.state.cm_task = cm_task
+
     logger.info("🌱 Seedy Backend listo")
     yield
 
     # Cleanup
     daily_task.cancel()
     ml_task.cancel()
+    # Stop CaptureManager
+    try:
+        from services.capture_manager import get_capture_manager
+        mgr = get_capture_manager()
+        await mgr.stop()
+    except Exception:
+        pass
     await embeddings.close()
     await gemini_vision.close()
     rag.close()
@@ -131,11 +142,23 @@ async def _ml_autolearn_loop():
         try:
             from services.behavior_ml import get_ml_engine
             engine = get_ml_engine()
-            result = await engine.train_gallinero("gallinero_durrif", days=14)
+            result = await engine.train_gallinero("gallinero_palacio", days=14)
             logger.info(f"🧠 ML autolearn: {result}")
         except Exception as e:
             logger.warning(f"ML autolearn failed: {e}")
         await asyncio.sleep(21600)  # 6h
+
+
+async def _start_capture_manager():
+    """Inicia el CaptureManager con retraso para que go2rtc esté listo."""
+    await asyncio.sleep(30)  # dar margen a go2rtc + cámaras
+    try:
+        from services.capture_manager import get_capture_manager
+        mgr = get_capture_manager()
+        await mgr.start()
+        logger.info("📹 CaptureManager iniciado automáticamente")
+    except Exception as e:
+        logger.warning(f"CaptureManager start failed: {e}")
 
 
 app = FastAPI(

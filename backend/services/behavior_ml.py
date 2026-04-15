@@ -208,7 +208,7 @@ class FlockModel:
                 self.circadian_std[h] = max(np.std(vals), 0.1)
 
             # Grafo social: co-ocurrencias en misma zona
-            self.social_graph = defaultdict(lambda: defaultdict(int))
+            social_graph_tmp = defaultdict(lambda: defaultdict(int))
             zone_snapshots = defaultdict(list)  # timestamp_rounded → [(bird_id, zone)]
 
             for e in events:
@@ -217,7 +217,15 @@ class FlockModel:
                 ts = e.get("timestamp", 0)
                 if not bird or not zone:
                     continue
-                ts_key = int(ts) // 60  # Agrupar por minuto
+                # Convertir timestamp a unix para agrupar por minuto
+                if isinstance(ts, str):
+                    try:
+                        ts_unix = datetime.fromisoformat(ts).timestamp()
+                    except (ValueError, TypeError):
+                        continue
+                else:
+                    ts_unix = float(ts)
+                ts_key = int(ts_unix) // 60
                 zone_snapshots[ts_key].append((bird, zone))
 
             for ts_key, entries in zone_snapshots.items():
@@ -227,8 +235,11 @@ class FlockModel:
                 for zone, birds_in_zone in by_zone.items():
                     for i, b1 in enumerate(birds_in_zone):
                         for b2 in birds_in_zone[i + 1:]:
-                            self.social_graph[b1][b2] += 1
-                            self.social_graph[b2][b1] += 1
+                            social_graph_tmp[b1][b2] += 1
+                            social_graph_tmp[b2][b1] += 1
+
+            # Convertir a dict plano para que sea serializable con pickle
+            self.social_graph = {k: dict(v) for k, v in social_graph_tmp.items()}
 
             # PageRank simplificado para jerarquía
             self._compute_hierarchy()
@@ -353,32 +364,103 @@ class BehaviorMLEngine:
             with open(path, "wb") as f:
                 pickle.dump(model, f)
 
+    # Mapeo gallinero → camera_ids (las 3 cámaras cubren el mismo espacio)
+    GALLINERO_CAMERAS = {
+        "gallinero_palacio": ["sauna_durrif_1", "gallinero_durrif_1", "gallinero_durrif_2"],
+        "gallinero_durrif": ["sauna_durrif_1", "gallinero_durrif_1", "gallinero_durrif_2"],
+    }
+
     def _load_events(self, gallinero_id: str, days: int = TRAINING_WINDOW_DAYS) -> List[dict]:
-        """Carga eventos de comportamiento desde ficheros JSONL."""
-        events = []
+        """Carga eventos de comportamiento desde ficheros JSONL.
+
+        Busca en subdirectorios por camera_id y en ficheros planos.
+        Mapea gallinero_id a las cámaras que lo cubren.
+        Normaliza snapshots (con tracks[]) a eventos planos por ave.
+        """
+        raw_records = []
         cutoff = datetime.now() - timedelta(days=days)
 
-        for f in sorted(BEHAVIOR_DATA_DIR.glob(f"{gallinero_id}_*.jsonl")):
-            try:
-                # Intentar filtrar por nombre de fichero (fecha)
-                parts = f.stem.split("_")
-                if len(parts) >= 3:
-                    try:
-                        file_date = datetime.strptime(parts[-1], "%Y%m%d")
-                        if file_date < cutoff:
-                            continue
-                    except ValueError:
-                        pass
+        # Resolver qué camera_ids buscar
+        camera_ids = self.GALLINERO_CAMERAS.get(gallinero_id, [gallinero_id])
 
-                with open(f) as fh:
-                    for line in fh:
-                        if line.strip():
-                            try:
-                                events.append(json.loads(line))
-                            except json.JSONDecodeError:
+        for cam_id in camera_ids:
+            # Buscar en subdirectorio: data/behavior_events/{cam_id}/*.jsonl
+            cam_dir = BEHAVIOR_DATA_DIR / cam_id
+            if cam_dir.is_dir():
+                for f in sorted(cam_dir.glob("*.jsonl")):
+                    try:
+                        # Filtrar por fecha en nombre (YYYY-MM-DD.jsonl)
+                        date_str = f.stem
+                        try:
+                            file_date = datetime.strptime(date_str, "%Y-%m-%d")
+                            if file_date < cutoff:
                                 continue
-            except Exception:
-                continue
+                        except ValueError:
+                            pass
+
+                        with open(f) as fh:
+                            for line in fh:
+                                if line.strip():
+                                    try:
+                                        raw_records.append(json.loads(line))
+                                    except json.JSONDecodeError:
+                                        continue
+                    except Exception:
+                        continue
+
+            # Fallback: ficheros planos {cam_id}_*.jsonl en raíz
+            for f in sorted(BEHAVIOR_DATA_DIR.glob(f"{cam_id}_*.jsonl")):
+                try:
+                    with open(f) as fh:
+                        for line in fh:
+                            if line.strip():
+                                try:
+                                    raw_records.append(json.loads(line))
+                                except json.JSONDecodeError:
+                                    continue
+                except Exception:
+                    continue
+
+        # Normalizar: snapshots con tracks[] → eventos planos por ave
+        return self._normalize_events(raw_records)
+
+    @staticmethod
+    def _normalize_events(raw_records: List[dict]) -> List[dict]:
+        """Convierte snapshots (con tracks[]) en eventos planos para el ML.
+
+        Formato snapshot: {ts, ts_unix, gallinero_id, active_count, tracks[{track_id, bird_id, center, zone, confidence, area}]}
+        Formato plano:    {timestamp, bird_id, zone, activity_level, bird_count}
+        """
+        events = []
+        for rec in raw_records:
+            tracks = rec.get("tracks")
+            if tracks and isinstance(tracks, list):
+                # Es un snapshot con tracks → aplanar a 1 evento por track
+                ts = rec.get("ts", "")
+                ts_unix = rec.get("ts_unix", 0)
+                active_count = rec.get("active_count", len(tracks))
+                cam_id = rec.get("gallinero_id", "")
+
+                for t in tracks:
+                    bird_id = t.get("bird_id", "")
+                    if not bird_id:
+                        # Usar track_id + cam como ID temporal
+                        track_id = t.get("track_id", 0)
+                        bird_id = f"{cam_id}_t{track_id}" if cam_id else f"t{track_id}"
+
+                    events.append({
+                        "timestamp": ts or ts_unix,
+                        "bird_id": bird_id,
+                        "zone": t.get("zone", "zona_libre"),
+                        "activity_level": min(1.0, t.get("area", 0.01) * 100),
+                        "bird_count": active_count,
+                        "confidence": t.get("confidence", 0),
+                    })
+            elif "timestamp" in rec or "ts" in rec:
+                # Ya es un evento plano o formato legacy
+                if "timestamp" not in rec and "ts" in rec:
+                    rec["timestamp"] = rec["ts"]
+                events.append(rec)
 
         return events
 

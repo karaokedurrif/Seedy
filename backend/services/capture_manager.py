@@ -13,7 +13,9 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import cv2
@@ -108,9 +110,13 @@ CAMERAS: Dict[str, CameraConfig] = {
 class CaptureManager:
     """Gestiona la lógica dual-stream para el gallinero unificado."""
 
+    # Intervalo entre snapshots de behavior (segundos)
+    BEHAVIOR_SNAPSHOT_INTERVAL = 60
+
     def __init__(self):
         self._capture_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
         self._last_main_capture: Dict[str, float] = {}
+        self._last_behavior_snapshot: Dict[str, float] = {}
         self._min_capture_interval = 10.0  # 10s entre capturas 4K por cámara
         self._sub_stream_tasks: Dict[str, asyncio.Task] = {}
         self._main_worker_task: Optional[asyncio.Task] = None
@@ -118,6 +124,7 @@ class CaptureManager:
         self._stats = {
             "sub_frames_processed": 0,
             "main_captures": 0,
+            "behavior_snapshots": 0,
             "triggers": {e.value: 0 for e in CaptureEvent},
             "errors": 0,
             "started_at": None,
@@ -176,34 +183,38 @@ class CaptureManager:
     # ── Sub-stream loop (SIEMPRE activo) ──
 
     async def _sub_stream_loop(self, config: CameraConfig):
-        """Lee el sub-stream, ejecuta COCO detect + tracker + behavior."""
-        frame_interval = 1.0 / config.sub_stream_fps
-        cap = None
+        """Lee frames del sub-stream vía go2rtc snapshot, ejecuta COCO detect + tracker + behavior.
+
+        Usa go2rtc API (HTTP MJPEG snapshot) en vez de cv2.VideoCapture RTSP directo
+        para evitar 3 conexiones RTSP permanentes y problemas de reconexión.
+        """
+        frame_interval = 1.0 / min(config.sub_stream_fps, 2)  # Max 2fps para sub polling
         consecutive_errors = 0
+        sub_stream_name = f"{config.camera_id}_sub"
 
         while self._running:
             try:
-                if cap is None or not cap.isOpened():
-                    cap = await asyncio.to_thread(
-                        cv2.VideoCapture, config.sub_stream_url,
+                # Capturar frame vía go2rtc HTTP snapshot
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.get(
+                        f"{GO2RTC_URL}/api/frame.jpeg?src={sub_stream_name}"
                     )
-                    if not cap.isOpened():
-                        logger.warning(f"⚠️ No se pudo abrir sub-stream {config.camera_id}")
-                        await asyncio.sleep(5)
+                    if resp.status_code != 200 or len(resp.content) < 2000:
                         consecutive_errors += 1
-                        if consecutive_errors > 10:
-                            await asyncio.sleep(30)
+                        if consecutive_errors > 5:
+                            await asyncio.sleep(15)
+                        else:
+                            await asyncio.sleep(3)
                         continue
 
-                    consecutive_errors = 0
-                    logger.info(f"📹 Sub-stream conectado: {config.camera_id}")
+                consecutive_errors = 0
+                frame_bytes = resp.content
 
-                # Leer frame en thread (blocking I/O)
-                ret, frame = await asyncio.to_thread(cap.read)
-                if not ret or frame is None:
-                    cap.release()
-                    cap = None
-                    await asyncio.sleep(2)
+                # Decodificar
+                arr = np.frombuffer(frame_bytes, dtype=np.uint8)
+                frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                if frame is None:
+                    await asyncio.sleep(frame_interval)
                     continue
 
                 # Skip si es de noche (luminancia baja)
@@ -222,10 +233,8 @@ class CaptureManager:
             except Exception as e:
                 logger.error(f"Error en sub-stream {config.camera_id}: {e}")
                 self._stats["errors"] += 1
-                await asyncio.sleep(2)
-
-        if cap is not None:
-            cap.release()
+                consecutive_errors += 1
+                await asyncio.sleep(3)
 
     async def _process_sub_frame(self, config: CameraConfig, frame: np.ndarray):
         """Procesa un frame del sub-stream: detect + track + behavior + triggers."""
@@ -267,6 +276,88 @@ class CaptureManager:
 
         # Evaluar triggers de captura 4K
         await self._evaluate_triggers(config, frame_bytes, detections, bird_count)
+
+        # Guardar snapshot de behavior cada 60s
+        await self._save_behavior_snapshot(config, detections, bird_count)
+
+    # ── Behavior event persistence ──
+
+    async def _save_behavior_snapshot(
+        self, config: CameraConfig, detections: list, bird_count: int,
+    ):
+        """Guarda snapshot de behavior cada BEHAVIOR_SNAPSHOT_INTERVAL segundos.
+
+        Escribe en data/behavior_events/{camera_id}/{YYYY-MM-DD}.jsonl
+        con el formato esperado por behavior_ml._load_events().
+        """
+        import json as _json
+        now = time.time()
+        last = self._last_behavior_snapshot.get(config.camera_id, 0)
+        if now - last < self.BEHAVIOR_SNAPSHOT_INTERVAL:
+            return
+
+        self._last_behavior_snapshot[config.camera_id] = now
+
+        # Solo guardar si hay al menos 1 ave
+        bird_dets = [d for d in detections if not d.get("is_pest")]
+        if not bird_dets:
+            return
+
+        from services.bird_tracker import get_tracker
+        tracker = get_tracker(config.gallinero_id)
+
+        # Construir tracks snapshot
+        tracks = []
+        for det in bird_dets:
+            bbox_norm = det.get("bbox_norm", [0, 0, 0, 0])
+            cx = (bbox_norm[0] + bbox_norm[2]) / 2 if len(bbox_norm) == 4 else 0
+            cy = (bbox_norm[1] + bbox_norm[3]) / 2 if len(bbox_norm) == 4 else 0
+            area = ((bbox_norm[2] - bbox_norm[0]) * (bbox_norm[3] - bbox_norm[1])
+                    if len(bbox_norm) == 4 else 0)
+
+            # Determinar zona
+            zone = self._classify_zone(cx, cy, config.gallinero_id)
+
+            tracks.append({
+                "track_id": det.get("track_id", 0),
+                "bird_id": det.get("bird_id", ""),
+                "center": [cx, cy],
+                "zone": zone,
+                "confidence": det.get("confidence", 0),
+                "area": round(area, 6),
+            })
+
+        ts_dt = datetime.now(timezone.utc)
+        snapshot = {
+            "ts": ts_dt.isoformat(),
+            "ts_unix": round(now, 2),
+            "gallinero_id": config.camera_id,
+            "active_count": len(tracks),
+            "tracks": tracks,
+        }
+
+        # Persistir en JSONL
+        events_dir = Path(os.getenv("BEHAVIOR_DATA_DIR", "data/behavior_events")) / config.camera_id
+        events_dir.mkdir(parents=True, exist_ok=True)
+        events_file = events_dir / f"{ts_dt.strftime('%Y-%m-%d')}.jsonl"
+
+        try:
+            with open(events_file, "a") as fh:
+                fh.write(_json.dumps(snapshot) + "\n")
+            self._stats["behavior_snapshots"] += 1
+        except Exception as e:
+            logger.debug(f"Error saving behavior snapshot: {e}")
+
+    @staticmethod
+    def _classify_zone(cx: float, cy: float, gallinero_id: str) -> str:
+        """Clasifica coordenadas normalizadas en zona."""
+        from services.bird_tracker import get_zones
+        zones = get_zones(gallinero_id)
+        for name, zone_info in zones.items():
+            bbox = zone_info.get("bbox", [0, 0, 0, 0])
+            if bbox[0] <= cx <= bbox[2] and bbox[1] <= cy <= bbox[3]:
+                return name
+        return "zona_libre"
 
     # ── Trigger evaluation ──
 
