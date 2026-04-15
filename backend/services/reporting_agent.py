@@ -55,11 +55,91 @@ _WEBUI_DB = os.environ.get(
     "/app/backend/open-webui-data/webui.db",
 )
 
+# Open WebUI API (preferido sobre acceso directo a webui.db)
+_WEBUI_API_URL = os.environ.get("WEBUI_API_URL", "")  # ej: http://open-webui:8080
+_WEBUI_API_KEY = os.environ.get("WEBUI_API_KEY", "")   # API key de admin
+
 # ── Lectura de chats de Open WebUI ──
 
 
 def _read_webui_chats(since: datetime) -> list[dict]:
-    """Lee chats de Open WebUI de las últimas N horas."""
+    """Lee chats de Open WebUI: via API HTTP (si configurado) o SQLite (fallback)."""
+    if _WEBUI_API_URL and _WEBUI_API_KEY:
+        return _read_webui_chats_api(since)
+    return _read_webui_chats_sqlite(since)
+
+
+def _read_webui_chats_api(since: datetime) -> list[dict]:
+    """Lee chats via API HTTP de Open WebUI (requiere WEBUI_API_URL + WEBUI_API_KEY)."""
+    import httpx
+
+    chats = []
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.get(
+                f"{_WEBUI_API_URL}/api/v1/chats/",
+                headers={"Authorization": f"Bearer {_WEBUI_API_KEY}"},
+            )
+            if resp.status_code != 200:
+                logger.warning(f"[ReportAgent] API HTTP {resp.status_code} — fallback a SQLite")
+                return _read_webui_chats_sqlite(since)
+
+            chat_list = resp.json()
+            if isinstance(chat_list, dict):
+                chat_list = chat_list.get("data", [])
+
+            since_ts = int(since.timestamp())
+
+            for chat_summary in chat_list:
+                chat_id = chat_summary.get("id", "")
+                updated = chat_summary.get("updated_at", 0)
+                if isinstance(updated, (int, float)) and updated < since_ts:
+                    continue
+
+                # Obtener mensajes del chat
+                detail_resp = client.get(
+                    f"{_WEBUI_API_URL}/api/v1/chats/{chat_id}",
+                    headers={"Authorization": f"Bearer {_WEBUI_API_KEY}"},
+                )
+                if detail_resp.status_code != 200:
+                    continue
+
+                chat_detail = detail_resp.json()
+                chat_title = chat_detail.get("title", "")
+                messages = chat_detail.get("chat", {}).get("messages", {})
+
+                if isinstance(messages, dict):
+                    messages = list(messages.values())
+
+                for msg in messages:
+                    created = msg.get("timestamp", msg.get("created_at", 0))
+                    if isinstance(created, (int, float)) and created < since_ts:
+                        continue
+                    chats.append({
+                        "id": msg.get("id", ""),
+                        "chat_id": chat_id,
+                        "chat_title": chat_title,
+                        "role": msg.get("role", ""),
+                        "content": msg.get("content", ""),
+                        "model_id": msg.get("model", ""),
+                        "sources": msg.get("sources"),
+                        "usage": msg.get("usage"),
+                        "created_at": datetime.fromtimestamp(
+                            created, tz=timezone.utc
+                        ).isoformat() if created else None,
+                    })
+
+            logger.info(f"[ReportAgent] {len(chats)} mensajes vía API HTTP (desde {since.isoformat()})")
+
+    except Exception as e:
+        logger.error(f"[ReportAgent] API HTTP falló: {e} — fallback a SQLite")
+        return _read_webui_chats_sqlite(since)
+
+    return chats
+
+
+def _read_webui_chats_sqlite(since: datetime) -> list[dict]:
+    """Lee chats de Open WebUI desde webui.db (SQLite, acceso directo)."""
     chats = []
     db_path = _WEBUI_DB
 
@@ -71,6 +151,17 @@ def _read_webui_chats(since: datetime) -> list[dict]:
         conn = sqlite3.connect(db_path, timeout=5)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+
+        # Validar schema antes de ejecutar la query (resiliente a cambios de OWUI)
+        try:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='chat_message'")
+            if not cursor.fetchone():
+                logger.warning("[ReportAgent] Tabla 'chat_message' no existe en webui.db — schema cambió?")
+                conn.close()
+                return chats
+        except Exception:
+            conn.close()
+            return chats
 
         # chat_message.created_at es BIGINT (unix timestamp en seconds)
         since_ts = int(since.timestamp())

@@ -31,6 +31,10 @@ from ingestion.chunker import chunk_text, compute_sparse_vector
 from services.quality_gate import validate_chunk
 from qdrant_client.models import PointStruct, SparseVector, Filter, FieldCondition, MatchValue
 
+# Cross-dedup: reutilizar la BD del pipeline modular para evitar duplicados entre ambos sistemas.
+# Se accede vía SQLite directamente (pipelines/ no está dentro del contenedor Docker).
+_INGEST_STATE_DB = os.environ.get("INGEST_STATE_DB", "/app/data/ingest_state.db")
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -315,12 +319,28 @@ def filter_results(results: list[dict], min_authority: float = 0.3) -> list[dict
 
 
 async def check_existing_hashes(hashes: list[str]) -> set[str]:
-    """Verifica qué hashes ya existen en Qdrant para evitar reindexar."""
+    """Verifica qué hashes ya existen en Qdrant O en la BD del pipeline modular."""
     client = get_qdrant()
     existing = set()
 
+    # Cross-dedup: comprobar BD del pipeline modular (pipelines/ingest/)
+    if Path(_INGEST_STATE_DB).exists():
+        try:
+            import sqlite3 as _sqlite3
+            conn = _sqlite3.connect(_INGEST_STATE_DB, timeout=3)
+            for h in hashes:
+                row = conn.execute("SELECT 1 FROM seen_hashes WHERE hash = ?", (h,)).fetchone()
+                if row:
+                    existing.add(h)
+            conn.close()
+        except Exception as e:
+            logger.debug(f"Cross-dedup con pipeline DB falló: {e}")
+
+    # Dedup contra Qdrant fresh_web
     try:
         for h in hashes:
+            if h in existing:
+                continue
             results = client.scroll(
                 collection_name=FRESH_WEB_COLLECTION,
                 scroll_filter=Filter(
@@ -562,6 +582,28 @@ async def run_daily_update(target_topic: str | None = None, dry_run: bool = Fals
             count = await index_fresh_results(new_results, topic)
             grand_indexed += count
             logger.info(f"  ✅ Indexados: {count} chunks en fresh_web")
+
+            # Cross-dedup: registrar URLs y hashes en BD del pipeline modular
+            if Path(_INGEST_STATE_DB).exists():
+                try:
+                    import sqlite3 as _sqlite3
+                    conn = _sqlite3.connect(_INGEST_STATE_DB, timeout=3)
+                    now_iso = datetime.now(timezone.utc).isoformat()
+                    for r in new_results:
+                        url = r["url"]
+                        h = content_hash(f"{r['title']} {r['content']}")
+                        conn.execute(
+                            "INSERT OR IGNORE INTO seen_urls (url, source_name, first_seen, last_seen) VALUES (?, ?, ?, ?)",
+                            (url, f"daily_update/{topic}", now_iso, now_iso),
+                        )
+                        conn.execute(
+                            "INSERT OR IGNORE INTO seen_hashes (hash, url, first_seen) VALUES (?, ?, ?)",
+                            (h, url, now_iso),
+                        )
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    logger.debug(f"Cross-dedup sync falló: {e}")
 
     if not dry_run:
         # Expirar contenido viejo (>30 días)

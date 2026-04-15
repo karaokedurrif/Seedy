@@ -35,6 +35,7 @@ from services.metadata_filter import get_species_hint
 from services.gemini_vision import analyze_image as gemini_analyze, get_dataset_stats
 from services.temporality import classify_temporality, needs_web_augmentation
 from services.postprocess import clean_markdown
+from services.sse_helpers import oai_response, fake_stream_answer, error_response
 from routers.report import generate_pdf_bytes
 
 # Directorio de informes PDF generados
@@ -696,59 +697,12 @@ async def _vision_response(req: OAIChatRequest, t0: float):
     return _oai_response(answer, req.model, t0)
 
 
-def _oai_response(answer: str, model: str, t0: float):
-    """Respuesta no-streaming en formato OpenAI."""
-    return {
-        "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
-        "object": "chat.completion",
-        "created": int(t0),
-        "model": model,
-        "choices": [
-            {
-                "index": 0,
-                "message": {"role": "assistant", "content": answer},
-                "finish_reason": "stop",
-            }
-        ],
-        "usage": {
-            "prompt_tokens": 0,
-            "completion_tokens": len(answer.split()),
-            "total_tokens": len(answer.split()),
-        },
-    }
+# Alias de compatibilidad → delegado a services/sse_helpers.py
+_oai_response = oai_response
 
 
-async def _stream_vision_answer(answer: str, model: str, t0: float):
-    """Stream una respuesta vision ya completa token a token."""
-    chat_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-
-    # Primer chunk con role
-    first = {
-        "id": chat_id, "object": "chat.completion.chunk",
-        "created": int(t0), "model": model,
-        "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}],
-    }
-    yield f"data: {json.dumps(first)}\n\n"
-
-    # Emitir por palabras para simular streaming
-    words = answer.split(" ")
-    for i, word in enumerate(words):
-        token = word if i == 0 else f" {word}"
-        chunk = {
-            "id": chat_id, "object": "chat.completion.chunk",
-            "created": int(t0), "model": model,
-            "choices": [{"index": 0, "delta": {"content": token}, "finish_reason": None}],
-        }
-        yield f"data: {json.dumps(chunk)}\n\n"
-
-    # Chunk final
-    done = {
-        "id": chat_id, "object": "chat.completion.chunk",
-        "created": int(t0), "model": model,
-        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-    }
-    yield f"data: {json.dumps(done)}\n\n"
-    yield "data: [DONE]\n\n"
+# Alias de compatibilidad → delegado a services/sse_helpers.py
+_stream_vision_answer = fake_stream_answer
 
 
 # ── Respuestas RAG (texto) ──────────────────────────
@@ -1360,46 +1314,8 @@ async def _stream_response(query: str, history: list[dict], req: OAIChatRequest,
         final_answer += pdf_link
 
     # Fake-stream: emitir la respuesta aprobada palabra a palabra
-    chat_id = f"chatcmpl-{uuid.uuid4().hex[:12]}"
-
-    first_chunk = {
-        "id": chat_id,
-        "object": "chat.completion.chunk",
-        "created": int(t0),
-        "model": req.model,
-        "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}],
-    }
-    yield f"data: {json.dumps(first_chunk)}\n\n"
-
-    words = final_answer.split(" ")
-    for i, word in enumerate(words):
-        token = word if i == 0 else f" {word}"
-        chunk = {
-            "id": chat_id,
-            "object": "chat.completion.chunk",
-            "created": int(t0),
-            "model": req.model,
-            "choices": [{"index": 0, "delta": {"content": token}, "finish_reason": None}],
-        }
-        yield f"data: {json.dumps(chunk)}\n\n"
-
-    done_chunk = {
-        "id": chat_id,
-        "object": "chat.completion.chunk",
-        "created": int(t0),
-        "model": req.model,
-        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-    }
-    yield f"data: {json.dumps(done_chunk)}\n\n"
-    yield "data: [DONE]\n\n"
+    async for chunk in fake_stream_answer(final_answer, req.model, t0):
+        yield chunk
 
 
-def _error_response(msg: str):
-    return {
-        "error": {
-            "message": msg,
-            "type": "invalid_request_error",
-            "param": None,
-            "code": None,
-        }
-    }
+_error_response = error_response

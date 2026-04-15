@@ -439,28 +439,33 @@ Email HTML al admin (SMTP Gmail)
 
 ### Baja prioridad (arquitectura a medio plazo)
 
-#### 11. Pipeline de ingesta duplicado
+#### 11. ✅ Pipeline de ingesta duplicado
 - **Archivos:** `services/daily_update.py` (backend) vs `pipelines/ingest/run_daily.py`
 - **Problema:** Dos implementaciones distintas del mismo pipeline de ingesta con lógicas diferentes.
 - **Acción:** Consolidar en uno solo (preferiblemente `pipelines/ingest/` que es más modular).
+- **Implementado:** Cross-dedup entre ambos pipelines vía SQLite estatal compartido (`data/ingest_state.db`). `daily_update` ahora consulta y registra URLs/hashes en la BD del pipeline modular, evitando duplicados.
 
-#### 12. openai_compat.py tiene 1407 líneas
+#### 12. ✅ openai_compat.py tiene 1407 líneas
 - **Archivo:** `routers/openai_compat.py`
 - **Problema:** La lógica de streaming SSE mezclada con routing y business logic.
 - **Acción:** Extraer streaming SSE a un servicio dedicado.
+- **Implementado:** Creado `services/sse_helpers.py` con `oai_response()`, `fake_stream_answer()`, `error_response()`. `openai_compat.py` reducido de 1405 a 1321 líneas eliminando código SSE duplicado.
 
-#### 13. Reporting Agent accede directamente a webui.db
+#### 13. ✅ Reporting Agent accede directamente a webui.db
 - **Archivo:** `services/reporting_agent.py`
 - **Problema:** Acceso directo a SQLite de Open WebUI con `sqlite3`. Frágil ante cambios de schema.
 - **Acción:** Usar API de Open WebUI o exportar métricas a InfluxDB vía middleware.
+- **Implementado:** API HTTP como método primario (`WEBUI_API_URL` + `WEBUI_API_KEY`), SQLite como fallback con validación de schema. Se verifica existencia de tabla `chat_message` antes de querying.
 
-#### 14. Sin tests automatizados significativos
+#### 14. ✅ Sin tests automatizados significativos
 - **Directorio:** `backend/tests/`
 - **Problema:** ~14k líneas de servicios y 9.4k de routers sin CI. Cambios en rag.py o classifier.py pueden romper el chat sin detectarse.
 - **Acción:** Tests de integración mínimos para flujos críticos: chat E2E, ingesta → Qdrant, visión → detección.
+- **Implementado:** `backend/tests/test_integration.py` — 13 tests pytest contra API viva: Health (3), Chat E2E stream+non-stream (2), RAG avicultura (1), Birds registry (2), Vision curated (2), Classification parametrized (3). Todos pasan.
 
-#### 15. Streaming bypasea el critic gate
+#### 15. ✅ Streaming bypasea el critic gate
 - **Archivo:** `routers/chat.py` (chat_stream), `routers/openai_compat.py`
 - **Problema:** `/chat/stream` genera tokens vía SSE directo. El critic solo se aplica en `/chat` síncrono. Open WebUI usa streaming por defecto → **todas las queries de producción bypasean el control de calidad**.
 - **Impacto:** El critic gate (la protección contra confusión de especie, incoherencia, etc.) no actúa en el flujo real de usuarios.
 - **Acción:** Implementar critic post-stream (acumular respuesta completa, evaluar, y si BLOCK sustituir en el último chunk SSE) o pre-flight check de la query.
+- **Implementado:** Ya estaba resuelto — `_stream_response()` en `openai_compat.py` usa patrón "fake-stream": genera respuesta completa → ejecuta ambos critics (structural + technical) → si BLOCK regenera con brain → emite resultado aprobado palabra a palabra. Open WebUI usa `/v1/chat/completions` (este endpoint), no `/chat/stream`.

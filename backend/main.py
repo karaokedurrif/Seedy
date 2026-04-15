@@ -39,6 +39,7 @@ from services.daily_update import run_daily_update
 from services.auto_learn import start_all_loops as start_auto_learn_loops
 from services.telemetry import start_mqtt_listener, stop_mqtt_listener
 from services.capture_manager import start_capture_manager, stop_capture_manager
+from services.watchdog import watchdog_loop
 
 # Logging
 logging.basicConfig(
@@ -100,11 +101,16 @@ async def lifespan(app: FastAPI):
     # Behavior ML autolearn (cada 6h)
     asyncio.create_task(_autolearn_behavior_ml())
 
+    # Watchdog: monitorización de servicios cada 2h (pausa nocturna)
+    watchdog_task = asyncio.create_task(watchdog_loop())
+    app.state.watchdog_task = watchdog_task
+
     logger.info("🌱 Seedy Backend listo")
     yield
 
     # Cleanup
     daily_task.cancel()
+    watchdog_task.cancel()
     for t in auto_learn_tasks:
         t.cancel()
     stop_mqtt_listener()
