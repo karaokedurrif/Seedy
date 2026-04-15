@@ -1,31 +1,137 @@
 {
-  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Unificado jul 2026: ambos gallineros abiertos, 26 aves juntas.",
-  "_nota_distribucion": "26 aves totales. Gallinero único Durrif (antes I+II). 3 cámaras: VIGI nueva, VIGI gallinero, Dahua sauna.",
+  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Gallinero unificado: 26 aves juntas.",
+  "_nota_distribucion": "26 aves totales. Gallinero único Palacio (antes Durrif I+II). 3 cámaras: VIGI nueva, VIGI gallinero, Dahua sauna.",
   "_total": 26,
-  "gallinero_durrif": {
-    "name": "Gallinero Durrif",
+  "gallinero_palacio": {
+    "name": "Gallinero Palacio",
     "ovosfera_id": 2,
     "zona": "Cría",
-    "camaras": ["gallinero_durrif_1", "gallinero_durrif_2", "sauna_durrif_1"],
+    "camaras": [
+      "gallinero_durrif_1",
+      "gallinero_durrif_2",
+      "sauna_durrif_1"
+    ],
     "_nota": "26 aves totales (jul 2026). Unificación de G1+G2. Las 3 cámaras cubren el espacio completo.",
     "aves": [
-      {"raza": "Bresse",           "color": "blanco",         "sexo": "female", "cantidad": 2, "notas": "PAL-0002, PAL-0012. Blancas puras, patas gris-azulado, más pequeñas que Sussex."},
-      {"raza": "Bresse",           "color": "blanco",         "sexo": "male",   "cantidad": 1, "notas": "PAL-0011. Gallo Bresse blanco. Patas gris-azulado."},
-      {"raza": "Sussex",           "color": "white",          "sexo": "female", "cantidad": 4, "notas": "PAL-0004, PAL-0005, PAL-0006, PAL-0007. Sussex armiñadas — blancas con rayas negras en cuello."},
-      {"raza": "Sussex",           "color": "silver",         "sexo": "male",   "cantidad": 1, "notas": "PAL-0001. Gallo grande 4.5kg. Plumaje plateado con negro."},
-      {"raza": "Sussex",           "color": "silver",         "sexo": "female", "cantidad": 1, "notas": "PAL-0003. Gallina Sussex Silver."},
-      {"raza": "Sulmtaler",        "color": "trigueño",       "sexo": "female", "cantidad": 3, "notas": "PAL-0015, PAL-0016, PAL-0017. Plumaje trigueño/atigrado."},
-      {"raza": "Sulmtaler",        "color": "trigueño",       "sexo": "male",   "cantidad": 2, "notas": "PAL-0014, PAL-0021. Gallos Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado."},
-      {"raza": "Araucana",         "color": "negra",          "sexo": "female", "cantidad": 2, "notas": "PAL-0010, PAL-0019. Araucanas negras."},
-      {"raza": "Araucana",         "color": "trigueño",       "sexo": "female", "cantidad": 1, "notas": "PAL-0009. Gallina Araucana trigueña."},
-      {"raza": "Pita Pinta",       "color": "pinta",          "sexo": "female", "cantidad": 1, "notas": "PAL-0020. Pita Pinta Asturiana."},
-      {"raza": "Marans",           "color": "negro cobrizo",  "sexo": "female", "cantidad": 1, "notas": "PAL-0008. Negra con reflejos cobrizos en cuello."},
-      {"raza": "Andaluza Azul",    "color": "azul",           "sexo": "female", "cantidad": 1, "notas": "PAL-0018. Gris azulado uniforme, cresta grande."},
-      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "male",   "cantidad": 1, "notas": "PAL-0022. Gallo Vorwerk. Cuerpo dorado, cuello y cola negros."},
-      {"raza": "Vorwerk",          "color": "dorado",         "sexo": "female", "cantidad": 2, "notas": "PAL-0023, PAL-0024. Gallinas Vorwerk."},
-      {"raza": "F1 (cruce)",       "color": "variado",        "sexo": "female", "cantidad": 2, "notas": "PAL-0025, PAL-0026. Cruces F1."},
-      {"raza": "Por determinar",   "color": "desconocido",    "sexo": "female", "cantidad": 1, "notas": "PAL-0027. OvoSfera: 'Otra raza'. Posible Sulmtaler."},
-      {"raza": "Pita Pinta",       "color": "pinta",          "sexo": "female", "cantidad": 0, "notas": "PAL-0013 eliminada del registro. Reasignar si reaparece."}
+      {
+        "raza": "Bresse",
+        "color": "blanco",
+        "sexo": "female",
+        "cantidad": 2,
+        "notas": "PAL-0002, PAL-0012. Blancas puras, patas gris-azulado, más pequeñas que Sussex."
+      },
+      {
+        "raza": "Bresse",
+        "color": "blanco",
+        "sexo": "male",
+        "cantidad": 1,
+        "notas": "PAL-0011. Gallo Bresse blanco. Patas gris-azulado."
+      },
+      {
+        "raza": "Sussex",
+        "color": "white",
+        "sexo": "female",
+        "cantidad": 4,
+        "notas": "PAL-0004, PAL-0005, PAL-0006, PAL-0007. Sussex armiñadas — blancas con rayas negras en cuello."
+      },
+      {
+        "raza": "Sussex",
+        "color": "silver",
+        "sexo": "male",
+        "cantidad": 1,
+        "notas": "PAL-0001. Gallo grande 4.5kg. Plumaje plateado con negro."
+      },
+      {
+        "raza": "Sussex",
+        "color": "silver",
+        "sexo": "female",
+        "cantidad": 1,
+        "notas": "PAL-0003. Gallina Sussex Silver."
+      },
+      {
+        "raza": "Sulmtaler",
+        "color": "trigueño",
+        "sexo": "female",
+        "cantidad": 3,
+        "notas": "PAL-0015, PAL-0016, PAL-0017. Plumaje trigueño/atigrado."
+      },
+      {
+        "raza": "Sulmtaler",
+        "color": "trigueño",
+        "sexo": "male",
+        "cantidad": 2,
+        "notas": "PAL-0014, PAL-0021. Gallos Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado."
+      },
+      {
+        "raza": "Araucana",
+        "color": "negra",
+        "sexo": "female",
+        "cantidad": 2,
+        "notas": "PAL-0010, PAL-0019. Araucanas negras."
+      },
+      {
+        "raza": "Araucana",
+        "color": "trigueño",
+        "sexo": "female",
+        "cantidad": 1,
+        "notas": "PAL-0009. Gallina Araucana trigueña."
+      },
+      {
+        "raza": "Pita Pinta",
+        "color": "pinta",
+        "sexo": "female",
+        "cantidad": 1,
+        "notas": "PAL-0020. Pita Pinta Asturiana."
+      },
+      {
+        "raza": "Marans",
+        "color": "negro cobrizo",
+        "sexo": "female",
+        "cantidad": 1,
+        "notas": "PAL-0008. Negra con reflejos cobrizos en cuello."
+      },
+      {
+        "raza": "Andaluza Azul",
+        "color": "azul",
+        "sexo": "female",
+        "cantidad": 1,
+        "notas": "PAL-0018. Gris azulado uniforme, cresta grande."
+      },
+      {
+        "raza": "Vorwerk",
+        "color": "dorado",
+        "sexo": "male",
+        "cantidad": 1,
+        "notas": "PAL-0022. Gallo Vorwerk. Cuerpo dorado, cuello y cola negros."
+      },
+      {
+        "raza": "Vorwerk",
+        "color": "dorado",
+        "sexo": "female",
+        "cantidad": 2,
+        "notas": "PAL-0023, PAL-0024. Gallinas Vorwerk."
+      },
+      {
+        "raza": "F1 (cruce)",
+        "color": "variado",
+        "sexo": "female",
+        "cantidad": 2,
+        "notas": "PAL-0025, PAL-0026. Cruces F1."
+      },
+      {
+        "raza": "Por determinar",
+        "color": "desconocido",
+        "sexo": "female",
+        "cantidad": 1,
+        "notas": "PAL-0027. OvoSfera: 'Otra raza'. Posible Sulmtaler."
+      },
+      {
+        "raza": "Pita Pinta",
+        "color": "pinta",
+        "sexo": "female",
+        "cantidad": 0,
+        "notas": "PAL-0013 eliminada del registro. Reasignar si reaparece."
+      }
     ]
   }
 }

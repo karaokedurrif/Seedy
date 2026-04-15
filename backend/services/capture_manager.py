@@ -1,586 +1,479 @@
-"""
-Seedy Backend — Capture Manager v4.1
+"""Seedy Backend — Capture Manager: Dual Stream Architecture.
 
-Gestiona la arquitectura dual-stream:
-  - Sub-stream (704×576, 10-15fps): tracking continuo, behavior, plagas, mating
-  - Main-stream (4K): event-triggered para ID, curación de datos
+Sub-stream continuo (10-15fps, 640px) para tracking/behavior/pest.
+Main-stream bajo demanda (4K snapshot) disparado por eventos.
 
-El sub-stream corre SIEMPRE. El main-stream solo se dispara bajo trigger.
+Reemplaza el loop de 60s con un sistema event-driven donde el sub-stream
+genera triggers que disparan capturas de alta resolución.
 """
 
 import asyncio
+import io
 import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
 import cv2
 import httpx
 import numpy as np
+from PIL import Image, ImageStat
 
 logger = logging.getLogger(__name__)
 
-GO2RTC_URL = os.getenv("GO2RTC_URL", "http://host.docker.internal:1984")
+
+# ─── Tipos de evento de captura ───
 
 
-class CaptureEvent(Enum):
+class CaptureEvent(str, Enum):
     NEW_BIRD = "new_bird"
     MATING = "mating"
     PEST_ALERT = "pest_alert"
     RARE_BEHAVIOR = "rare_behavior"
     SCHEDULED = "scheduled"
     QUALITY_BIRD = "quality_bird"
-    HIGH_COUNT = "high_count"
-    MANUAL = "manual"
+
+
+# ─── Configuración de cámaras ───
 
 
 @dataclass
 class CameraConfig:
     camera_id: str
     ip: str
-    gallinero_id: str = "gallinero_durrif"
+    gallinero_id: str
     # Sub-stream
-    sub_stream_url: str = ""
+    sub_stream_url: str
     sub_stream_fps: int = 10
+    sub_imgsz: int = 640
     # Main-stream
     main_snapshot_url: str = ""
-    # Tileado
-    tile_size: int = 1280
-    tile_overlap: float = 0.20
-    use_tiled: bool = True
+    main_imgsz: int = 1920
+    use_tiled: bool = False
     # Auth
-    auth_type: str = "basic"
+    auth_type: str = "basic"  # "basic" | "digest"
     username: str = "admin"
     password: str = ""
+    snapshot_auth: tuple[str, str] = ("admin", "123456")
     # Dahua-specific
     is_dahua: bool = False
+    optimize_exposure: bool = False
+    # go2rtc stream names (for legacy compatibility)
+    stream: str = ""
+    stream_sub: str = ""
+    name: str = ""
 
 
-@dataclass
-class CaptureRequest:
-    camera_id: str
-    event: CaptureEvent
-    priority: int
-    bird_count: int = 0
-    timestamp: float = field(default_factory=time.time)
-    metadata: dict = field(default_factory=dict)
-
-    def __lt__(self, other):
-        return self.priority < other.priority
-
-
-# Las 3 cámaras cubren el MISMO gallinero unificado (26 aves)
-CAMERAS: Dict[str, CameraConfig] = {
-    "gallinero_durrif_1": CameraConfig(
-        camera_id="gallinero_durrif_1",
-        ip="10.10.10.11",
-        sub_stream_url="rtsp://admin:123456@10.10.10.11:554/stream2",
-        sub_stream_fps=10,
-        main_snapshot_url="http://10.10.10.11/cgi-bin/snapshot.cgi",
-        tile_size=960,
-        password="123456",
-    ),
+CAMERAS: dict[str, CameraConfig] = {
     "sauna_durrif_1": CameraConfig(
         camera_id="sauna_durrif_1",
         ip="10.10.10.108",
+        gallinero_id="gallinero_palacio",
         sub_stream_url="rtsp://admin:1234567a@10.10.10.108/cam/realmonitor?channel=1&subtype=1",
         sub_stream_fps=15,
+        sub_imgsz=640,
         main_snapshot_url="http://10.10.10.108/cgi-bin/snapshot.cgi?channel=1",
-        tile_size=800,
+        main_imgsz=1920,
+        use_tiled=False,
         auth_type="digest",
+        username="admin",
         password="1234567a",
+        snapshot_auth=("admin", "1234567a"),
         is_dahua=True,
+        optimize_exposure=True,
+        stream="sauna_durrif_1",
+        stream_sub="sauna_durrif_1_sub",
+        name="Sauna Durrif I (Dahua)",
+    ),
+    "gallinero_durrif_1": CameraConfig(
+        camera_id="gallinero_durrif_1",
+        ip="10.10.10.11",
+        gallinero_id="gallinero_palacio",
+        sub_stream_url="rtsp://admin:123456@10.10.10.11:554/stream2",
+        sub_stream_fps=10,
+        sub_imgsz=640,
+        main_snapshot_url="http://10.10.10.11/cgi-bin/snapshot.cgi",
+        main_imgsz=1920,
+        use_tiled=True,
+        auth_type="basic",
+        username="admin",
+        password="123456",
+        snapshot_auth=("admin", "123456"),
+        stream="gallinero_durrif_1",
+        stream_sub="gallinero_durrif_1_sub",
+        name="Gallinero Durrif I",
     ),
     "gallinero_durrif_2": CameraConfig(
         camera_id="gallinero_durrif_2",
         ip="10.10.10.10",
+        gallinero_id="gallinero_palacio",
         sub_stream_url="rtsp://admin:123456@10.10.10.10:554/stream2",
         sub_stream_fps=10,
+        sub_imgsz=640,
         main_snapshot_url="http://10.10.10.10/cgi-bin/snapshot.cgi",
-        tile_size=1280,
+        main_imgsz=1280,
+        use_tiled=False,
+        auth_type="basic",
+        username="admin",
         password="123456",
+        snapshot_auth=("admin", "123456"),
+        stream="gallinero_durrif_2",
+        stream_sub="gallinero_durrif_2_sub",
+        name="Gallinero Durrif II",
     ),
 }
 
 
-class CaptureManager:
-    """Gestiona la lógica dual-stream para el gallinero unificado."""
+# ─── Request de captura ───
 
-    # Intervalo entre snapshots de behavior (segundos)
-    BEHAVIOR_SNAPSHOT_INTERVAL = 60
+
+@dataclass(order=True)
+class CaptureRequest:
+    priority: int
+    camera_id: str = field(compare=False)
+    event: CaptureEvent = field(compare=False)
+    trigger_detections: list = field(compare=False, default_factory=list)
+    timestamp: float = field(compare=False, default_factory=time.time)
+    metadata: dict = field(compare=False, default_factory=dict)
+
+
+# ─── Constantes ───
+
+MIN_BRIGHTNESS = 25
+MIN_CAPTURE_INTERVAL = 10          # Mín 10s entre capturas 4K por cámara
+SCHEDULED_INTERVAL = 300           # Captura periódica cada 5 min
+SUB_FRAME_SKIP = 2                 # Procesar 1 de cada N frames del sub-stream
+RECONNECT_DELAY = 5                # Segundos antes de reconectar sub-stream
+
+
+# ─── Capture Manager ───
+
+
+class CaptureManager:
+    """Gestiona la lógica dual-stream para todas las cámaras."""
 
     def __init__(self):
-        self._capture_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
-        self._last_main_capture: Dict[str, float] = {}
-        self._last_behavior_snapshot: Dict[str, float] = {}
-        self._min_capture_interval = 10.0  # 10s entre capturas 4K por cámara
-        self._sub_stream_tasks: Dict[str, asyncio.Task] = {}
-        self._main_worker_task: Optional[asyncio.Task] = None
+        self._capture_queue: asyncio.PriorityQueue[CaptureRequest] = asyncio.PriorityQueue()
+        self._last_main_capture: dict[str, float] = {}
+        self._sub_tasks: dict[str, asyncio.Task] = {}
+        self._worker_task: asyncio.Task | None = None
         self._running = False
-        self._stats = {
-            "sub_frames_processed": 0,
-            "main_captures": 0,
-            "behavior_snapshots": 0,
-            "triggers": {e.value: 0 for e in CaptureEvent},
-            "errors": 0,
-            "started_at": None,
-        }
+        self._stats: dict[str, dict] = {}
 
     async def start(self):
-        """Inicia todos los sub-streams + worker de main-stream."""
-        if self._running:
-            logger.warning("CaptureManager ya está corriendo")
-            return
-
+        """Arranca sub-stream readers + main-capture worker."""
         self._running = True
-        self._stats["started_at"] = time.time()
-
-        # Iniciar sub-stream loops
         for cam_id, config in CAMERAS.items():
-            task = asyncio.create_task(
-                self._sub_stream_loop(config),
-                name=f"sub_{cam_id}",
+            self._stats[cam_id] = {
+                "sub_frames": 0, "main_captures": 0,
+                "triggers": {e.value: 0 for e in CaptureEvent},
+            }
+            self._sub_tasks[cam_id] = asyncio.create_task(
+                self._sub_stream_loop(config), name=f"sub_{cam_id}"
             )
-            self._sub_stream_tasks[cam_id] = task
-
-        # Worker que procesa la cola de capturas main-stream
-        self._main_worker_task = asyncio.create_task(
-            self._main_capture_worker(),
-            name="main_capture_worker",
+        self._worker_task = asyncio.create_task(
+            self._main_capture_worker(), name="main_capture_worker"
         )
-
-        logger.info(f"🚀 CaptureManager started: {len(CAMERAS)} cámaras")
+        logger.info(f"📹 CaptureManager started: {len(CAMERAS)} cameras")
 
     async def stop(self):
-        """Detiene todos los streams."""
+        """Detiene todas las tareas."""
         self._running = False
-
-        for task in self._sub_stream_tasks.values():
+        for task in self._sub_tasks.values():
             task.cancel()
-        if self._main_worker_task:
-            self._main_worker_task.cancel()
+        if self._worker_task:
+            self._worker_task.cancel()
+        self._sub_tasks.clear()
+        self._worker_task = None
+        logger.info("📹 CaptureManager stopped")
 
-        self._sub_stream_tasks.clear()
-        self._main_worker_task = None
-        logger.info("⏹️ CaptureManager stopped")
+    def get_stats(self) -> dict:
+        return {"running": self._running, "cameras": self._stats}
 
-    def get_status(self) -> dict:
-        """Estado actual del CaptureManager."""
-        return {
-            "running": self._running,
-            "cameras": list(CAMERAS.keys()),
-            "sub_streams_active": [
-                cid for cid, t in self._sub_stream_tasks.items() if not t.done()
-            ],
-            "queue_size": self._capture_queue.qsize(),
-            "stats": self._stats,
-        }
-
-    # ── Sub-stream loop (SIEMPRE activo) ──
+    # ─── Sub-stream loop ───
 
     async def _sub_stream_loop(self, config: CameraConfig):
-        """Lee frames del sub-stream vía go2rtc snapshot, ejecuta COCO detect + tracker + behavior.
-
-        Usa go2rtc API (HTTP MJPEG snapshot) en vez de cv2.VideoCapture RTSP directo
-        para evitar 3 conexiones RTSP permanentes y problemas de reconexión.
-        """
-        frame_interval = 1.0 / min(config.sub_stream_fps, 2)  # Max 2fps para sub polling
-        consecutive_errors = 0
-        sub_stream_name = f"{config.camera_id}_sub"
+        """Lee sub-stream vía go2rtc MJPEG, ejecuta YOLO + tracking + behavior."""
+        go2rtc = os.environ.get("GO2RTC_URL", "http://host.docker.internal:1984")
+        mjpeg_url = f"{go2rtc}/api/frame.jpeg?src={config.stream_sub}"
+        frame_interval = 1.0 / config.sub_stream_fps
+        frame_count = 0
 
         while self._running:
             try:
-                # Capturar frame vía go2rtc HTTP snapshot
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    resp = await client.get(
-                        f"{GO2RTC_URL}/api/frame.jpeg?src={sub_stream_name}"
-                    )
-                    if resp.status_code != 200 or len(resp.content) < 2000:
-                        consecutive_errors += 1
-                        if consecutive_errors > 5:
-                            await asyncio.sleep(15)
-                        else:
-                            await asyncio.sleep(3)
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(mjpeg_url)
+                    if resp.status_code != 200 or len(resp.content) < 1000:
+                        await asyncio.sleep(RECONNECT_DELAY)
                         continue
+                    frame_bytes = resp.content
 
-                consecutive_errors = 0
-                frame_bytes = resp.content
+                frame_count += 1
+                if config.camera_id in self._stats:
+                    self._stats[config.camera_id]["sub_frames"] = frame_count
 
-                # Decodificar
-                arr = np.frombuffer(frame_bytes, dtype=np.uint8)
-                frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-                if frame is None:
+                # Skip frames para reducir carga GPU
+                if frame_count % SUB_FRAME_SKIP != 0:
                     await asyncio.sleep(frame_interval)
                     continue
 
-                # Skip si es de noche (luminancia baja)
-                if frame.mean() < 25:
+                # Brightness check
+                if not self._check_brightness(frame_bytes):
                     await asyncio.sleep(frame_interval)
                     continue
 
-                # Procesar frame del sub-stream
-                await self._process_sub_frame(config, frame)
-                self._stats["sub_frames_processed"] += 1
+                # YOLO COCO detection (sub-stream: 640px, rápido)
+                detections = self._yolo_detect(frame_bytes, config.sub_imgsz)
+                if not detections:
+                    await asyncio.sleep(frame_interval)
+                    continue
 
-                await asyncio.sleep(frame_interval)
+                # Tracking + behavior + mating + pests (SIEMPRE)
+                self._enrich_tracking(config.gallinero_id, frame_bytes)
+
+                # Evaluar triggers para captura 4K
+                poultry = [d for d in detections.get("detections", [])
+                           if d.get("category") == "poultry"]
+                await self._evaluate_triggers(config, detections, len(poultry))
 
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error en sub-stream {config.camera_id}: {e}")
-                self._stats["errors"] += 1
-                consecutive_errors += 1
-                await asyncio.sleep(3)
+                logger.debug(f"Sub-stream {config.camera_id} error: {e}")
+                await asyncio.sleep(RECONNECT_DELAY)
+                continue
 
-    async def _process_sub_frame(self, config: CameraConfig, frame: np.ndarray):
-        """Procesa un frame del sub-stream: detect + track + behavior + triggers."""
-        from services.yolo_detector_v4 import get_detector
-        from services.bird_tracker import get_tracker
+            await asyncio.sleep(frame_interval)
 
-        detector = get_detector()
+        logger.info(f"Sub-stream {config.camera_id} stopped (frames: {frame_count})")
 
-        # Encode frame to bytes for detector
-        _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-        if buf is None:
-            return
-        frame_bytes = buf.tobytes()
-
-        # Detectar con COCO (sin tileado en sub-stream 704×576)
-        result = detector.detect_birds(
-            frame_bytes,
-            camera_id=config.camera_id,
-            use_tiled=False,
-            classify_breeds=False,  # Sub-stream: solo detectar, no clasificar
-        )
-
-        detections = result.get("detections", [])
-        bird_count = result.get("count", 0)
-
-        # Feed tracker
-        tracker = get_tracker(config.gallinero_id)
-        tracker.update(detections)
-
-        # Feed pest alert
-        pest_dets = [d for d in detections if d.get("is_pest")]
-        if pest_dets:
-            try:
-                from services.pest_alert import get_pest_manager
-                mgr = get_pest_manager()
-                mgr.process_detections(config.gallinero_id, pest_dets)
-            except Exception:
-                pass
-
-        # Evaluar triggers de captura 4K
-        await self._evaluate_triggers(config, frame_bytes, detections, bird_count)
-
-        # Guardar snapshot de behavior cada 60s
-        await self._save_behavior_snapshot(config, detections, bird_count)
-
-    # ── Behavior event persistence ──
-
-    async def _save_behavior_snapshot(
-        self, config: CameraConfig, detections: list, bird_count: int,
-    ):
-        """Guarda snapshot de behavior cada BEHAVIOR_SNAPSHOT_INTERVAL segundos.
-
-        Escribe en data/behavior_events/{camera_id}/{YYYY-MM-DD}.jsonl
-        con el formato esperado por behavior_ml._load_events().
-        """
-        import json as _json
-        now = time.time()
-        last = self._last_behavior_snapshot.get(config.camera_id, 0)
-        if now - last < self.BEHAVIOR_SNAPSHOT_INTERVAL:
-            return
-
-        self._last_behavior_snapshot[config.camera_id] = now
-
-        # Solo guardar si hay al menos 1 ave
-        bird_dets = [d for d in detections if not d.get("is_pest")]
-        if not bird_dets:
-            return
-
-        from services.bird_tracker import get_tracker
-        tracker = get_tracker(config.gallinero_id)
-
-        # Construir tracks snapshot
-        tracks = []
-        for det in bird_dets:
-            bbox_norm = det.get("bbox_norm", [0, 0, 0, 0])
-            cx = (bbox_norm[0] + bbox_norm[2]) / 2 if len(bbox_norm) == 4 else 0
-            cy = (bbox_norm[1] + bbox_norm[3]) / 2 if len(bbox_norm) == 4 else 0
-            area = ((bbox_norm[2] - bbox_norm[0]) * (bbox_norm[3] - bbox_norm[1])
-                    if len(bbox_norm) == 4 else 0)
-
-            # Determinar zona
-            zone = self._classify_zone(cx, cy, config.gallinero_id)
-
-            tracks.append({
-                "track_id": det.get("track_id", 0),
-                "bird_id": det.get("bird_id", ""),
-                "center": [cx, cy],
-                "zone": zone,
-                "confidence": det.get("confidence", 0),
-                "area": round(area, 6),
-            })
-
-        ts_dt = datetime.now(timezone.utc)
-        snapshot = {
-            "ts": ts_dt.isoformat(),
-            "ts_unix": round(now, 2),
-            "gallinero_id": config.camera_id,
-            "active_count": len(tracks),
-            "tracks": tracks,
-        }
-
-        # Persistir en JSONL
-        events_dir = Path(os.getenv("BEHAVIOR_DATA_DIR", "data/behavior_events")) / config.camera_id
-        events_dir.mkdir(parents=True, exist_ok=True)
-        events_file = events_dir / f"{ts_dt.strftime('%Y-%m-%d')}.jsonl"
-
-        try:
-            with open(events_file, "a") as fh:
-                fh.write(_json.dumps(snapshot) + "\n")
-            self._stats["behavior_snapshots"] += 1
-        except Exception as e:
-            logger.debug(f"Error saving behavior snapshot: {e}")
-
-    @staticmethod
-    def _classify_zone(cx: float, cy: float, gallinero_id: str) -> str:
-        """Clasifica coordenadas normalizadas en zona."""
-        from services.bird_tracker import get_zones
-        zones = get_zones(gallinero_id)
-        for name, zone_info in zones.items():
-            bbox = zone_info.get("bbox", [0, 0, 0, 0])
-            if bbox[0] <= cx <= bbox[2] and bbox[1] <= cy <= bbox[3]:
-                return name
-        return "zona_libre"
-
-    # ── Trigger evaluation ──
+    # ─── Trigger evaluation ───
 
     async def _evaluate_triggers(
-        self, config: CameraConfig, frame_bytes: bytes,
-        detections: list, bird_count: int,
+        self, config: CameraConfig, detections: dict, poultry_count: int
     ):
-        """Evalúa si se debe disparar una captura main-stream 4K."""
+        """Decide si disparar captura del main-stream (4K)."""
         now = time.time()
         last = self._last_main_capture.get(config.camera_id, 0)
-        if now - last < self._min_capture_interval:
+        if now - last < MIN_CAPTURE_INTERVAL:
             return
 
+        # Trigger 1: Plaga severa (prioridad máxima)
+        from services.pest_alert import get_pest_manager
+        pest_mgr = get_pest_manager()
+        if detections.get("pest_count", 0) > 0:
+            await self._enqueue(config.camera_id, CaptureEvent.PEST_ALERT, priority=1,
+                                metadata={"pests": detections["pest_count"]})
+            return
+
+        # Trigger 2: Ave nueva sin ID (5+ frames vistas)
         from services.bird_tracker import get_tracker
         tracker = get_tracker(config.gallinero_id)
-
-        # Trigger 1: Ave nueva sin ID (tracker la ve ≥5 frames)
-        for track in tracker.get_active_tracks():
-            if not track.get("breed") and track.get("total_frames", 0) >= 5:
-                if not track.get("ai_vision_id"):
-                    await self._enqueue_capture(config, CaptureEvent.NEW_BIRD, 2, bird_count)
-                    return
-
-        # Trigger 2: Plaga severa
-        try:
-            from services.pest_alert import get_pest_manager
-            mgr = get_pest_manager()
-            stats = mgr.get_stats()
-            if stats.get("active_alerts"):
-                await self._enqueue_capture(
-                    config, CaptureEvent.PEST_ALERT, 1, bird_count,
-                    metadata={"pest_count": len(stats["active_alerts"])},
-                )
+        for t in tracker.tracks.values():
+            if t.active and not t.ai_vision_id and t.total_frames >= 5:
+                await self._enqueue(config.camera_id, CaptureEvent.NEW_BIRD, priority=2,
+                                    metadata={"track_id": t.track_id})
                 return
-        except Exception:
-            pass
 
-        # Trigger 3: Frame con muchas aves (excelente para dataset de detección)
-        if bird_count >= 10:
-            await self._enqueue_capture(config, CaptureEvent.HIGH_COUNT, 3, bird_count)
+        # Trigger 3: Monta en curso
+        from services.mating_detector import get_mating_detector
+        mating = get_mating_detector(config.gallinero_id)
+        if mating.is_active():
+            await self._enqueue(config.camera_id, CaptureEvent.MATING, priority=2)
             return
 
-        # Trigger 4: Ave aislada con buena calidad (para crop)
-        if bird_count == 1 and detections:
-            det = detections[0]
-            bbox = det.get("bbox_norm", [0, 0, 0, 0])
-            if len(bbox) == 4:
-                area = (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
-                if area > 0.02:
-                    await self._enqueue_capture(config, CaptureEvent.QUALITY_BIRD, 3, bird_count)
-                    return
+        # Trigger 4: Ave aislada con buen quality (oportunista)
+        if poultry_count == 1:
+            await self._enqueue(config.camera_id, CaptureEvent.QUALITY_BIRD, priority=3)
+            return
 
-        # Trigger 5: Muestreo periódico (5 min fallback)
-        if now - last > 300:
-            await self._enqueue_capture(config, CaptureEvent.SCHEDULED, 4, bird_count)
+        # Trigger 5: Muestreo periódico (cada 5 min como fallback)
+        if now - last > SCHEDULED_INTERVAL:
+            await self._enqueue(config.camera_id, CaptureEvent.SCHEDULED, priority=4)
 
-    async def _enqueue_capture(
-        self, config: CameraConfig, event: CaptureEvent,
-        priority: int, bird_count: int, metadata: dict = None,
+    async def _enqueue(
+        self, camera_id: str, event: CaptureEvent,
+        priority: int = 3, metadata: dict | None = None,
     ):
         req = CaptureRequest(
-            camera_id=config.camera_id,
-            event=event,
             priority=priority,
-            bird_count=bird_count,
+            camera_id=camera_id,
+            event=event,
             metadata=metadata or {},
         )
-        await self._capture_queue.put((priority, time.time(), req))
-        self._last_main_capture[config.camera_id] = time.time()
-        self._stats["triggers"][event.value] = self._stats["triggers"].get(event.value, 0) + 1
-        logger.info(f"📋 Trigger {event.value} (P{priority}) para {config.camera_id} ({bird_count} aves)")
+        await self._capture_queue.put(req)
+        if camera_id in self._stats:
+            self._stats[camera_id]["triggers"][event.value] += 1
+        logger.debug(f"📸 Trigger {event.value} (p={priority}) → {camera_id}")
 
-    # ── Main-stream worker ──
+    # ─── Main-stream capture worker ───
 
     async def _main_capture_worker(self):
-        """Worker que procesa capturas 4K de la cola."""
+        """Procesa la cola de capturas 4K: captura main-stream → pipeline completo."""
         while self._running:
             try:
-                priority, ts, request = await asyncio.wait_for(
-                    self._capture_queue.get(), timeout=5.0,
+                req: CaptureRequest = await asyncio.wait_for(
+                    self._capture_queue.get(), timeout=30.0
                 )
             except asyncio.TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
 
+            cam_config = CAMERAS.get(req.camera_id)
+            if not cam_config:
+                continue
+
+            now = time.time()
+            last = self._last_main_capture.get(req.camera_id, 0)
+            if now - last < MIN_CAPTURE_INTERVAL:
+                continue  # Throttle: descartamos si capturamos hace poco
+
             try:
-                await self._process_main_capture(request)
-                self._stats["main_captures"] += 1
+                # Capturar frame 4K del main-stream
+                frame = await self._capture_main_stream(cam_config)
+                if not frame:
+                    continue
+
+                self._last_main_capture[req.camera_id] = time.time()
+                if req.camera_id in self._stats:
+                    self._stats[req.camera_id]["main_captures"] += 1
+
+                # Pipeline completo de identificación (importar desde vision_identify)
+                from routers.vision_identify import _analyze_frame, _register_or_update_birds
+                from routers.vision_identify import _last_results
+
+                analysis = await _analyze_frame(
+                    frame, cam_config.gallinero_id,
+                    imgsz=cam_config.main_imgsz,
+                    use_tiled=cam_config.use_tiled,
+                )
+                if not analysis:
+                    continue
+
+                _last_results[cam_config.gallinero_id] = {
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "analysis": analysis,
+                    "camera": cam_config.name,
+                    "trigger": req.event.value,
+                    "trigger_metadata": req.metadata,
+                }
+
+                # Registrar aves identificadas
+                detected_birds = analysis.get("birds", [])
+                if detected_birds:
+                    await _register_or_update_birds(detected_birds, cam_config.gallinero_id, frame)
+
+                    # Curación de crops (si el módulo está disponible)
+                    try:
+                        from services.crop_curator import get_crop_curator
+                        curator = get_crop_curator()
+                        for bird in detected_birds:
+                            if bird.get("breed") and bird["breed"] != "Desconocida":
+                                await curator.evaluate_and_save(
+                                    frame_bytes=frame,
+                                    bird_result=bird,
+                                    camera_id=cam_config.camera_id,
+                                    gallinero_id=cam_config.gallinero_id,
+                                    trigger_event=req.event.value,
+                                )
+                    except ImportError:
+                        pass
+                    except Exception as e:
+                        logger.debug(f"Crop curation failed: {e}")
+
+                    bird = detected_birds[0]
+                    logger.info(
+                        f"[{cam_config.name}] ✅ {req.event.value}: "
+                        f"{bird.get('breed', '?')} {bird.get('color', '')} "
+                        f"(engine={analysis.get('engine', '?')})"
+                    )
+
             except Exception as e:
-                logger.error(f"Error procesando captura main-stream: {e}")
-                self._stats["errors"] += 1
+                logger.warning(f"Main capture failed {req.camera_id}: {e}")
 
-    async def _process_main_capture(self, request: CaptureRequest):
-        """Captura 4K + pipeline completo: detect + classify + curate."""
-        config = CAMERAS.get(request.camera_id)
-        if not config:
-            return
+    # ─── Helpers ───
 
-        logger.info(
-            f"🎯 Main capture: {request.camera_id} event={request.event.value}"
-        )
-
-        # Capturar snapshot 4K
-        frame_bytes = await self._capture_main_stream(config)
-        if not frame_bytes:
-            logger.warning(f"No se pudo capturar main-stream de {config.camera_id}")
-            return
-
-        # Pipeline completo con breed classification
-        from services.yolo_detector_v4 import get_detector
-        detector = get_detector()
-
-        result = detector.detect_birds(
-            frame_bytes,
-            camera_id=config.camera_id,
-            use_tiled=config.use_tiled,
-            classify_breeds=True,
-        )
-
-        detections = result.get("detections", [])
-        bird_count = result.get("count", 0)
-
-        logger.info(
-            f"📊 Main result: {bird_count} aves, {result.get('pest_count', 0)} plagas, "
-            f"{result.get('inference_ms', 0):.0f}ms"
-        )
-
-        # Curación dual
-        try:
-            from services.crop_curator import get_curator
-            curator = get_curator()
-
-            # Decodificar frame para curación
-            arr = np.frombuffer(frame_bytes, dtype=np.uint8)
-            frame_cv = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-            if frame_cv is None:
-                return
-
-            # Track A: Curar crops individuales
-            for det in detections:
-                if det.get("breed") and det["breed"] not in ("sin_clasificar", "Desconocida"):
-                    crop_bytes = det.get("crop_bytes", b"")
-                    if crop_bytes:
-                        crop_arr = np.frombuffer(crop_bytes, dtype=np.uint8)
-                        crop_cv = cv2.imdecode(crop_arr, cv2.IMREAD_COLOR)
-                        if crop_cv is not None:
-                            await curator.curate_crop(
-                                crop=crop_cv,
-                                identification={
-                                    "breed": det["breed"],
-                                    "confidence": det.get("breed_conf", 0),
-                                    "engine": "yolo_breed",
-                                    "color": det.get("color", ""),
-                                    "sex": det.get("sex", ""),
-                                },
-                                camera_id=config.camera_id,
-                                trigger_event=request.event.value,
-                            )
-
-            # Track B: Curar frame completo con bboxes
-            await curator.curate_frame(
-                frame=frame_cv,
-                detections=detections,
-                camera_id=config.camera_id,
-                trigger_event=request.event.value,
-            )
-        except Exception as e:
-            logger.error(f"Error en curación: {e}")
-
-    async def _capture_main_stream(self, config: CameraConfig) -> Optional[bytes]:
-        """Captura snapshot vía CGI o go2rtc."""
-        # Intento 1: CGI snapshot directo
+    async def _capture_main_stream(self, config: CameraConfig) -> bytes | None:
+        """Captura snapshot 4K del main-stream via CGI o go2rtc."""
+        # Intentar CGI snapshot directo (máxima calidad)
         if config.main_snapshot_url:
             try:
                 auth = None
                 if config.auth_type == "digest":
-                    auth = httpx.DigestAuth(config.username, config.password)
-                else:
-                    auth = httpx.BasicAuth(config.username, config.password)
+                    from httpx import DigestAuth
+                    auth = DigestAuth(config.username, config.password)
+                elif config.auth_type == "basic":
+                    auth = (config.username, config.password)
 
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    r = await client.get(config.main_snapshot_url, auth=auth)
-                    if r.status_code == 200 and len(r.content) > 5000:
-                        return r.content
+                async with httpx.AsyncClient(timeout=10.0, auth=auth) as client:
+                    resp = await client.get(config.main_snapshot_url)
+                    if resp.status_code == 200 and len(resp.content) > 5000:
+                        return resp.content
             except Exception as e:
-                logger.debug(f"CGI snapshot failed for {config.camera_id}: {e}")
+                logger.debug(f"CGI snapshot failed {config.camera_id}: {e}")
 
-        # Intento 2: go2rtc MJPEG snapshot
-        main_stream_name = config.camera_id  # Usa el nombre del stream en go2rtc
+        # Fallback: go2rtc main stream
+        go2rtc = os.environ.get("GO2RTC_URL", "http://host.docker.internal:1984")
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.get(f"{GO2RTC_URL}/api/frame.jpeg?src={main_stream_name}")
-                if r.status_code == 200 and len(r.content) > 5000:
-                    return r.content
+                resp = await client.get(f"{go2rtc}/api/frame.jpeg?src={config.stream}")
+                if resp.status_code == 200 and len(resp.content) > 5000:
+                    return resp.content
         except Exception as e:
-            logger.debug(f"go2rtc snapshot failed for {config.camera_id}: {e}")
+            logger.debug(f"go2rtc main snapshot failed {config.camera_id}: {e}")
 
         return None
 
-    # ── Manual trigger ──
-
-    async def trigger_capture(self, camera_id: str, event: str = "manual") -> dict:
-        """Trigger manual de captura 4K."""
-        config = CAMERAS.get(camera_id)
-        if not config:
-            return {"error": f"Cámara {camera_id} no configurada"}
-
+    @staticmethod
+    def _check_brightness(frame_bytes: bytes) -> bool:
+        """Retorna True si hay suficiente luz para procesar."""
         try:
-            evt = CaptureEvent(event)
-        except ValueError:
-            evt = CaptureEvent.MANUAL
+            img = Image.open(io.BytesIO(frame_bytes))
+            brightness = ImageStat.Stat(img.convert("L")).mean[0]
+            return brightness >= MIN_BRIGHTNESS
+        except Exception:
+            return True  # En caso de error, procesar igualmente
 
-        await self._enqueue_capture(config, evt, 2, 0)
-        return {"queued": True, "camera": camera_id, "event": event}
+    @staticmethod
+    def _yolo_detect(frame_bytes: bytes, imgsz: int = 640) -> dict | None:
+        """Detección YOLO COCO rápida para sub-stream."""
+        try:
+            from services.yolo_detector import detect_birds
+            return detect_birds(frame_bytes, imgsz=imgsz)
+        except Exception as e:
+            logger.debug(f"YOLO sub-stream detect failed: {e}")
+            return None
+
+    @staticmethod
+    def _enrich_tracking(gallinero_id: str, frame_bytes: bytes):
+        """Ejecuta tracker + behavior + mating + pests (delegado a vision_identify)."""
+        try:
+            from routers.vision_identify import _enrich_with_tracking
+            _enrich_with_tracking(gallinero_id, frame_bytes)
+        except Exception as e:
+            logger.debug(f"Tracking enrichment failed ({gallinero_id}): {e}")
 
 
-# ── Singleton ──
-_manager_instance: Optional[CaptureManager] = None
+# ─── Singleton ───
+
+_manager: CaptureManager | None = None
 
 
 def get_capture_manager() -> CaptureManager:
-    global _manager_instance
-    if _manager_instance is None:
-        _manager_instance = CaptureManager()
-    return _manager_instance
+    global _manager
+    if _manager is None:
+        _manager = CaptureManager()
+    return _manager
+
+
+async def start_capture_manager():
+    mgr = get_capture_manager()
+    await mgr.start()
+
+
+async def stop_capture_manager():
+    mgr = get_capture_manager()
+    await mgr.stop()

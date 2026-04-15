@@ -106,7 +106,7 @@ def main():
         if cantidad == 0:
             continue
 
-        # Find candidate matches
+        # Find candidate matches (ignore old gallinero assignment — all unified)
         candidates = []
         for b in old_birds:
             if id(b) in used_ids:
@@ -116,8 +116,6 @@ def main():
             if b["_norm_color"].lower() != color.lower():
                 continue
             if b.get("sex", "unknown") != sexo:
-                continue
-            if gal and b.get("gallinero", "") != gal:
                 continue
             candidates.append(b)
 
@@ -136,7 +134,7 @@ def main():
                 "breed": raza,
                 "color": color,
                 "sex": sexo,
-                "gallinero": gal or c.get("gallinero", "gallinero_durrif_2"),
+                "gallinero": "gallinero_palacio",
                 "first_seen": c.get("first_seen", datetime.now(timezone.utc).isoformat()),
                 "last_seen": c.get("last_seen", datetime.now(timezone.utc).isoformat()),
                 "ia_vision_number": seq,
@@ -158,7 +156,7 @@ def main():
                 "breed": raza,
                 "color": color,
                 "sex": sexo,
-                "gallinero": gal or "gallinero_durrif_2",
+                "gallinero": "gallinero_palacio",
                 "first_seen": datetime.now(timezone.utc).isoformat(),
                 "last_seen": datetime.now(timezone.utc).isoformat(),
                 "ia_vision_number": seq,

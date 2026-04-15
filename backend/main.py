@@ -169,9 +169,8 @@ async def _autolearn_behavior_ml():
         try:
             from services.behavior_ml import get_behavior_ml_engine
             engine = get_behavior_ml_engine()
-            for gallinero_id in ["gallinero_durrif_1", "gallinero_durrif_2"]:
-                result = await engine.train_all(gallinero_id, days=14)
-                logger.info(f"[BehaviorML] Train {gallinero_id}: {result}")
+            result = await engine.train_all("gallinero_palacio", days=14)
+            logger.info(f"[BehaviorML] Train gallinero_palacio: {result}")
         except Exception as e:
             logger.error(f"[BehaviorML] Train failed: {e}")
         await asyncio.sleep(BEHAVIOR_ML_TRAIN_INTERVAL)
@@ -183,7 +182,9 @@ async def _warmup_go2rtc_streams():
     go2rtc = os.environ.get("GO2RTC_URL", "http://go2rtc:1984")
     streams = [
         "gallinero_durrif_1_sub", "gallinero_durrif_2_sub",
+        "sauna_durrif_1_sub",
         "gallinero_durrif_1", "gallinero_durrif_2",
+        "sauna_durrif_1",
     ]
     await asyncio.sleep(5)  # dar tiempo a go2rtc para arrancar
     for s in streams:

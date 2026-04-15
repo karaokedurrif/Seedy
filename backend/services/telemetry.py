@@ -31,10 +31,9 @@ INFLUXDB_ORG = os.environ.get("INFLUXDB_ORG", "neofarm")
 INFLUXDB_BUCKET = os.environ.get("INFLUXDB_BUCKET", "porcidata")
 
 # Mapeo nombre friendly Zigbee → gallinero OvoSfera
-# Se actualiza al recibir mensajes o via API
+# Gallinero unificado: gallinero_palacio (antes durrif_1 + durrif_2)
 DEVICE_GALLINERO_MAP: dict[str, dict] = {
-    "gallinero_durrif_1": {"gallinero_id": 2, "gallinero_name": "Durrif I"},
-    "gallinero_durrif_2": {"gallinero_id": 3, "gallinero_name": "Durrif II"},
+    "gallinero_palacio": {"gallinero_id": 2, "gallinero_name": "Palacio"},
 }
 
 # Último valor recibido de cada sensor (cache en memoria)
