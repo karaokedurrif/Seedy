@@ -252,7 +252,6 @@ async def train_model(
             save=True,
             plots=True,
             verbose=True,
-            workers=0,         # Evita multiprocessing → no necesita /dev/shm grande
         )
 
         # Copiar best.pt a ubicación conocida

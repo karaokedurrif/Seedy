@@ -309,7 +309,7 @@ Modelo de crecimiento Gompertz por raza+sexo → /birds/{id}/gompertz
 Sensores eWeLink CK-TLSR8656 (gallinero_durrif_1/2)
     │
     ▼
-Zigbee2MQTT (mini PC 192.168.20.53, canal 15)
+Zigbee2MQTT (mini PC 192.168.40.128, canal 15)
     │   Routers mesh: 2× Tuya TS011F plugs
     ▼
 MQTT (Mosquitto :1883) ── topic: zigbee2mqtt/{friendly_name}

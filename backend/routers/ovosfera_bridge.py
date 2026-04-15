@@ -7,6 +7,7 @@ Bridge entre Seedy y OvoSfera (hub.ovosfera.com).
 - Sincronización de ai_vision_id hacia la API de OvoSfera
 - Widget chat proxy (evita exponer API key en frontend)
 - Chat con visión: Seedy puede ver las cámaras en tiempo real
+- Dispositivos IoT: Zigbee (Z2M) + Ecowitt weather station
 """
 
 import base64
@@ -28,6 +29,7 @@ router = APIRouter(prefix="/ovosfera", tags=["ovosfera-bridge"])
 OVOSFERA_API = os.environ.get("OVOSFERA_API_URL", "https://hub.ovosfera.com/api/ovosfera")
 OVOSFERA_FARM = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
 GO2RTC_URL = os.environ.get("GO2RTC_URL", "http://localhost:1984")
+Z2M_URL = os.environ.get("Z2M_URL", "http://192.168.40.128:8080")
 
 # Mapeo gallinero OvoSfera ID → stream go2rtc
 GALLINERO_CAMERAS = {
@@ -35,14 +37,14 @@ GALLINERO_CAMERAS = {
         "stream": "gallinero_durrif_1",
         "stream_sub": "gallinero_durrif_1_sub",
         "snapshot_url": "http://10.10.10.11/cgi-bin/snapshot.cgi",
-        "name": "Gallinero Durrif I",
+        "name": "Cám. Nueva (VIGI)",
         "camera": "TP-Link VIGI C340 4K",
     },
     3: {
         "stream": "gallinero_durrif_2",
         "stream_sub": "gallinero_durrif_2_sub",
         "snapshot_url": "http://10.10.10.10/cgi-bin/snapshot.cgi",
-        "name": "Gallinero Durrif II",
+        "name": "Cám. Gallinero (VIGI)",
         "camera": "TP-Link VIGI C340 4K",
     },
 }
@@ -70,11 +72,29 @@ async def get_gallineros_with_cameras():
         logger.warning(f"Error fetching gallineros from OvoSfera: {e}")
         gallineros = []
 
+    # Censo local para enriquecer aves_count
+    try:
+        from services.flock_census import get_census
+        census_count = sum(e.get("cantidad", 0) for e in get_census("gallinero_durrif"))
+    except Exception:
+        census_count = 0
+
     result = []
     for g in gallineros:
         gid = g.get("id")
+        name = g.get("name", "")
+
+        # Ocultar gallineros fusionados
+        if "fusionado" in name.lower():
+            continue
+
         cam = GALLINERO_CAMERAS.get(gid)
         entry = {**g}
+
+        # Corregir aves_count con censo local si OvoSfera devuelve 0
+        if entry.get("aves_count", 0) == 0 and census_count > 0:
+            entry["aves_count"] = census_count
+
         if cam:
             entry["camera"] = {
                 "stream": cam["stream"],
@@ -604,3 +624,236 @@ async def chat_proxy(request: Request):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Dispositivos IoT (Zigbee + Ecowitt) ──
+
+# Mapeo sensor Zigbee → gallinero
+_ZIGBEE_GALLINERO_MAP = {
+    # friendly_name de Z2M → (gallinero_id, gallinero_name)
+    "gallinero_durrif_1": ("gallinero_durrif", "Gallinero Durrif"),
+    "gallinero_durrif_2": ("gallinero_durrif", "Gallinero Durrif"),
+    "sensor_aire_gallinero_grande": ("gallinero_grande", "Gallinero Grande"),
+    "sensor_aire_gallinero_pequeno": ("gallinero_pequeno", "Gallinero Pequeño"),
+    "sensor_tierra_gallineros": ("gallinero_palacio", "Gallinero Palacio - Suelo"),
+    "enchufe_switch_poe": ("infraestructura", "Enchufe Bridge PoE"),
+    "router_gallineros": ("infraestructura", "Router Zigbee Gallineros"),
+}
+
+# Cache de datos MQTT de sensores Zigbee (actualizado por listener)
+_z2m_device_data: dict[str, dict] = {}
+_z2m_device_info: dict[str, dict] = {}  # model, description por friendly_name
+_z2m_listener_started = False
+
+
+def _seed_from_z2m_websocket():
+    """Obtiene estado inicial de TODOS los dispositivos Z2M vía WebSocket API."""
+    z2m_url = os.environ.get("Z2M_URL", "http://192.168.40.128:8080")
+    ws_url = z2m_url.replace("http://", "ws://").replace("https://", "wss://") + "/api"
+    try:
+        import websocket
+        import json
+        import time as _time
+
+        ws = websocket.create_connection(ws_url, timeout=5)
+        for _ in range(15):
+            try:
+                msg = ws.recv()
+                data = json.loads(msg)
+                topic = data.get("topic", "")
+                payload = data.get("payload")
+
+                if topic == "bridge/devices" and isinstance(payload, list):
+                    for dev in payload:
+                        fn = dev.get("friendly_name", "")
+                        if not fn or fn == "Coordinator":
+                            continue
+                        defn = dev.get("definition") or {}
+                        _z2m_device_info[fn] = {
+                            "model": defn.get("model", "") if isinstance(defn, dict) else "",
+                            "description": defn.get("description", "") if isinstance(defn, dict) else "",
+                        }
+                elif not topic.startswith("bridge/") and isinstance(payload, dict):
+                    _z2m_device_data[topic] = {
+                        **payload,
+                        "_last_seen": _time.time(),
+                    }
+            except websocket.WebSocketTimeoutException:
+                break
+        ws.close()
+        logger.info(f"Z2M WS seed: {len(_z2m_device_info)} devices, {len(_z2m_device_data)} with data")
+    except Exception as e:
+        logger.warning(f"Z2M WS seed failed (will rely on MQTT): {e}")
+
+
+def _start_z2m_listener():
+    """Inicia: 1) seed WS para estado inicial, 2) listener MQTT para updates en vivo."""
+    global _z2m_listener_started
+    if _z2m_listener_started:
+        return
+    _z2m_listener_started = True
+
+    import json
+    import threading
+    import paho.mqtt.client as mqtt
+
+    # 1) Seed via WebSocket (bloquea unos segundos, obtiene estado completo)
+    _seed_from_z2m_websocket()
+
+    # 2) MQTT listener para updates en vivo
+    mqtt_host = os.environ.get("MQTT_HOST", "mosquitto")
+    mqtt_port = int(os.environ.get("MQTT_PORT", "1883"))
+
+    def on_connect(client, userdata, flags, rc, properties=None):
+        logger.info(f"Z2M MQTT listener connected (rc={rc})")
+        client.subscribe("zigbee2mqtt/+")
+
+    def on_message(client, userdata, msg):
+        topic = msg.topic
+        if "/bridge/" in topic:
+            return
+        device_name = topic.split("/")[-1]
+        try:
+            data = json.loads(msg.payload)
+            if isinstance(data, dict):
+                _z2m_device_data[device_name] = {
+                    **data,
+                    "_last_seen": __import__("time").time(),
+                }
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    def _run():
+        try:
+            c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+            c.on_connect = on_connect
+            c.on_message = on_message
+            c.connect(mqtt_host, mqtt_port, 60)
+            c.loop_forever()
+        except Exception as e:
+            logger.warning(f"Z2M MQTT listener error: {e}")
+            global _z2m_listener_started
+            _z2m_listener_started = False
+
+    t = threading.Thread(target=_run, daemon=True, name="z2m-mqtt-listener")
+    t.start()
+
+
+def _classify_device(fname: str, info: dict, data: dict) -> str:
+    """Clasifica el tipo de dispositivo para renderizado en dashboard."""
+    model = info.get("model", "")
+    desc = (info.get("description", "") or "").lower()
+    if "soil" in desc or "soil_moisture" in data:
+        return "soil"
+    if "air_quality" in model or "co2" in data:
+        return "air_quality"
+    if "plug" in model or "plug" in desc or "switch" in desc:
+        return "infrastructure"
+    if fname.startswith("enchufe") or fname.startswith("router_"):
+        return "infrastructure"
+    return "sensor"
+
+
+def _get_z2m_devices() -> list[dict]:
+    """Retorna lista de dispositivos Zigbee conocidos con sus datos MQTT."""
+    _start_z2m_listener()
+
+    import time
+    result = []
+    # Include mapped sensors (even if no data yet)
+    known = set(_ZIGBEE_GALLINERO_MAP.keys())
+    # Plus any device we've seen via MQTT
+    known.update(_z2m_device_data.keys())
+
+    for fname in sorted(known):
+        gal = _ZIGBEE_GALLINERO_MAP.get(fname, (None, None))
+        data = _z2m_device_data.get(fname, {})
+        info = _z2m_device_info.get(fname, {})
+        last_seen_ts = data.get("_last_seen")
+        last_seen = None
+        if last_seen_ts:
+            from datetime import datetime, timezone
+            last_seen = datetime.fromtimestamp(last_seen_ts, tz=timezone.utc).isoformat()
+
+        result.append({
+            "friendly_name": fname,
+            "type": "zigbee",
+            "model": info.get("model", ""),
+            "description": info.get("description", ""),
+            "gallinero_id": gal[0],
+            "gallinero_name": gal[1] or "Sin asignar",
+            "last_temperature": data.get("temperature"),
+            "last_humidity": data.get("humidity"),
+            "last_battery": data.get("battery"),
+            "last_linkquality": data.get("linkquality"),
+            "last_co2": data.get("co2"),
+            "last_voc": data.get("voc"),
+            "last_formaldehyd": data.get("formaldehyd"),
+            "last_soil_moisture": data.get("soil_moisture"),
+            "last_soil_temperature": data.get("soil_temperature", data.get("temperature") if "soil_moisture" in data else None),
+            "device_category": _classify_device(fname, info, data),
+            "last_seen": last_seen,
+        })
+    return result
+
+
+@router.get("/devices")
+async def get_devices():
+    """Lista todos los dispositivos IoT: sensores Zigbee + estación Ecowitt."""
+    from services.ecowitt import fetch_realtime
+
+    devices = _get_z2m_devices()
+
+    # Añadir Ecowitt como dispositivo
+    ecowitt = await fetch_realtime()
+    if "error" not in ecowitt:
+        outdoor = ecowitt.get("outdoor", {})
+        last_ts = ecowitt.get("last_seen")
+        devices.append({
+            "friendly_name": "Estación Meteo Ecowitt",
+            "type": "ecowitt",
+            "model": "Ecowitt Weather Station",
+            "description": "Estación meteorológica exterior",
+            "gallinero_id": None,
+            "gallinero_name": "Finca Palacio",
+            "last_temperature": outdoor.get("temperature"),
+            "last_humidity": outdoor.get("humidity"),
+            "last_battery": None,
+            "last_linkquality": None,
+            "last_seen": last_ts,
+            "ecowitt": ecowitt,
+        })
+
+    return {"devices": devices}
+
+
+@router.get("/devices/status")
+async def get_devices_status():
+    """Estado resumido por gallinero + datos meteo globales."""
+    from services.ecowitt import fetch_realtime
+
+    gallineros: dict[str, dict] = {}
+
+    # Zigbee → agrupar por gallinero
+    devices = _get_z2m_devices()
+    for dev in devices:
+        gid = dev.get("gallinero_id")
+        if not gid:
+            continue
+        gallineros[gid] = {
+            "temperature": dev.get("last_temperature"),
+            "humidity": dev.get("last_humidity"),
+            "battery": dev.get("last_battery"),
+            "linkquality": dev.get("last_linkquality"),
+            "last_seen": dev.get("last_seen"),
+            "sensor": dev["friendly_name"],
+        }
+
+    # Ecowitt
+    ecowitt = await fetch_realtime()
+
+    return {
+        "gallineros": gallineros,
+        "weather": ecowitt if "error" not in ecowitt else None,
+        "weather_error": ecowitt.get("error"),
+    }

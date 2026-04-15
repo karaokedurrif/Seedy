@@ -28,17 +28,26 @@ _DEDUP_THRESHOLD = 0.75
 # Máximo de hechos extraídos
 _MAX_FACTS = 20
 
-# System prompt para el extractor de hechos — simplificado para Qwen 7B
+# System prompt para el extractor de hechos
 _EXTRACTOR_SYSTEM = (
-    "Extrae hechos concretos del CONTEXTO que sean relevantes para la PREGUNTA.\n"
-    "Formato: un hecho por línea, con atribución a la fuente.\n\n"
-    "Ejemplo:\n"
-    "[F1] La raza Dorking pesa 4-5 kg y tiene 5 dedos.\n"
-    "[F2] El cruce F1 Dorking x Bresse produce capones de 3.5-4.5 kg.\n\n"
-    "Reglas:\n"
-    "- Extrae TODOS los datos concretos: razas, cifras, pesos, nombres, fechas.\n"
-    "- Ignora texto corrupto, metadatos técnicos y publicidad.\n"
-    "- NO inventes hechos.\n\n"
+    "Eres un extractor de hechos para un asistente de ganadería y agricultura. "
+    "Tu trabajo: dado un CONTEXTO recuperado y una PREGUNTA, extraer TODOS los hechos "
+    "relevantes para responder la pregunta.\n\n"
+    "REGLAS:\n"
+    "- Extrae TODOS los hechos concretos: nombres de razas, datos, cifras, características, "
+    "relaciones, aptitudes, pesos, regiones, clasificaciones.\n"
+    "- Sé EXHAUSTIVO: si una fuente menciona 5 razas, extrae las 5 con sus datos.\n"
+    "- Ignora solo texto claramente irrelevante (publicidad, metadatos técnicos).\n"
+    "- Atribuye cada hecho a su fuente [F1], [F2], etc.\n"
+    "- Sin límite rígido de hechos — extrae todo lo relevante.\n"
+    "- Si detectas contradicciones entre fuentes, anótalas.\n"
+    "- NO inventes hechos — solo extrae lo que dice el contexto.\n"
+    "- Incluye información de TODAS las fuentes, no solo las primeras.\n\n"
+    "Formato de salida (texto plano, un hecho por línea):\n"
+    "[F1] Hecho concreto extraído\n"
+    "[F2] Otro hecho relevante\n"
+    "[F1,F3] Hecho que aparece en dos fuentes\n"
+    "CONTRADICCION: [F2] dice X pero [F4] dice Y\n\n"
     "Si no hay hechos relevantes, responde: SIN_HECHOS_RELEVANTES"
 )
 
@@ -185,37 +194,14 @@ async def extract_evidence(
     if species_hint:
         unique_chunks = _filter_chunks_by_species(unique_chunks, species_hint)
 
-    # 2. Pre-filtrar chunks corruptos antes de enviar al extractor
-    clean_chunks = []
-    for chunk in unique_chunks:
-        text = chunk.get("text", "").strip()
-        # Descartar chunks con inicio corrupto (texto truncado en mitad de palabra)
-        if text and text[0].islower() and not text[:20].startswith("http"):
-            first_word = text.split()[0] if text.split() else ""
-            if len(first_word) < 3 or not any(c in first_word for c in 'aeiouáéíóú'):
-                logger.debug(f"[Evidence] Chunk descartado (inicio corrupto): {text[:40]}")
-                continue
-        # Descartar chunks con exceso de repetición (PDFs mal extraídos)
-        if text:
-            words = text.split()
-            if len(words) > 10:
-                unique_ratio = len(set(w.lower() for w in words[:30])) / min(30, len(words))
-                if unique_ratio < 0.3:
-                    logger.debug(f"[Evidence] Chunk descartado (repetitivo): {text[:40]}")
-                    continue
-        clean_chunks.append(chunk)
-
-    if not clean_chunks:
-        clean_chunks = unique_chunks  # Fallback: no dejar vacío
-
-    # 3. Construir contexto para el extractor (límite 10K para Qwen 7B con 32K ctx)
+    # 2. Construir contexto para el extractor
     ctx_parts = []
     total_len = 0
-    for i, chunk in enumerate(clean_chunks, 1):
+    for i, chunk in enumerate(unique_chunks, 1):
         source = chunk.get("file", "desconocido")
         text = chunk.get("text", "")
-        if total_len + len(text) > 10000:
-            remaining = 10000 - total_len
+        if total_len + len(text) > 6000:
+            remaining = 6000 - total_len
             if remaining > 100:
                 ctx_parts.append(f"[F{i}: {source}]\n{text[:remaining]}…")
             break
@@ -256,17 +242,17 @@ async def extract_evidence(
         return _fallback_evidence(unique_chunks), unique_chunks, False
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
                 f"{settings.together_base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {settings.together_api_key}"},
                 json={
-                    "model": settings.together_classifier_model,  # Qwen 7B Turbo (rápido y barato)
+                    "model": settings.together_model_id,  # Qwen 7B Turbo
                     "messages": [
                         {"role": "system", "content": _EXTRACTOR_SYSTEM},
                         {"role": "user", "content": user_msg},
                     ],
-                    "max_tokens": 2000,
+                    "max_tokens": 1200,
                     "temperature": 0.0,
                     "top_p": 0.9,
                 },
@@ -307,34 +293,18 @@ def _fallback_evidence(chunks: list[dict]) -> str:
 def build_evidence_context(evidence: str, chunks: list[dict]) -> str:
     """
     Construye el contexto formateado para el LLM.
-    Si hay evidencia extraída, la usa. Si no, usa chunks crudos con instrucciones.
+    Si hay evidencia extraída, la usa. Si no, usa chunks crudos.
     """
     if evidence and "[F" in evidence:
         # Evidencia estructurada del extractor
         return (
             "EVIDENCIA ESTRUCTURADA (hechos extraídos de las fuentes):\n"
             f"{evidence}\n\n"
-            "INSTRUCCION: Usa estos hechos como BASE PRINCIPAL para tu respuesta. "
-            "Puedes complementar con tu conocimiento experto del dominio (razas, pesos, "
-            "protocolos, técnicas), marcándolo como inferencia propia. "
-            "Si un hecho tiene atribución [Fn], es una fuente verificada. "
-            "Si hay CONTRADICCIONES entre fuentes, menciónalo. "
-            "NO digas 'la evidencia no contiene información' si puedes responder "
-            "combinando los hechos con tu conocimiento zootécnico."
+            "INSTRUCCION: Basa tu respuesta SOLO en estos hechos. "
+            "Si un hecho tiene atribución [Fn], es una fuente. "
+            "Si hay CONTRADICCIONES, menciónalo. "
+            "Si los hechos no cubren la pregunta, dilo con franqueza."
         )
 
-    # Fallback: chunks crudos con instrucciones
-    if evidence:
-        return (
-            "CONTEXTO RECUPERADO (fuentes RAG):\n"
-            f"{evidence}\n\n"
-            "INSTRUCCIONES:\n"
-            "- Basa tu respuesta en los datos de estas fuentes.\n"
-            "- Si una fuente es sobre una especie animal diferente a la preguntada, IGNÓRALA.\n"
-            "- Usa SOLO datos concretos que aparezcan en las fuentes.\n"
-            "- NO inventes nombres de razas, pesos, precios ni datos que no estén en el contexto.\n"
-            "- Si la pregunta es sobre CAPONES/GALLINAS, NO uses datos de vacuno/porcino.\n"
-            "- Si la pregunta es sobre VACUNO, NO uses datos de avicultura/porcino."
-        )
-
-    return ""
+    # Fallback: chunks crudos
+    return evidence

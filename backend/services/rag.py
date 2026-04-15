@@ -27,8 +27,6 @@ FOLDER_TO_COLLECTION = {
     "7.Avicultura Extensiva & Capones": "avicultura",
     "7.Fuentes_Externas": "iot_hardware",
     "7.GeoTwin & GIS 3D": "geotwin",
-    "8.Avicultura Intensiva": "avicultura_intensiva",
-    "9.Bodegas & Vino": "bodegas_vino",
     "CDA_Resumenes": "digital_twins",
     "Carga de documentos nuevos": "avicultura",
 }

@@ -8,59 +8,19 @@ Los datos persisten en un fichero JSON en /app/data/.
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+import math
+import mimetypes
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 from models.schemas import BirdRecord, BirdRegisterRequest, BirdUpdateRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/birds", tags=["birds"])
-
-# ─── Color/Breed alias matching ──────────────────────
-
-_COLOR_ALIASES: dict[str, set[str]] = {
-    "silver":          {"light (silver)", "plateado", "plateada"},
-    "light (silver)":  {"silver", "plateado"},
-    "dorado":          {"gold-black", "gold", "dorada"},
-    "gold-black":      {"dorado", "gold"},
-    "blanco":          {"white", "blanca"},
-    "white":           {"blanco", "blanca"},
-    "negro cobrizo":   {"black copper", "negra cobriza"},
-    "black copper":    {"negro cobrizo"},
-    "trigueño":        {"wheaten (weizenfarbig)", "wheaten", "trigueña"},
-    "wheaten (weizenfarbig)": {"trigueño", "wheaten", "trigueña"},
-    "trigueña":        {"trigueño", "wheaten"},
-    "variado":         {"varied", "variada"},
-    "pinta":           {"mottled"},
-    "azul":            {"blue"},
-    "negra":           {"negro", "black"},
-}
-
-_BREED_ALIASES: dict[str, set[str]] = {
-    "f1 (cruce)":  {"cruce f1", "cruce", "f1"},
-    "cruce f1":    {"f1 (cruce)", "cruce", "f1"},
-    "pita pinta":  {"pita pinta asturiana"},
-    "pita pinta asturiana": {"pita pinta"},
-}
-
-
-def _match_color(stored: str, query: str) -> bool:
-    a, b = stored.lower().strip(), query.lower().strip()
-    if a == b:
-        return True
-    return b in _COLOR_ALIASES.get(a, set()) or a in _COLOR_ALIASES.get(b, set())
-
-
-def _match_breed(stored: str, query: str) -> bool:
-    a, b = stored.lower().strip(), query.lower().strip()
-    if a == b:
-        return True
-    return b in _BREED_ALIASES.get(a, set()) or a in _BREED_ALIASES.get(b, set())
-
 
 # ─── Persistencia ────────────────────────────────────
 
@@ -124,13 +84,6 @@ def _get_ia_vision_number(breed: str, color: str) -> int:
 
 # ─── Endpoints ───────────────────────────────────────
 
-@router.post("/reload")
-async def reload_registry():
-    """Recarga el registro desde disco."""
-    _load_registry()
-    return {"status": "reloaded", "total": len(_registry), "next_seq": _next_seq}
-
-
 @router.get("/")
 async def list_birds(
     gallinero: str | None = Query(None, description="Filtrar por gallinero"),
@@ -142,192 +95,18 @@ async def list_birds(
     if gallinero:
         birds = [b for b in birds if b["gallinero"] == gallinero]
     if breed:
-        birds = [b for b in birds if _match_breed(b["breed"], breed)]
+        birds = [b for b in birds if b["breed"].lower() == breed.lower()]
     if color:
-        birds = [b for b in birds if _match_color(b.get("color", ""), color)]
+        birds = [b for b in birds if b.get("color", "").lower() == color.lower()]
     return {"birds": birds, "total": len(birds)}
 
 
 @router.get("/{bird_id}")
 async def get_bird(bird_id: str):
-    """Obtiene un ave por su ID, incluyendo comportamiento, montas y datos OvoSfera."""
+    """Obtiene un ave por su ID."""
     for b in _registry:
         if b["bird_id"] == bird_id:
-            result = {**b}
-            gallinero = b.get("gallinero", "")
-
-            # Datos OvoSfera (fuente de verdad del ganadero)
-            try:
-                import httpx
-                import os
-                ovo_api = os.environ.get("OVOSFERA_API_URL", "https://hub.ovosfera.com/api/ovosfera")
-                ovo_farm = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
-                async with httpx.AsyncClient(timeout=8.0) as client:
-                    resp = await client.get(f"{ovo_api}/farms/{ovo_farm}/aves")
-                    if resp.status_code == 200:
-                        aves = resp.json()
-                        ovo = next((a for a in aves if a.get("anilla") == bird_id), None)
-                        if ovo:
-                            result["ovosfera"] = {
-                                "id": ovo.get("id"),
-                                "raza": ovo.get("raza"),
-                                "color": ovo.get("color"),
-                                "sexo": ovo.get("sexo"),
-                                "tipo": ovo.get("tipo"),
-                                "gallinero": ovo.get("gallinero"),
-                                "peso": ovo.get("peso"),
-                                "fecha_nacimiento": ovo.get("fecha_nacimiento"),
-                                "estado": ovo.get("estado"),
-                                "notas": ovo.get("notas"),
-                            }
-                            gallinero = ovo.get("gallinero") or gallinero
-            except Exception:
-                pass  # OvoSfera not available, use Seedy data only
-
-            # Comportamiento (7 dimensiones, 24h)
-            try:
-                from services.behavior_inference import get_bird_behavior
-                from services.behavior_serializer import to_api_response
-
-                inference = get_bird_behavior(bird_id, gallinero, "24h")
-                beh_resp = to_api_response(inference)
-                result["behavior"] = beh_resp
-            except Exception:
-                result["behavior"] = None
-
-            # Montas (últimos 7 días)
-            try:
-                from services.mating_detector import query_mating_events
-
-                end_ts = datetime.now(timezone.utc)
-                start_ts = end_ts - timedelta(days=7)
-                events = query_mating_events(gallinero, start_ts, end_ts, bird_id=bird_id)
-                as_mounter = sum(1 for e in events if e.get("mounter", {}).get("bird_id") == bird_id)
-                as_mounted = sum(1 for e in events if e.get("mounted", {}).get("bird_id") == bird_id)
-                partners = set()
-                for e in events:
-                    m_id = e.get("mounter", {}).get("bird_id", "")
-                    f_id = e.get("mounted", {}).get("bird_id", "")
-                    if m_id == bird_id and f_id:
-                        partners.add(f_id)
-                    elif f_id == bird_id and m_id:
-                        partners.add(m_id)
-                result["mating_7d"] = {
-                    "as_mounter": as_mounter,
-                    "as_mounted": as_mounted,
-                    "total_events": len(events),
-                    "partners": sorted(partners),
-                    "recent_events": events[-5:],  # Últimos 5 eventos
-                }
-            except Exception:
-                result["mating_7d"] = None
-
-            # Índice de Mérito Genético (IM)
-            try:
-                from services.merit_index import calculate_merit_index, get_target_weight, get_history
-                from models.merit_index import MeritInput
-
-                # Obtener datos para el cálculo
-                ovo = result.get("ovosfera", {})
-                beh = result.get("behavior") or {}
-                inferences = beh.get("inferences", {})
-
-                # Edad en semanas: desde fecha_nacimiento de OvoSfera o estimada desde first_seen
-                age_weeks = None
-                fecha_nac = ovo.get("fecha_nacimiento")
-                if fecha_nac:
-                    try:
-                        from datetime import date
-                        nac = date.fromisoformat(str(fecha_nac)[:10])
-                        age_weeks = (date.today() - nac).days // 7
-                    except Exception:
-                        pass
-                # Fallback: estimar edad desde first_seen (asumiendo ave joven al registrar)
-                if age_weeks is None and b.get("first_seen"):
-                    try:
-                        from datetime import date
-                        first = date.fromisoformat(str(b["first_seen"])[:10])
-                        weeks_since_reg = (date.today() - first).days // 7
-                        # Estimar que tenían ~8 semanas al registrarse por primera vez
-                        age_weeks = weeks_since_reg + 8
-                    except Exception:
-                        pass
-
-                # Peso: de OvoSfera (kg → g)
-                peso_g = None
-                if ovo.get("peso"):
-                    peso_g = float(ovo["peso"]) * 1000
-
-                # Conformación: inferida de behavior (stress bajo + feeding alto → buena conformación)
-                # Default: 3.0 (neutral) si no hay datos
-                conf_score = 3.0
-                stress = inferences.get("stress", {})
-                feeding = inferences.get("feeding_level", {})
-                if stress.get("score") is not None and feeding.get("score") is not None:
-                    # Bajo estrés + alta alimentación → buena conformación
-                    conf_score = max(1.0, min(5.0,
-                        3.0 + (feeding["score"] - 0.5) * 2 - stress["score"] * 2
-                    ))
-
-                # Docilidad: inferida de agresividad (invertida)
-                doc_score = 3.0
-                aggr = inferences.get("aggressiveness", {})
-                if aggr.get("score") is not None:
-                    doc_score = max(1.0, min(5.0, 5.0 - aggr["score"] * 4))
-
-                # Mapeo gallinero Seedy → gallinero genético (G1-G5)
-                gall_map = {
-                    "gallinero_durrif_1": "G1",
-                    "gallinero_durrif_2": "G2",
-                }
-                gall_gen = gall_map.get(gallinero)
-
-                # Solo calcular si tenemos edad y peso (datos mínimos)
-                if age_weeks is not None and age_weeks > 0 and peso_g is not None and peso_g > 0:
-                    merit_input = MeritInput(
-                        bird_id=bird_id,
-                        gallinero=gall_gen,
-                        sex=b.get("sex"),
-                        age_weeks=age_weeks,
-                        weight_grams=peso_g,
-                        conformacion_score=round(conf_score, 1),
-                        docilidad_score=round(doc_score, 1),
-                    )
-                    merit_result = calculate_merit_index(merit_input)
-                    result["merit_index"] = {
-                        "im_score": merit_result.im_score,
-                        "category": merit_result.category.value,
-                        "components": merit_result.components,
-                        "recommendation": merit_result.recommendation,
-                        "age_weeks": age_weeks,
-                        "weight_grams": peso_g,
-                        "data_source": {
-                            "weight": "ovosfera",
-                            "age": "ovosfera" if fecha_nac else "estimated_from_first_seen",
-                            "conformacion": "behavior_ai" if inferences else "default",
-                            "docilidad": "behavior_ai" if aggr.get("score") is not None else "default",
-                        },
-                    }
-                else:
-                    # Sin datos suficientes: mostrar peso objetivo y último historial
-                    target = None
-                    breed_lower = b.get("breed", "").lower()
-                    if age_weeks and age_weeks > 0:
-                        target = round(get_target_weight(age_weeks, gall_gen, breed_lower), 1)
-                    history = get_history(bird_id)
-                    result["merit_index"] = {
-                        "im_score": None,
-                        "category": None,
-                        "message": "Datos insuficientes para calcular IM. Se necesita peso y fecha de nacimiento en OvoSfera.",
-                        "gompertz_target": target,
-                        "age_weeks": age_weeks,
-                        "history": history[-3:] if history else [],
-                    }
-            except Exception as e:
-                logger.warning(f"[Birds] Error calculando IM para {bird_id}: {e}")
-                result["merit_index"] = None
-
-            return result
+            return b
     raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
 
 
@@ -451,158 +230,368 @@ async def reset_registry():
     return {"status": "reset", "cleared": count}
 
 
-# ─── Per-bird digital twin endpoints (Task E) ───────
+# ─── Assets estáticos de aves (imágenes de referencia, modelos 3D) ────────
+
+_BIRD_3D_DIR = Path("/app/data/bird_3d_refs")
+_ALLOWED_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def _find_bird_asset(bird_id: str, base_dir: Path, extensions: tuple[str, ...]) -> Path | None:
+    """Busca el primer archivo que exista para bird_id probando las extensiones en orden."""
+    for ext in extensions:
+        candidate = base_dir / f"{bird_id}{ext}"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+@router.head("/{bird_id}/reference-image")
+@router.get("/{bird_id}/reference-image")
+async def get_reference_image(bird_id: str, request: Request):
+    """Devuelve la imagen de referencia del ave con el Content-Type real del archivo.
+
+    Busca en data/bird_3d_refs/ probando .jpg, .jpeg, .png, .webp en ese orden.
+    Soporta HEAD (para comprobación rápida desde el frontend) y GET.
+    """
+    path = _find_bird_asset(bird_id, _BIRD_3D_DIR, _ALLOWED_IMAGE_EXTENSIONS)
+    if path is None:
+        raise HTTPException(status_code=404, detail=f"No reference image for {bird_id}")
+
+    # Determinar MIME real a partir de la extensión del archivo encontrado
+    mime, _ = mimetypes.guess_type(path.name)
+    if not mime:
+        mime = "application/octet-stream"
+
+    if request.method == "HEAD":
+        return Response(
+            status_code=200,
+            headers={
+                "Content-Type": mime,
+                "Content-Length": str(path.stat().st_size),
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
+
+    return FileResponse(
+        path=str(path),
+        media_type=mime,
+        filename=path.name,
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.head("/{bird_id}/model.glb")
+@router.get("/{bird_id}/model.glb")
+async def get_bird_model(bird_id: str, request: Request):
+    """Devuelve el modelo 3D GLB del ave si existe."""
+    glb_path = _BIRD_3D_DIR / f"{bird_id}.glb"
+    if not glb_path.is_file():
+        raise HTTPException(status_code=404, detail=f"No 3D model for {bird_id}")
+
+    if request.method == "HEAD":
+        return Response(
+            status_code=200,
+            headers={
+                "Content-Type": "model/gltf-binary",
+                "Content-Length": str(glb_path.stat().st_size),
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
+
+    return FileResponse(
+        path=str(glb_path),
+        media_type="model/gltf-binary",
+        filename=glb_path.name,
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+# ─── Fotos, tracking, eventos, Gompertz, generate-3d ─────────────────────
+
+_PHOTOS_DIR = Path("/app/data/bird_photos")
+_GALLERY_DIR = Path("/app/data/bird_gallery")
+_BEHAVIOR_DIR = Path("/app/data/behavior_events")
+
+
+def _find_bird(bird_id: str) -> dict | None:
+    """Busca un ave en el registro."""
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            return b
+    return None
+
 
 @router.get("/{bird_id}/photos")
 async def get_bird_photos(bird_id: str):
-    """Gallery of IA-captured photos for a bird."""
-    bird = None
-    for b in _registry:
-        if b["bird_id"] == bird_id:
-            bird = b
-            break
-    if not bird:
-        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+    """Devuelve las fotos disponibles de un ave.
 
-    # Check gallery directory
-    gallery_dir = Path(f"/app/data/bird_gallery/{bird.get('ai_vision_id', bird_id)}")
-    photos = []
-    if gallery_dir.exists():
-        for f in sorted(gallery_dir.glob("*.jpg"), key=lambda p: p.stat().st_mtime, reverse=True):
-            photos.append({
-                "filename": f.name,
-                "url": f"/birds/{bird_id}/photos/{f.name}",
-                "timestamp": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
-                "size": f.stat().st_size,
-            })
-    # Include the main photo_b64 if available
-    if bird.get("photo_b64"):
-        photos.insert(0, {
-            "filename": "main_capture.jpg",
-            "url": f"/birds/{bird_id}/photo",
-            "timestamp": bird.get("last_seen", ""),
-            "size": len(bird["photo_b64"]) * 3 // 4,
+    Busca en:
+    1. data/bird_photos/{bird_id}.jpg (foto principal de registro)
+    2. data/bird_gallery/{ovo_num}/ (galería de capturas OvoSfera)
+    """
+    photos: list[dict] = []
+
+    # Foto principal del registro
+    main_photo = _find_bird_asset(bird_id, _PHOTOS_DIR, _ALLOWED_IMAGE_EXTENSIONS)
+    if main_photo:
+        stat = main_photo.stat()
+        photos.append({
+            "url": f"/birds/{bird_id}/photo/main",
+            "filename": main_photo.name,
             "is_main": True,
+            "timestamp": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
         })
-    return {"bird_id": bird_id, "photos": photos, "total": len(photos)}
+
+    # Galería OvoSfera (las carpetas son IDs numéricos de OvoSfera)
+    # Intentar mapear bird_id → número secuencial final
+    seq_str = bird_id.split("-")[-1].lstrip("0") or "0"
+    gallery_dir = _GALLERY_DIR / seq_str
+    if gallery_dir.is_dir():
+        for img_path in sorted(gallery_dir.iterdir()):
+            if img_path.suffix.lower() in _ALLOWED_IMAGE_EXTENSIONS:
+                stat = img_path.stat()
+                photos.append({
+                    "url": f"/birds/{bird_id}/gallery/{img_path.name}",
+                    "filename": img_path.name,
+                    "is_main": False,
+                    "timestamp": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                })
+
+    return {"photos": photos, "total": len(photos)}
+
+
+@router.get("/{bird_id}/photo/main")
+async def get_bird_main_photo(bird_id: str):
+    """Sirve la foto principal del ave."""
+    path = _find_bird_asset(bird_id, _PHOTOS_DIR, _ALLOWED_IMAGE_EXTENSIONS)
+    if path is None:
+        raise HTTPException(status_code=404, detail=f"No main photo for {bird_id}")
+    mime, _ = mimetypes.guess_type(path.name)
+    return FileResponse(path=str(path), media_type=mime or "image/jpeg")
+
+
+@router.get("/{bird_id}/gallery/{filename}")
+async def get_bird_gallery_photo(bird_id: str, filename: str):
+    """Sirve una foto de la galería OvoSfera del ave."""
+    seq_str = bird_id.split("-")[-1].lstrip("0") or "0"
+    photo_path = _GALLERY_DIR / seq_str / filename
+
+    # Prevenir path traversal
+    if ".." in filename or "/" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if not photo_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Photo not found: {filename}")
+
+    mime, _ = mimetypes.guess_type(photo_path.name)
+    return FileResponse(path=str(photo_path), media_type=mime or "image/jpeg")
 
 
 @router.get("/{bird_id}/tracking")
 async def get_bird_tracking(bird_id: str, hours: int = Query(24, ge=1, le=168)):
-    """Tracking positions from YOLO detections (last N hours)."""
-    bird = None
-    for b in _registry:
-        if b["bird_id"] == bird_id:
-            bird = b
-            break
-    if not bird:
+    """Devuelve las posiciones de tracking del ave en las últimas N horas.
+
+    Lee los archivos JSONL de behavior_events buscando tracks con bird_id o ai_vision_id.
+    """
+    bird = _find_bird(bird_id)
+    if bird is None:
         raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
 
-    # Tracking data comes from InfluxDB or stored detections
-    # For now return structure ready for real data integration
+    gallinero = bird.get("gallinero", "")
+    ai_vid = bird.get("ai_vision_id", "")
+    gall_dir = _BEHAVIOR_DIR / gallinero
+
+    if not gall_dir.is_dir():
+        return {"positions": [], "summary": {"total_detections": 0, "cameras_seen": []}}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    positions: list[dict] = []
+    cameras_seen: set[str] = set()
+
+    # Leer ficheros JSONL de los últimos días
+    for day_offset in range(min(hours // 24 + 1, 8)):
+        day = (datetime.now(timezone.utc) - timedelta(days=day_offset)).strftime("%Y-%m-%d")
+        jsonl_path = gall_dir / f"{day}.jsonl"
+        if not jsonl_path.is_file():
+            continue
+        try:
+            for line in jsonl_path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                ts_str = event.get("ts", "")
+                try:
+                    ts = datetime.fromisoformat(ts_str)
+                except (ValueError, TypeError):
+                    continue
+                if ts < cutoff:
+                    continue
+
+                for track in event.get("tracks", []):
+                    tid = track.get("bird_id", "")
+                    if tid == bird_id or tid == ai_vid or (not tid and track.get("track_id")):
+                        center = track.get("center", [0.5, 0.5])
+                        # Mapear coordenadas normalizadas (0-1) → plano (0-30, 0-15)
+                        positions.append({
+                            "x": round(center[0] * 30, 2),
+                            "y": round(center[1] * 15, 2),
+                            "ts": ts_str,
+                            "zone": track.get("zone", ""),
+                            "confidence": track.get("confidence", 0),
+                        })
+                        camera = event.get("camera_id", event.get("gallinero_id", ""))
+                        if camera:
+                            cameras_seen.add(camera)
+        except Exception as e:
+            logger.warning(f"Error reading tracking data {jsonl_path}: {e}")
+            continue
+
+    # Limitar a las últimas 200 posiciones para el minimap
+    positions = positions[-200:]
+
     return {
-        "bird_id": bird_id,
-        "hours": hours,
-        "positions": [],  # [{x, y, timestamp, camera, confidence}]
+        "positions": positions,
         "summary": {
-            "total_detections": 0,
-            "cameras_seen": [],
-            "most_active_zone": None,
+            "total_detections": len(positions),
+            "cameras_seen": sorted(cameras_seen),
         },
     }
 
 
-@router.get("/{bird_id}/detections")
-async def get_bird_detections(bird_id: str, limit: int = Query(50, ge=1, le=500)):
-    """Re-ID detection history."""
-    bird = None
-    for b in _registry:
-        if b["bird_id"] == bird_id:
-            bird = b
-            break
-    if not bird:
-        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
-
-    return {
-        "bird_id": bird_id,
-        "detections": [],  # [{timestamp, camera, confidence, breed, color, photo_url}]
-        "total": 0,
-    }
+# Parámetros Gompertz teóricos por raza (A=peso asintótico kg, b=desplazamiento, k=tasa crecimiento)
+_GOMPERTZ_PARAMS: dict[str, dict] = {
+    "marans":       {"A": 3.5, "b": 4.2, "k": 0.018},
+    "sussex":       {"A": 3.8, "b": 4.0, "k": 0.017},
+    "vorwerk":      {"A": 2.8, "b": 4.1, "k": 0.020},
+    "orpington":    {"A": 4.2, "b": 4.3, "k": 0.016},
+    "bresse":       {"A": 3.2, "b": 4.0, "k": 0.019},
+    "araucana":     {"A": 2.5, "b": 3.9, "k": 0.021},
+    "castellana":   {"A": 2.3, "b": 3.8, "k": 0.022},
+    "pita_pinta":   {"A": 3.0, "b": 4.1, "k": 0.018},
+    # Genérico para razas no mapeadas
+    "_default":     {"A": 3.0, "b": 4.0, "k": 0.019},
+}
 
 
 @router.get("/{bird_id}/gompertz")
 async def get_bird_gompertz(bird_id: str):
-    """Growth curve data (Gompertz model) for weight tracking."""
-    bird = None
-    for b in _registry:
-        if b["bird_id"] == bird_id:
-            bird = b
-            break
-    if not bird:
+    """Devuelve los parámetros de la curva Gompertz para el ave.
+
+    Usa parámetros teóricos por raza. En el futuro, se ajustarán con
+    registros reales de peso del ave.
+    """
+    bird = _find_bird(bird_id)
+    if bird is None:
         raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
 
-    # Gompertz parameters vary by breed
-    breed = bird.get("breed", "").lower()
-    sex = bird.get("sex", "").lower()
+    breed_key = bird.get("breed", "").lower().replace(" ", "_")
+    params = _GOMPERTZ_PARAMS.get(breed_key, _GOMPERTZ_PARAMS["_default"])
 
-    # Default parameters (capón/heritage breeds)
-    # W(t) = A * exp(-b * exp(-k * t))
-    # A = asymptotic weight, b = displacement, k = growth rate
-    gompertz_params = {
-        "sussex":   {"A": 4.2, "b": 4.5, "k": 0.020},
-        "bresse":   {"A": 3.8, "b": 4.3, "k": 0.022},
-        "marans":   {"A": 3.5, "b": 4.1, "k": 0.021},
-        "sulmtaler": {"A": 3.2, "b": 4.0, "k": 0.019},
-    }
-
-    params = gompertz_params.get(breed, {"A": 3.5, "b": 4.2, "k": 0.020})
-    if sex in ("h", "hembra", "gallina"):
-        params["A"] *= 0.75  # Hens are smaller
+    # Ajustar peso asintótico si es macho (+20% teórico)
+    sex = bird.get("sex", "")
+    if sex in ("male", "M"):
+        params = {**params, "A": round(params["A"] * 1.2, 2)}
 
     return {
-        "bird_id": bird_id,
-        "breed": bird.get("breed", ""),
-        "sex": bird.get("sex", ""),
         "gompertz_params": params,
-        "weight_records": [],  # [{date, weight_kg, source}]
-        "predicted_curve": [],  # Will be computed client-side from params
+        "breed": bird.get("breed", ""),
+        "sex": sex,
+        "weight_records": [],  # TODO: integrar con pesajes reales de OvoSfera
+        "note": "Parámetros teóricos por raza. Se ajustarán con datos reales de peso.",
     }
 
 
 @router.get("/{bird_id}/events")
 async def get_bird_events(bird_id: str):
-    """Timeline events for a bird: detections, weigh-ins, vaccinations, transfers."""
-    bird = None
-    for b in _registry:
-        if b["bird_id"] == bird_id:
-            bird = b
-            break
-    if not bird:
+    """Devuelve eventos de la línea temporal del ave.
+
+    Genera eventos a partir de:
+    - Datos del registro (first_seen, last_seen)
+    - Fotos capturadas
+    - Futuros: vacunaciones, pesajes, tratamientos desde OvoSfera
+    """
+    bird = _find_bird(bird_id)
+    if bird is None:
         raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
 
-    events = []
-    # Registration event
-    if bird.get("registered_at"):
+    events: list[dict] = []
+
+    # Evento de primera detección
+    if bird.get("first_seen"):
         events.append({
-            "type": "registration",
-            "date": bird["registered_at"],
-            "description": f"Registrada como {bird.get('breed', '?')} {bird.get('sex', '?')}",
-        })
-    # Last sighting
-    if bird.get("last_seen"):
-        events.append({
+            "date": bird["first_seen"],
             "type": "reid",
-            "date": bird["last_seen"],
-            "description": f"Última detección Re-ID (confianza {bird.get('last_confidence', 0):.0%})",
-        })
-    # Sightings history
-    for s in bird.get("sightings", []):
-        events.append({
-            "type": "detection",
-            "date": s.get("timestamp", ""),
-            "description": f"Detectada por {s.get('camera', 'IA Vision')} ({s.get('confidence', 0):.0%})",
+            "description": f"Primera identificación IA — {bird.get('breed', '?')} {bird.get('color', '')}".strip(),
         })
 
-    # Sort chronologically
-    events.sort(key=lambda e: e.get("date", ""), reverse=True)
-    return {"bird_id": bird_id, "events": events}
+    # Fotos capturadas (de bird_photos y gallery)
+    main_photo = _find_bird_asset(bird_id, _PHOTOS_DIR, _ALLOWED_IMAGE_EXTENSIONS)
+    if main_photo:
+        stat = main_photo.stat()
+        events.append({
+            "date": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            "type": "photo",
+            "description": "Foto de registro capturada",
+        })
+
+    seq_str = bird_id.split("-")[-1].lstrip("0") or "0"
+    gallery_dir = _GALLERY_DIR / seq_str
+    if gallery_dir.is_dir():
+        for img_path in sorted(gallery_dir.iterdir()):
+            if img_path.suffix.lower() in _ALLOWED_IMAGE_EXTENSIONS:
+                stat = img_path.stat()
+                events.append({
+                    "date": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                    "type": "photo",
+                    "description": f"Captura OvoSfera — {img_path.name}",
+                })
+
+    # Ordenar cronológicamente
+    events.sort(key=lambda e: e.get("date", ""))
+
+    return {"events": events, "total": len(events)}
+
+
+@router.post("/{bird_id}/generate-3d")
+async def generate_bird_3d(bird_id: str):
+    """Genera (o devuelve) el modelo 3D / imagen de referencia del ave.
+
+    - Si ya existe un .glb → status: exists
+    - Si existe imagen de referencia FLUX → status: ref_only (devuelve URL)
+    - Si no hay nada → status: no_source (necesita captura primero)
+
+    TODO: integrar con Tripo3D API cuando se active la key.
+    """
+    bird = _find_bird(bird_id)
+    if bird is None:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    # ¿Ya existe el GLB?
+    glb_path = _BIRD_3D_DIR / f"{bird_id}.glb"
+    if glb_path.is_file():
+        return {"status": "exists", "model_url": f"/birds/{bird_id}/model.glb"}
+
+    # ¿Existe imagen de referencia FLUX?
+    ref_image = _find_bird_asset(bird_id, _BIRD_3D_DIR, _ALLOWED_IMAGE_EXTENSIONS)
+    if ref_image:
+        return {
+            "status": "ref_only",
+            "reference_image": f"/birds/{bird_id}/reference-image",
+            "message": "Imagen de referencia FLUX disponible. Modelo 3D pendiente de Tripo3D.",
+        }
+
+    # ¿Tiene foto principal? Podría usarse como base para generar
+    main_photo = _find_bird_asset(bird_id, _PHOTOS_DIR, _ALLOWED_IMAGE_EXTENSIONS)
+    if main_photo:
+        return {
+            "status": "no_3d",
+            "message": "Foto disponible pero aún no se ha generado imagen de referencia ni modelo 3D.",
+            "hint": "Se requiere generar imagen FLUX primero y luego el modelo Tripo3D.",
+        }
+
+    return {
+        "status": "no_source",
+        "message": "No hay foto ni referencia para generar modelo 3D. Captura el ave primero.",
+    }

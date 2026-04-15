@@ -158,14 +158,6 @@ class PestAlertManager:
             # Publicar a MQTT
             _publish_pest_alert(alert_dict)
 
-            # Trigger dron anti-gorriones si aplica
-            if pest_type == "gorrion" and consec >= ESCALATION_FRAMES:
-                try:
-                    from services.sparrow_deterrent import get_deterrent
-                    get_deterrent().check_sparrow_trigger(detections, gallinero_id)
-                except Exception as e:
-                    logger.debug(f"Drone trigger failed: {e}")
-
             logger.warning(
                 f"PEST ALERT [{gallinero_id}]: {count}x {pest_type} "
                 f"(severity={severity}, consec={consec})"

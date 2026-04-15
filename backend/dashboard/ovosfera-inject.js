@@ -18,14 +18,15 @@
 
   const CAMERA_MAP = {
     2: {
-      name: "Durrif I",
+      name: "Gallinero Durrif",
       stream: "gallinero_durrif_1",
+      gallinero: "gallinero_durrif",
       cameras: [
         { id: "nueva", label: "Cám. Nueva (VIGI)", stream: "gallinero_durrif_1", active: true },
         { id: "sauna", label: "Cám. Sauna (Dahua)", stream: "sauna_durrif_1", active: true },
+        { id: "gii", label: "Cám. Gallinero (VIGI)", stream: "gallinero_durrif_2", active: true },
       ],
     },
-    3: { name: "Durrif II", stream: "gallinero_durrif_2" },
   };
 
   // ── Styles ──
@@ -196,6 +197,61 @@
       padding: 16px;
       max-width: 1400px;
       margin: 0 auto;
+    }
+    /* ── Dashboard sensor strip ── */
+    .seedy-dash-sensors {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      overflow-x: auto;
+    }
+    .seedy-sens-card {
+      flex: 1 1 180px;
+      min-width: 160px;
+      max-width: 280px;
+      background: var(--neutral-900, #111827);
+      border: 1px solid var(--neutral-800, #1f2937);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .seedy-sens-card.seedy-sens-weather {
+      border-color: #2563eb;
+      background: linear-gradient(145deg, #0f172a 0%, #111827 100%);
+    }
+    .seedy-sens-name {
+      font-size: 0.75em;
+      font-weight: 600;
+      color: var(--neutral-400, #9ca3af);
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seedy-sens-vals {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .seedy-sens-val {
+      font-size: 0.9em;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .seedy-sens-val small {
+      font-size: 0.75em;
+      font-weight: 400;
+      margin-left: 1px;
+    }
+    .seedy-sens-alert {
+      font-size: 0.75em;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(239,68,68,0.15);
+      color: #fca5a5;
+      white-space: nowrap;
     }
     .seedy-kpi-strip {
       display: flex;
@@ -796,12 +852,16 @@
       position: relative;
       max-width: 95vw;
       max-height: 75vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .seedy-idmode-canvas-wrap canvas {
       max-width: 95vw;
       max-height: 75vh;
       border-radius: 8px;
       cursor: crosshair;
+      object-fit: contain;
     }
     .seedy-idmode-assign {
       position: fixed;
@@ -983,9 +1043,143 @@
       color: var(--neutral-500, #6b7280);
     }
     .seedy-devices-empty .seedy-empty-icon { font-size: 3em; margin-bottom: 12px; }
+
+    /* ── Air Quality info panel ── */
+    .seedy-air-quality-info {
+      margin: 8px 0 4px;
+      padding: 0;
+    }
+    .seedy-air-quality-info details {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 0;
+    }
+    .seedy-air-quality-info summary {
+      cursor: pointer;
+      padding: 8px 12px;
+      font-size: 0.82em;
+      color: #9ca3af;
+      user-select: none;
+    }
+    .seedy-air-quality-info summary:hover { color: #d1d5db; }
+    .seedy-air-quality-info details[open] summary { border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 0; }
+    .seedy-limits-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78em;
+      margin: 0;
+      padding: 8px 10px;
+    }
+    .seedy-limits-table th, .seedy-limits-table td {
+      padding: 5px 8px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      color: #d1d5db;
+    }
+    .seedy-limits-table th {
+      color: #9ca3af;
+      font-weight: 600;
+      font-size: 0.9em;
+    }
+    .seedy-limits-table tr:last-child td { border-bottom: none; }
+
+    /* ── Soil sensor card ── */
+    .seedy-soil-card { border-color: #854d0e; }
+    .seedy-soil-alert {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; margin: 0 12px 8px; border-radius: 8px;
+      font-size: 0.88em; line-height: 1.3;
+    }
+    .seedy-soil-alert-icon { font-size: 1.4em; flex-shrink: 0; }
+    .seedy-soil-alert-urgent {
+      background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5;
+      animation: seedy-soil-pulse 2s ease-in-out infinite;
+    }
+    .seedy-soil-alert-warning {
+      background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d;
+    }
+    .seedy-soil-alert-info {
+      background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: #93c5fd;
+    }
+    @keyframes seedy-soil-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.3); }
+      50% { box-shadow: 0 0 8px 2px rgba(239,68,68,0.15); }
+    }
+
+    /* ── Infrastructure card ── */
+    .seedy-infra-card { border-color: #4b5563; opacity: 0.8; }
+    .seedy-infra-card .seedy-device-card-header h3 { font-size: 0.95em; }
+
     @keyframes seedy-device-pulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.3); }
       50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+    }
+
+    /* ── Weather Station card (Ecowitt) ── */
+    .seedy-device-card.weather-station {
+      border-color: #2563eb;
+      background: linear-gradient(145deg, #0f172a 0%, #111827 100%);
+    }
+    .seedy-weather-readings {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+      margin-bottom: 10px;
+    }
+    .seedy-weather-readings .seedy-reading { padding: 10px 8px; }
+    .seedy-weather-readings .seedy-reading-value { font-size: 1.2em; }
+    .seedy-weather-extra {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      margin-bottom: 14px;
+    }
+    .seedy-weather-extra .seedy-reading { padding: 8px; }
+    .seedy-weather-extra .seedy-reading-value { font-size: 1.0em; }
+    .seedy-weather-extra .seedy-reading-icon { font-size: 1.1em; }
+
+    /* ── Rain accumulation row ── */
+    .seedy-weather-rain {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 0 6px;
+      margin-top: 4px;
+    }
+    .seedy-rain-title {
+      display: block;
+      font-size: 0.82em;
+      color: #9ca3af;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .seedy-rain-bars {
+      display: flex;
+      gap: 6px;
+      justify-content: space-between;
+    }
+    .seedy-rain-item {
+      flex: 1;
+      text-align: center;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.15);
+      border-radius: 8px;
+      padding: 8px 4px;
+    }
+    .seedy-rain-item.seedy-rain-total {
+      background: rgba(59,130,246,0.15);
+      border-color: rgba(59,130,246,0.3);
+    }
+    .seedy-rain-val {
+      display: block;
+      font-size: 0.95em;
+      font-weight: 600;
+      color: #93c5fd;
+    }
+    .seedy-rain-total .seedy-rain-val {
+      color: #60a5fa;
+      font-size: 1.05em;
+    }
+    .seedy-rain-lbl {
+      display: block;
+      font-size: 0.72em;
+      color: #6b7280;
+      margin-top: 2px;
     }
   `;
 
@@ -1382,6 +1576,9 @@
     if (_idOverlayActive) return;
     _idOverlayActive = true;
 
+    // gallinero real para censo/asignación (puede diferir del stream)
+    const censusGallinero = cam.gallinero || cam.stream || streamName;
+
     const overlay = document.createElement("div");
     overlay.className = "seedy-idmode-overlay";
 
@@ -1399,9 +1596,10 @@
 
     const autoIdBtn = document.createElement("button");
     autoIdBtn.className = "refresh-btn";
-    autoIdBtn.style.cssText = "background:#7c3aed !important;margin-left:4px;";
+    autoIdBtn.style.cssText = "background:#7c3aed !important;margin-left:4px;opacity:0.5;cursor:not-allowed;";
     autoIdBtn.textContent = "🤖 Auto-ID";
-    autoIdBtn.title = "Identifica automáticamente TODAS las aves comparando con galería de fotos";
+    autoIdBtn.title = "Próximamente — Identifica automáticamente TODAS las aves";
+    autoIdBtn.disabled = true;
     toolbar.appendChild(autoIdBtn);
 
     const closeBtn = document.createElement("button");
@@ -1439,14 +1637,23 @@
       currentDetections = null;
 
       try {
+        console.log("[Seedy ID] Fetching detect:", streamName);
         const resp = await fetch(`${SEEDY_API}/vision/identify/snapshot/${streamName}/detect`);
         if (!resp.ok) {
-          statusDiv.textContent = `Error: ${resp.status}`;
+          statusDiv.textContent = `❌ Error captura: HTTP ${resp.status}`;
+          console.error("[Seedy ID] Detect failed:", resp.status);
           refreshBtn.disabled = false;
           return;
         }
         const data = await resp.json();
         currentDetections = data.detections;
+        console.log("[Seedy ID] Detections:", data.count, "inference:", data.inference_ms, "ms");
+
+        if (!data.count) {
+          statusDiv.textContent = "⚠️ No se detectaron aves — prueba capturar de nuevo";
+          refreshBtn.disabled = false;
+          return;
+        }
 
         statusDiv.textContent = `🎯 ${data.count} ave(s) detectada(s) · ${data.inference_ms}ms — Haz clic en un ave para asignarla`;
 
@@ -1462,14 +1669,17 @@
           // Draw bboxes
           drawDetectionBoxes(ctx, canvas.width, canvas.height, data.detections);
           refreshBtn.disabled = false;
+          console.log("[Seedy ID] Frame drawn:", canvas.width, "x", canvas.height, "dets:", data.detections.length);
         };
         frameImg.onerror = function () {
-          statusDiv.textContent = "Error cargando frame";
+          statusDiv.textContent = "❌ Error cargando frame — intenta de nuevo";
+          console.error("[Seedy ID] Frame image load failed");
           refreshBtn.disabled = false;
         };
         frameImg.src = "data:image/jpeg;base64," + data.frame_b64;
       } catch (e) {
-        statusDiv.textContent = "Error de red: " + e.message;
+        statusDiv.textContent = "❌ Error de red: " + e.message;
+        console.error("[Seedy ID] Capture error:", e);
         refreshBtn.disabled = false;
       }
     }
@@ -1488,7 +1698,7 @@
         var resp = await fetch(SEEDY_API + "/vision/identify/auto-identify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ gallinero_id: streamName }),
+          body: JSON.stringify({ gallinero_id: censusGallinero }),
         });
         if (!resp.ok) {
           statusDiv.textContent = "❌ Error auto-ID: " + resp.status;
@@ -1582,7 +1792,7 @@
                     breed: r.breed || "",
                     color: r.color || "",
                     sex: r.sex === "male" ? "M" : r.sex === "female" ? "H" : "",
-                    gallinero: streamName,
+                    gallinero: censusGallinero,
                   }),
                 });
                 if (assignResp.ok) {
@@ -1612,7 +1822,10 @@
 
     // Click on canvas → find which bbox was clicked
     canvas.addEventListener("click", async function (e) {
-      if (!currentDetections || !currentDetections.length || !currentFrameImg) return;
+      if (!currentDetections || !currentDetections.length || !currentFrameImg) {
+        console.log("[Seedy ID] Canvas click ignored: no detections or frame");
+        return;
+      }
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
@@ -1634,7 +1847,14 @@
           break;
         }
       }
-      if (!clicked) return;
+      if (!clicked) {
+        console.log("[Seedy ID] Click at", Math.round(cx), Math.round(cy), "— no bbox hit");
+        statusDiv.textContent = "⚠️ Haz clic DENTRO del recuadro de un ave";
+        return;
+      }
+
+      console.log("[Seedy ID] Clicked det:", clicked.index, clicked.breed_guess, "conf:", clicked.breed_confidence);
+      statusDiv.textContent = "✅ Ave seleccionada — cargando panel de asignación...";
 
       // Highlight selected bbox
       var ctx = canvas.getContext("2d");
@@ -1642,7 +1862,7 @@
       drawDetectionBoxes(ctx, canvas.width, canvas.height, currentDetections, clicked.index);
 
       // Show assign panel
-      showAssignPanel(overlay, canvas, clicked, e.clientX, e.clientY, streamName, gallineroId, function () {
+      showAssignPanel(overlay, canvas, clicked, e.clientX, e.clientY, censusGallinero, gallineroId, function () {
         // After assign: redraw without assigned detection
         currentDetections = currentDetections.filter(d => d.index !== clicked.index);
         ctx.drawImage(currentFrameImg, 0, 0);
@@ -1688,6 +1908,7 @@
   }
 
   async function showAssignPanel(overlay, canvas, detection, clickX, clickY, streamName, gallineroId, onAssigned) {
+    console.log("[Seedy ID] showAssignPanel: det=", detection.index, "breed=", detection.breed_guess, "stream=", streamName);
     // Remove any existing panel
     overlay.querySelectorAll(".seedy-idmode-assign").forEach(el => el.remove());
 
@@ -1728,54 +1949,7 @@
     header.appendChild(infoDiv);
     panel.appendChild(header);
 
-    // Smart match button
-    var smartDiv = document.createElement("div");
-    smartDiv.style.cssText = "padding:4px 10px;text-align:center;";
-    var smartBtn = document.createElement("button");
-    smartBtn.style.cssText = "background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;width:100%;";
-    smartBtn.textContent = "🧠 IA Match (Together.ai)";
-    smartBtn.addEventListener("click", async function () {
-      smartBtn.disabled = true;
-      smartBtn.textContent = "🧠 Analizando...";
-      try {
-        var resp = await fetch(SEEDY_API + "/vision/identify/smart-match", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            crop_b64: detection.crop_b64 || "",
-            gallinero_id: streamName,
-            breed_hint: detection.breed_guess || "",
-          }),
-        });
-        if (!resp.ok) {
-          smartBtn.textContent = "❌ Error " + resp.status;
-          return;
-        }
-        var result = await resp.json();
-        var matchText = result.breed + (result.color ? " " + result.color : "");
-        if (result.best_match_anilla) matchText += " → " + result.best_match_anilla;
-        matchText += " (" + Math.round((result.confidence || 0) * 100) + "%)";
-        smartBtn.textContent = "🧠 " + matchText;
-        smartBtn.style.background = "#059669";
-        // Highlight the matched ave in the list
-        if (result.best_match_anilla) {
-          var rows = listDiv.querySelectorAll(".ave-row");
-          rows.forEach(function (r) {
-            if (r.dataset.anilla === result.best_match_anilla) {
-              r.style.background = "rgba(124,58,237,0.25)";
-              r.style.border = "1px solid #7c3aed";
-              r.scrollIntoView({ block: "center" });
-            }
-          });
-        }
-      } catch (e) {
-        smartBtn.textContent = "❌ " + e.message;
-      }
-    });
-    smartDiv.appendChild(smartBtn);
-    panel.appendChild(smartDiv);
-
-    // Ave list
+    // Ave list (moved before smart match so it's available in closures)
     var listDiv = document.createElement("div");
     listDiv.className = "seedy-idmode-assign-list";
     listDiv.innerHTML = '<div style="padding:12px;text-align:center;color:#9ca3af">Cargando aves...</div>';
@@ -1784,11 +1958,13 @@
     overlay.appendChild(panel);
 
     // Fetch aves
+    console.log("[Seedy ID] Fetching aves from OvoSfera...");
     var aves = await _fetchAves();
+    console.log("[Seedy ID] Aves loaded:", aves.length);
     listDiv.innerHTML = "";
 
     if (!aves.length) {
-      listDiv.innerHTML = '<div style="padding:12px;text-align:center;color:#ef4444">No se encontraron aves</div>';
+      listDiv.innerHTML = '<div style="padding:12px;text-align:center;color:#ef4444">❌ No se encontraron aves en OvoSfera</div>';
       return;
     }
 
@@ -1847,34 +2023,42 @@
         row.dataset.assigning = "1";
         row.style.opacity = "0.4";
         row.style.pointerEvents = "none";
+        console.log("[Seedy ID] Assigning to ave:", ave.id, ave.anilla, "crop_len:", (detection.crop_b64 || "").length);
 
         try {
+          var payload = {
+            ove_ave_id: ave.id,
+            crop_b64: detection.crop_b64 || "",
+            breed: ave.raza || detection.breed_guess || "",
+            color: ave.color || detection.breed_color || "",
+            sex: ave.sexo || detection.breed_sex || "",
+            gallinero: streamName,
+          };
+          console.log("[Seedy ID] POST manual-assign payload size:", JSON.stringify(payload).length, "bytes");
           var resp = await fetch(`${SEEDY_API}/vision/identify/manual-assign`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ove_ave_id: ave.id,
-              crop_b64: detection.crop_b64 || "",
-              breed: ave.raza || detection.breed_guess || "",
-              color: ave.color || detection.breed_color || "",
-              sex: ave.sexo || detection.breed_sex || "",
-              gallinero: streamName,
-            }),
+            body: JSON.stringify(payload),
           });
+          console.log("[Seedy ID] Assign response:", resp.status);
           if (!resp.ok) {
             var errText = await resp.text();
-            alert("Error: " + errText);
+            console.error("[Seedy ID] Assign error:", errText);
+            alert("❌ Error al asignar: " + errText);
             row.style.opacity = "";
             row.style.pointerEvents = "";
             row.dataset.assigning = "";
             return;
           }
+          var result = await resp.json();
+          console.log("[Seedy ID] Assign OK:", result);
           // Success
           _cachedAves = null; // invalidate cache
           panel.remove();
           if (onAssigned) onAssigned();
         } catch (e) {
-          alert("Error de red: " + e.message);
+          console.error("[Seedy ID] Assign network error:", e);
+          alert("❌ Error de red al asignar: " + e.message);
           row.style.opacity = "";
           row.style.pointerEvents = "";
           row.dataset.assigning = "";
@@ -1907,6 +2091,19 @@
     return result;
   }
 
+  // ── Fix aves_count in gallinero card (OvoSfera shows 0, real count from census) ──
+  function _fixAvesCount(card, realCount) {
+    // OvoSfera formats: "0/30", "0 / 30", or just "0" next to aves icon
+    var walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT, null, false);
+    var node;
+    while ((node = walker.nextNode())) {
+      // Match "0/N" or "0 / N" patterns
+      if (/^\s*0\s*\/\s*\d+/.test(node.textContent)) {
+        node.textContent = node.textContent.replace(/0\s*\//, realCount + " /");
+      }
+    }
+  }
+
   // ── Inject cameras into gallinero cards ──
   // ── Inject camera thumbnails in gallineros LIST page ──
   function injectGallineroListThumbnails() {
@@ -1914,7 +2111,21 @@
     cards.forEach(function(card) {
       if (card.querySelector(".seedy-list-cam-thumb")) return;
       var gid = parseGallineroId(card);
+
+      // Ocultar gallineros fusionados (ID 3 etc.)
+      if (gid && !CAMERA_MAP[gid]) {
+        var text = card.textContent || "";
+        if (text.toLowerCase().includes("fusionado")) {
+          card.style.display = "none";
+          return;
+        }
+      }
+
       if (!gid || !CAMERA_MAP[gid]) return;
+
+      // Corregir aves_count: OvoSfera muestra 0 — nosotros sabemos que son ~26
+      _fixAvesCount(card, 26);
+
       var cam = CAMERA_MAP[gid];
 
       var wrap = document.createElement("div");
@@ -2582,7 +2793,7 @@
         }
 
         // Insert at top of main content
-        var main = document.querySelector("main") || document.querySelector("[class*='content']") || document.body;
+        var main = document.querySelector(".nf-content") || document.querySelector("main") || document.body;
         var firstChild = main.querySelector("form") || main.firstElementChild;
         if (firstChild) {
           firstChild.parentNode.insertBefore(container, firstChild);
@@ -2634,13 +2845,13 @@
   function injectDashboardPanel() {
     if (document.getElementById("seedy-dashboard-injected")) return;
 
-    // Find a suitable container — multiple fallbacks
+    // Find a suitable container — OvoSfera uses .nf-content inside .nf-main
+    // IMPORTANT: target .nf-content (NOT .nf-main) to preserve the .nf-status-bar
     let main =
-      document.querySelector("main") ||
-      document.querySelector("[class*='content']") ||
-      document.querySelector("[class*='Content']") ||
-      document.querySelector("[class*='dashboard']") ||
-      document.querySelector("[class*='Dashboard']");
+      document.querySelector(".nf-content") ||
+      document.querySelector("main > [class*='content']") ||
+      document.querySelector("[class*='nf-content']") ||
+      document.querySelector("main");
 
     // Fallback: look for headers with relevant text → use their parent
     if (!main) {
@@ -2661,24 +2872,17 @@
 
     if (!main) return;
 
-    // Push "Primeros pasos" wizard to the bottom
-    const allSections = main.querySelectorAll("div, section");
-    allSections.forEach(function(el) {
-      const txt = el.textContent || "";
-      if ((txt.includes("Primeros pasos") || txt.includes("Getting started")) && el.parentElement === main) {
-        el.style.order = "999";
-      }
+    // Hide existing OvoSfera dashboard content (keep nf-status-bar visible)
+    Array.from(main.children).forEach(function(el) {
+      if (el.classList && el.classList.contains("nf-status-bar")) return;
+      if (el.id === "seedy-dashboard-injected") return;
+      el.style.display = "none";
+      el.dataset.seedyDashHidden = "1";
     });
-    if (main.style.display !== "flex") {
-      main.style.display = "flex";
-      main.style.flexDirection = "column";
-      main.dataset.seedyFlexApplied = "1";
-    }
 
     const panel = document.createElement("div");
     panel.id = "seedy-dashboard-injected";
     panel.className = "seedy-dashboard-panel";
-    panel.style.order = "-1"; // Always on top
 
     // ── 2-column layout with KPI strip on top ──
     // == KPI STRIP (horizontal, across full width — compact) ==
@@ -2891,11 +3095,149 @@
     layout.appendChild(rightCol);
     panel.appendChild(layout);
 
+    // ── Sensors summary strip (between KPIs and hero) ──
+    var sensorsStrip = document.createElement("div");
+    sensorsStrip.id = "seedy-dash-sensors";
+    sensorsStrip.className = "seedy-dash-sensors";
+    sensorsStrip.innerHTML = '<div style="color:#6b7280;font-size:0.85em;padding:8px">Cargando sensores...</div>';
+    // Insert between kpiStrip and layout
+    panel.insertBefore(sensorsStrip, layout);
+
     // Insert at the top of main content
     if (main.firstChild) {
       main.insertBefore(panel, main.firstChild);
     } else {
       main.appendChild(panel);
+    }
+
+    // ── Fetch live sensor data and populate KPIs + sensor strip ──
+    _fetchDashboardSensors();
+    _dashSensorTimer = setInterval(_fetchDashboardSensors, 30000);
+  }
+
+  var _dashSensorTimer = null;
+
+  function _fetchDashboardSensors() {
+    Promise.all([
+      fetch(SEEDY_API + "/ovosfera/devices", { mode: "cors" }).then(function(r) { return r.ok ? r.json() : {}; }),
+      fetch(SEEDY_API + "/ovosfera/devices/status", { mode: "cors" }).then(function(r) { return r.ok ? r.json() : {}; }),
+    ])
+    .then(function(results) {
+      var devData = results[0];
+      var statusData = results[1];
+      var devices = devData.devices || [];
+      var gallineros = statusData.gallineros || {};
+      var weather = statusData.weather || null;
+
+      // ── Update KPIs ──
+      var temps = [];
+      var alertCount = 0;
+
+      devices.forEach(function(dev) {
+        var t = dev.last_temperature;
+        if (t !== null && t !== undefined && dev.device_category !== 'infrastructure') {
+          temps.push(t);
+        }
+        // Count alerts: soil humidity < 40%, CO2 > 1200, temp > 32 or < 5
+        var hum = dev.last_humidity;
+        if (dev.device_category === 'soil' && hum !== null && hum < 40) alertCount++;
+        if (dev.last_co2 && dev.last_co2 > 1200) alertCount++;
+        if (t !== null && t !== undefined && dev.device_category === 'sensor') {
+          if (t > 32 || t < 5) alertCount++;
+        }
+      });
+
+      var avgTemp = temps.length ? (temps.reduce(function(a, b) { return a + b; }, 0) / temps.length).toFixed(1) + '°C' : '—';
+
+      // Update top KPI strip
+      _updateKpiValue('kpi-temp', avgTemp);
+      _updateKpiValue('kpi-alertas', String(alertCount), alertCount > 0 ? '#ef4444' : '#6b7280');
+
+      // Update sidebar KPIs
+      _updateKpiValue('skpi-temp', avgTemp);
+      _updateKpiValue('skpi-alertas', String(alertCount), alertCount > 0 ? '#ef4444' : '#6b7280');
+
+      // ── Build sensor strip ──
+      var strip = document.getElementById("seedy-dash-sensors");
+      if (!strip) return;
+
+      var html = '';
+
+      // Gallinero sensors (temp+hum)
+      devices.forEach(function(dev) {
+        if (dev.device_category === 'infrastructure' || dev.type === 'ecowitt') return;
+        var cat = dev.device_category || 'sensor';
+        var icon = cat === 'soil' ? '🌱' : cat === 'air_quality' ? '🌬️' : '🏠';
+        var name = dev.gallinero_name || dev.friendly_name;
+        var temp = dev.last_temperature;
+        var hum = dev.last_humidity;
+        var tempStr = temp !== null && temp !== undefined ? temp.toFixed(1) + '°C' : '—';
+        var humStr = hum !== null && hum !== undefined ? hum + '%' : '—';
+
+        // Color coding
+        var tempColor = '#f3f4f6';
+        if (temp !== null && temp !== undefined) {
+          if (temp < 10) tempColor = '#3b82f6';
+          else if (temp < 18) tempColor = '#22c55e';
+          else if (temp < 28) tempColor = '#f59e0b';
+          else tempColor = '#ef4444';
+        }
+
+        var humColor = '#f3f4f6';
+        if (cat === 'soil' && hum !== null && hum !== undefined) {
+          if (hum < 25) humColor = '#ef4444';
+          else if (hum < 40) humColor = '#f59e0b';
+          else if (hum <= 70) humColor = '#22c55e';
+          else humColor = '#3b82f6';
+        }
+
+        var extra = '';
+        if (cat === 'air_quality' && dev.last_co2 !== null && dev.last_co2 !== undefined) {
+          var co2Color = dev.last_co2 < 800 ? '#22c55e' : dev.last_co2 < 1200 ? '#f59e0b' : '#ef4444';
+          extra = '<span class="seedy-sens-val" style="color:' + co2Color + '">' + dev.last_co2 + '<small>ppm</small></span>';
+        }
+        if (cat === 'soil' && hum !== null && hum < 40) {
+          extra = '<span class="seedy-sens-alert">' + (hum < 25 ? '🚨 Riego urgente' : '💧 Regar') + '</span>';
+        }
+
+        html += '<div class="seedy-sens-card">'
+          + '<div class="seedy-sens-name">' + icon + ' ' + _escHtml(name) + '</div>'
+          + '<div class="seedy-sens-vals">'
+          + '<span class="seedy-sens-val" style="color:' + tempColor + '">🌡️' + tempStr + '</span>'
+          + '<span class="seedy-sens-val" style="color:' + humColor + '">💧' + humStr + '</span>'
+          + extra
+          + '</div>'
+          + '</div>';
+      });
+
+      // Weather compact
+      if (weather) {
+        var out = weather.outdoor || {};
+        var wind = weather.wind || {};
+        html += '<div class="seedy-sens-card seedy-sens-weather">'
+          + '<div class="seedy-sens-name">🌤️ Exterior</div>'
+          + '<div class="seedy-sens-vals">'
+          + '<span class="seedy-sens-val">🌡️' + (out.temperature != null ? out.temperature.toFixed(1) + '°C' : '—') + '</span>'
+          + '<span class="seedy-sens-val">💧' + (out.humidity != null ? out.humidity + '%' : '—') + '</span>'
+          + '<span class="seedy-sens-val">💨' + (wind.speed != null ? wind.speed + 'km/h' : '—') + '</span>'
+          + '</div>'
+          + '</div>';
+      }
+
+      strip.innerHTML = html;
+    })
+    .catch(function(e) {
+      console.debug("Seedy dashboard sensors fetch error:", e);
+    });
+  }
+
+  function _updateKpiValue(id, value, color) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var valEl = el.querySelector(".seedy-kpi-value, .seedy-sidebar-kpi-val");
+    if (valEl) {
+      valEl.textContent = value;
+      if (color) valEl.style.color = color;
     }
   }
 
@@ -2960,15 +3302,14 @@
     var panel = document.getElementById("seedy-dashboard-injected");
     if (panel) panel.remove();
     _cleanupDronePoller();
-    // Restore main styles that injectDashboardPanel may have set
-    var main = document.querySelector("main");
-    if (main && main.dataset.seedyFlexApplied) {
-      main.style.display = "";
-      main.style.flexDirection = "";
-      delete main.dataset.seedyFlexApplied;
-    }
-    // Clean up activity feed timer
+    // Restore hidden OvoSfera dashboard content
+    document.querySelectorAll("[data-seedy-dash-hidden]").forEach(function(el) {
+      el.style.display = "";
+      delete el.dataset.seedyDashHidden;
+    });
+    // Clean up timers
     if (_feedTimer) { clearInterval(_feedTimer); _feedTimer = null; }
+    if (_dashSensorTimer) { clearInterval(_dashSensorTimer); _dashSensorTimer = null; }
   }
 
   // ── Drone control panel logic ──
@@ -3120,23 +3461,43 @@
     sistemaGroup.parentNode.insertBefore(siteGroup, sistemaGroup);
 
     // Create the Devices link (IoT sensors)
+    // OvoSfera may already have a native "Dispositivos" link — hijack it instead of duplicating
     if (!document.getElementById("seedy-devices-link")) {
-      var devGroup = document.createElement("div");
-      devGroup.id = "seedy-devices-link";
-      var devLink = document.createElement("a");
-      var farmSlug = (window.location.pathname.match(/\/farm\/([^/]+)/) || [])[1] || SEEDY_FARM;
-      devLink.href = "/farm/" + farmSlug + "/devices";
-      devLink.className = "nf-nav-item";
-      devLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2a3 3 0 0 0-3 3v1H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h1v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5h1a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>'
-        + '<span class="nf-nav-text">Dispositivos</span>';
-      devLink.addEventListener("click", function(e) {
-        e.preventDefault();
-        window.history.pushState({}, "", devLink.href);
-        window.dispatchEvent(new PopStateEvent("popstate"));
-        onPageChange();
+      var existingDevLink = null;
+      var navItems = sistemaGroup.parentNode.querySelectorAll("a.nf-nav-item");
+      navItems.forEach(function(a) {
+        if ((a.href || "").indexOf("/devices") !== -1 || (a.textContent || "").trim() === "Dispositivos") {
+          existingDevLink = a;
+        }
       });
-      devGroup.appendChild(devLink);
-      siteGroup.parentNode.insertBefore(devGroup, sistemaGroup);
+      if (existingDevLink) {
+        // Hijack the native link: add our SPA click handler
+        existingDevLink.parentElement.id = "seedy-devices-link";
+        existingDevLink.addEventListener("click", function(e) {
+          e.preventDefault();
+          var farmSlug = (window.location.pathname.match(/\/farm\/([^/]+)/) || [])[1] || SEEDY_FARM;
+          window.history.pushState({}, "", "/farm/" + farmSlug + "/devices");
+          window.dispatchEvent(new PopStateEvent("popstate"));
+          onPageChange();
+        });
+      } else {
+        var devGroup = document.createElement("div");
+        devGroup.id = "seedy-devices-link";
+        var devLink = document.createElement("a");
+        var farmSlug = (window.location.pathname.match(/\/farm\/([^/]+)/) || [])[1] || SEEDY_FARM;
+        devLink.href = "/farm/" + farmSlug + "/devices";
+        devLink.className = "nf-nav-item";
+        devLink.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2a3 3 0 0 0-3 3v1H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h1v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-5h1a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4V5a3 3 0 0 0-3-3z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>'
+          + '<span class="nf-nav-text">Dispositivos</span>';
+        devLink.addEventListener("click", function(e) {
+          e.preventDefault();
+          window.history.pushState({}, "", devLink.href);
+          window.dispatchEvent(new PopStateEvent("popstate"));
+          onPageChange();
+        });
+        devGroup.appendChild(devLink);
+        siteGroup.parentNode.insertBefore(devGroup, sistemaGroup);
+      }
     }
   }
 
@@ -3203,7 +3564,7 @@
     container.className = "seedy-devices-page";
     container.innerHTML = '<div class="seedy-devices-header">'
       + '<h2>🌡️ Dispositivos IoT</h2>'
-      + '<a href="http://192.168.20.53:8080" target="_blank" class="seedy-z2m-link">⚙️ Zigbee2MQTT</a>'
+      + '<a href="http://192.168.40.128:8080" target="_blank" class="seedy-z2m-link">⚙️ Zigbee2MQTT</a>'
       + '</div>'
       + '<div class="seedy-devices-grid" id="seedy-devices-grid">'
       + '<div class="seedy-devices-empty"><div class="seedy-empty-icon">📡</div>Cargando sensores...</div>'
@@ -3240,13 +3601,233 @@
       grid.innerHTML = '<div class="seedy-devices-empty">'
         + '<div class="seedy-empty-icon">📡</div>'
         + '<p>No hay sensores conectados.</p>'
-        + '<p style="font-size:0.85em">Abre <a href="http://192.168.20.53:8080" target="_blank" style="color:#3b82f6">Zigbee2MQTT</a> para emparejar.</p>'
+        + '<p style="font-size:0.85em">Abre <a href="http://192.168.40.128:8080" target="_blank" style="color:#3b82f6">Zigbee2MQTT</a> para emparejar.</p>'
         + '</div>';
       return;
     }
 
     var html = '';
     devices.forEach(function (dev) {
+      var cat = dev.device_category || '';
+      if (dev.type === 'ecowitt') {
+        html += _renderEcowittCard(dev);
+      } else if (cat === 'soil') {
+        html += _renderSoilSensorCard(dev, gallineros);
+      } else if (cat === 'air_quality' || (dev.last_co2 !== null && dev.last_co2 !== undefined)) {
+        html += _renderAirQualityCard(dev, gallineros);
+      } else if (cat === 'infrastructure') {
+        html += _renderInfraCard(dev);
+      } else {
+        html += _renderZigbeeCard(dev, gallineros);
+      }
+    });
+
+    grid.innerHTML = html;
+  }
+
+  function _renderEcowittCard(dev) {
+    var ecowitt = dev.ecowitt || {};
+    var outdoor = ecowitt.outdoor || {};
+    var indoor = ecowitt.indoor || {};
+    var wind = ecowitt.wind || {};
+    var rain = ecowitt.rain || {};
+    var pressure = ecowitt.pressure || {};
+    var solar = ecowitt.solar || {};
+    var lastTs = ecowitt.last_seen;
+    var isOnline = !!lastTs;
+
+    var seenStr = '—';
+    if (lastTs) {
+      try {
+        var d = new Date(parseInt(lastTs) * 1000);
+        var now = new Date();
+        var diffMin = Math.floor((now - d) / 60000);
+        if (diffMin < 1) seenStr = 'ahora';
+        else if (diffMin < 60) seenStr = 'hace ' + diffMin + ' min';
+        else if (diffMin < 1440) seenStr = 'hace ' + Math.floor(diffMin/60) + 'h';
+        else seenStr = d.toLocaleDateString('es');
+      } catch(e) { seenStr = '?'; }
+    }
+
+    function fmt(v, unit, dec) {
+      if (v === null || v === undefined) return '—';
+      return (dec !== undefined ? v.toFixed(dec) : v) + (unit || '');
+    }
+
+    // Temperature color
+    var temp = outdoor.temperature;
+    var tempColor = '#f3f4f6';
+    if (temp !== null && temp !== undefined) {
+      if (temp < 5) tempColor = '#3b82f6';
+      else if (temp < 15) tempColor = '#22c55e';
+      else if (temp < 28) tempColor = '#f59e0b';
+      else tempColor = '#ef4444';
+    }
+
+    // Wind direction arrow
+    var windDir = wind.direction;
+    var windArrow = '';
+    if (windDir !== null && windDir !== undefined) {
+      windArrow = '<span style="display:inline-block;transform:rotate(' + windDir + 'deg);font-size:0.8em">↑</span> ';
+    }
+
+    // UVI color
+    var uvi = solar.uvi;
+    var uviColor = '#f3f4f6';
+    if (uvi !== null && uvi !== undefined) {
+      if (uvi <= 2) uviColor = '#22c55e';
+      else if (uvi <= 5) uviColor = '#f59e0b';
+      else if (uvi <= 7) uviColor = '#f97316';
+      else if (uvi <= 10) uviColor = '#ef4444';
+      else uviColor = '#a855f7';
+    }
+
+    return '<div class="seedy-device-card weather-station ' + (isOnline ? '' : 'offline') + '" style="grid-column: span 2;">'
+      + '<div class="seedy-device-card-header">'
+      + '<h3>🌤️ Estación Meteorológica · Finca Palacio</h3>'
+      + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
+      + '</div>'
+      // Main readings (3 columns)
+      + '<div class="seedy-weather-readings">'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">🌡️</div><div class="seedy-reading-value" style="color:' + tempColor + '">' + fmt(temp, '°C', 1) + '</div><div class="seedy-reading-label">Exterior</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">🤒</div><div class="seedy-reading-value">' + fmt(outdoor.feels_like, '°C', 1) + '</div><div class="seedy-reading-label">Sensación</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">💧</div><div class="seedy-reading-value">' + fmt(outdoor.humidity, '%', 0) + '</div><div class="seedy-reading-label">Humedad ext.</div></div>'
+      + '</div>'
+      // Second row: indoor + dew point + pressure
+      + '<div class="seedy-weather-extra">'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">🏠</div><div class="seedy-reading-value">' + fmt(indoor.temperature, '°C', 1) + '</div><div class="seedy-reading-label">Interior</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">🏠💧</div><div class="seedy-reading-value">' + fmt(indoor.humidity, '%', 0) + '</div><div class="seedy-reading-label">Humedad int.</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">💦</div><div class="seedy-reading-value">' + fmt(outdoor.dew_point, '°C', 1) + '</div><div class="seedy-reading-label">Punto rocío</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">💨</div><div class="seedy-reading-value">' + windArrow + fmt(wind.speed, ' km/h', 1) + '</div><div class="seedy-reading-label">Viento</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">🌬️</div><div class="seedy-reading-value">' + fmt(wind.gust, ' km/h', 1) + '</div><div class="seedy-reading-label">Ráfagas</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">📊</div><div class="seedy-reading-value">' + fmt(pressure.relative, ' hPa', 1) + '</div><div class="seedy-reading-label">Presión</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">☀️</div><div class="seedy-reading-value">' + fmt(solar.radiation, ' W/m²', 0) + '</div><div class="seedy-reading-label">Radiación</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">🔆</div><div class="seedy-reading-value" style="color:' + uviColor + '">' + fmt(uvi, '', 0) + '</div><div class="seedy-reading-label">Índice UV</div></div>'
+      + '</div>'
+      // Rain accumulation row
+      + '<div class="seedy-weather-rain">'
+      + '<span class="seedy-rain-title">🌧️ Precipitación acumulada</span>'
+      + '<div class="seedy-rain-bars">'
+      + '<div class="seedy-rain-item"><span class="seedy-rain-val">' + fmt(rain.rate, ' mm/h', 1) + '</span><span class="seedy-rain-lbl">Ahora</span></div>'
+      + '<div class="seedy-rain-item"><span class="seedy-rain-val">' + fmt(rain.daily, ' mm', 1) + '</span><span class="seedy-rain-lbl">Hoy</span></div>'
+      + '<div class="seedy-rain-item"><span class="seedy-rain-val">' + fmt(rain.weekly, ' mm', 1) + '</span><span class="seedy-rain-lbl">Semana</span></div>'
+      + '<div class="seedy-rain-item"><span class="seedy-rain-val">' + fmt(rain.monthly, ' mm', 1) + '</span><span class="seedy-rain-lbl">Mes</span></div>'
+      + '<div class="seedy-rain-item seedy-rain-total"><span class="seedy-rain-val">' + fmt(rain.yearly, ' mm', 1) + '</span><span class="seedy-rain-lbl">Año</span></div>'
+      + '</div>'
+      + '</div>'
+      + '<div class="seedy-device-meta">'
+      + '<span>📡 Ecowitt GW2000A · ' + seenStr + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function _renderAirQualityCard(dev, gallineros) {
+      var fname = dev.friendly_name || '';
+      var gName = dev.gallinero_name || 'Sin asignar';
+      var temp = dev.last_temperature;
+      var hum = dev.last_humidity;
+      var co2 = dev.last_co2;
+      var voc = dev.last_voc;
+      var formaldehyd = dev.last_formaldehyd;
+      var lqi = dev.last_linkquality;
+      var seen = dev.last_seen;
+      var isOnline = seen !== null && seen !== undefined;
+
+      var tempStr = temp !== null && temp !== undefined ? temp.toFixed(1) + '°C' : '—';
+      var humStr = hum !== null && hum !== undefined ? hum.toFixed(0) + '%' : '—';
+      var co2Str = co2 !== null && co2 !== undefined ? co2 + ' ppm' : '—';
+      var vocStr = voc !== null && voc !== undefined ? voc + ' ppb' : '—';
+      var formalStr = formaldehyd !== null && formaldehyd !== undefined ? formaldehyd + ' µg/m³' : '—';
+      var seenStr = '—';
+      if (seen) {
+        try {
+          var d = new Date(seen);
+          var now = new Date();
+          var diffMin = Math.floor((now - d) / 60000);
+          if (diffMin < 1) seenStr = 'ahora';
+          else if (diffMin < 60) seenStr = 'hace ' + diffMin + ' min';
+          else if (diffMin < 1440) seenStr = 'hace ' + Math.floor(diffMin/60) + 'h';
+          else seenStr = d.toLocaleDateString('es');
+        } catch(e) { seenStr = '?'; }
+      }
+
+      // CO2 color (green <800, yellow <1200, red >=1200)
+      var co2Color = '#f3f4f6';
+      if (co2 !== null && co2 !== undefined) {
+        if (co2 < 800) co2Color = '#22c55e';
+        else if (co2 < 1200) co2Color = '#f59e0b';
+        else co2Color = '#ef4444';
+      }
+
+      // VOC color (green <300, yellow <500, red >=500)
+      var vocColor = '#f3f4f6';
+      if (voc !== null && voc !== undefined) {
+        if (voc < 300) vocColor = '#22c55e';
+        else if (voc < 500) vocColor = '#f59e0b';
+        else vocColor = '#ef4444';
+      }
+
+      // Formaldehyde color (green <30, yellow <100, red >=100)
+      var formalColor = '#f3f4f6';
+      if (formaldehyd !== null && formaldehyd !== undefined) {
+        if (formaldehyd < 30) formalColor = '#22c55e';
+        else if (formaldehyd < 100) formalColor = '#f59e0b';
+        else formalColor = '#ef4444';
+      }
+
+      // Temperature color
+      var tempColor = '#f3f4f6';
+      if (temp !== null && temp !== undefined) {
+        if (temp < 10) tempColor = '#3b82f6';
+        else if (temp < 18) tempColor = '#22c55e';
+        else if (temp < 28) tempColor = '#f59e0b';
+        else tempColor = '#ef4444';
+      }
+
+      // LQI signal bars
+      var lqiBars = '';
+      var lqiLevel = lqi ? Math.min(Math.ceil(lqi / 51), 5) : 0;
+      for (var i = 1; i <= 5; i++) {
+        var h = 6 + i * 3;
+        lqiBars += '<span style="height:' + h + 'px" class="' + (i <= lqiLevel ? 'active' : '') + '"></span>';
+      }
+
+      return '<div class="seedy-device-card ' + (isOnline ? '' : 'offline') + '" style="grid-column: span 2;">'
+        + '<div class="seedy-device-card-header">'
+        + '<h3>🌬️ Calidad del Aire · ' + _escHtml(gName) + '</h3>'
+        + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
+        + '</div>'
+        + '<div class="seedy-weather-readings">'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🌡️</div><div class="seedy-reading-value" style="color:' + tempColor + '">' + tempStr + '</div><div class="seedy-reading-label">Temperatura</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">💧</div><div class="seedy-reading-value">' + humStr + '</div><div class="seedy-reading-label">Humedad</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">💨</div><div class="seedy-reading-value" style="color:' + co2Color + '">' + co2Str + '</div><div class="seedy-reading-label">CO₂</div></div>'
+        + '</div>'
+        + '<div class="seedy-weather-extra">'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🧪</div><div class="seedy-reading-value" style="color:' + vocColor + '">' + vocStr + '</div><div class="seedy-reading-label">VOC</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">⚗️</div><div class="seedy-reading-value" style="color:' + formalColor + '">' + formalStr + '</div><div class="seedy-reading-label">Formaldehído</div></div>'
+        + '</div>'
+        // Nota aclaratoria de límites
+        + '<div class="seedy-air-quality-info">'
+        + '<details><summary>ℹ️ ¿Qué mide este sensor? — Límites de referencia</summary>'
+        + '<table class="seedy-limits-table">'
+        + '<tr><th>Métrica</th><th>Qué mide</th><th style="color:#22c55e">✓ Bueno</th><th style="color:#f59e0b">⚠ Moderado</th><th style="color:#ef4444">✗ Malo</th></tr>'
+        + '<tr><td><b>CO₂</b></td><td>Dióxido de carbono — indicador de ventilación. Niveles altos causan estrés y bajan la puesta.</td><td>&lt; 800 ppm</td><td>800–1200 ppm</td><td>&gt; 1200 ppm</td></tr>'
+        + '<tr><td><b>VOC</b></td><td>Compuestos Orgánicos Volátiles (ppb) — gases de cama húmeda, heces, desinfectantes. Irritan vías respiratorias.</td><td>&lt; 300 ppb</td><td>300–500 ppb</td><td>&gt; 500 ppb</td></tr>'
+        + '<tr><td><b>HCHO</b></td><td>Formaldehído (µg/m³) — gas tóxico de materiales, desinfectantes o combustión. Límite OMS: 100 µg/m³.</td><td>&lt; 30 µg/m³</td><td>30–100 µg/m³</td><td>&gt; 100 µg/m³</td></tr>'
+        + '<tr><td><b>Temp.</b></td><td>Temperatura ambiente del gallinero. Rango ideal gallinas ponedoras: 15–25 °C.</td><td>10–28 °C</td><td>5–10 / 28–32 °C</td><td>&lt; 5 / &gt; 32 °C</td></tr>'
+        + '<tr><td><b>Humedad</b></td><td>Humedad relativa. Ideal 50–70%. Alta humedad favorece hongos y amoníaco.</td><td>40–70%</td><td>30–40 / 70–80%</td><td>&lt; 30 / &gt; 80%</td></tr>'
+        + '</table>'
+        + '<p style="margin:6px 0 0;font-size:0.8em;color:#9ca3af">Sensor Tuya TS0601 · Alimentación red · Zigbee router · Actualización cada ~60s</p>'
+        + '</details>'
+        + '</div>'
+        + '<div class="seedy-device-meta">'
+        + '<span>📡 ' + _escHtml(fname) + ' · ' + seenStr + '</span>'
+        + '<span class="seedy-lqi-bar" title="Señal: ' + (lqi || 0) + '/255">' + lqiBars + '</span>'
+        + '</div>'
+        + '</div>';
+  }
+
+  function _renderZigbeeCard(dev, gallineros) {
       var fname = dev.friendly_name || '';
       var gName = dev.gallinero_name || 'Sin asignar';
       var temp = dev.last_temperature;
@@ -3299,7 +3880,7 @@
         else tempColor = '#ef4444';
       }
 
-      html += '<div class="seedy-device-card ' + (isOnline ? '' : 'offline') + '">'
+      return '<div class="seedy-device-card ' + (isOnline ? '' : 'offline') + '">'
         + '<div class="seedy-device-card-header">'
         + '<h3>🏠 ' + _escHtml(gName) + '</h3>'
         + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
@@ -3314,9 +3895,162 @@
         + '<span class="seedy-lqi-bar" title="Señal: ' + (lqi || 0) + '/255">' + lqiBars + '</span>'
         + '</div>'
         + '</div>';
-    });
+  }
 
-    grid.innerHTML = html;
+  function _renderSoilSensorCard(dev, gallineros) {
+      var fname = dev.friendly_name || '';
+      var gName = dev.gallinero_name || 'Sensor Suelo';
+      var temp = dev.last_temperature;
+      var hum = dev.last_humidity;  // soil humidity %
+      var soilMoisture = dev.last_soil_moisture;
+      var bat = dev.last_battery;
+      var lqi = dev.last_linkquality;
+      var seen = dev.last_seen;
+      var isOnline = seen !== null && seen !== undefined;
+
+      // Override from status endpoint if available
+      if (dev.gallinero_id && gallineros[dev.gallinero_id]) {
+        var gs = gallineros[dev.gallinero_id];
+        if (gs.temperature !== null && gs.temperature !== undefined) temp = gs.temperature;
+        if (gs.humidity !== null && gs.humidity !== undefined) hum = gs.humidity;
+        if (gs.battery !== null && gs.battery !== undefined) bat = gs.battery;
+        if (gs.last_seen) { seen = gs.last_seen; isOnline = true; }
+      }
+
+      var tempStr = temp !== null && temp !== undefined ? temp.toFixed(1) + '°C' : '—';
+      var humStr = hum !== null && hum !== undefined ? hum.toFixed(0) + '%' : '—';
+      var batStr = bat !== null && bat !== undefined ? bat + '%' : '—';
+      var seenStr = '—';
+      if (seen) {
+        try {
+          var d = new Date(seen);
+          var now = new Date();
+          var diffMin = Math.floor((now - d) / 60000);
+          if (diffMin < 1) seenStr = 'ahora';
+          else if (diffMin < 60) seenStr = 'hace ' + diffMin + ' min';
+          else if (diffMin < 1440) seenStr = 'hace ' + Math.floor(diffMin/60) + 'h';
+          else seenStr = d.toLocaleDateString('es');
+        } catch(e) { seenStr = '?'; }
+      }
+
+      // Soil temperature color (soil tends to be cooler)
+      var tempColor = '#f3f4f6';
+      if (temp !== null && temp !== undefined) {
+        if (temp < 5) tempColor = '#3b82f6';
+        else if (temp < 15) tempColor = '#22c55e';
+        else if (temp < 30) tempColor = '#f59e0b';
+        else tempColor = '#ef4444';
+      }
+
+      // Soil moisture color + irrigation alert
+      // <25% = seco (necesita riego urgente), 25-40% = algo seco, 40-70% = ideal, >70% = muy húmedo
+      var humColor = '#f3f4f6';
+      var irrigationAlert = '';
+      if (hum !== null && hum !== undefined) {
+        if (hum < 25) {
+          humColor = '#ef4444';
+          irrigationAlert = '<div class="seedy-soil-alert seedy-soil-alert-urgent">'
+            + '<span class="seedy-soil-alert-icon">🚨</span>'
+            + '<span><b>¡Riego urgente!</b> Humedad del suelo muy baja (' + hum + '%). Las raíces y el pasto se secan.</span>'
+            + '</div>';
+        } else if (hum < 40) {
+          humColor = '#f59e0b';
+          irrigationAlert = '<div class="seedy-soil-alert seedy-soil-alert-warning">'
+            + '<span class="seedy-soil-alert-icon">💧</span>'
+            + '<span><b>Conviene regar.</b> Humedad del suelo algo baja (' + hum + '%). Regar en las próximas horas.</span>'
+            + '</div>';
+        } else if (hum <= 70) {
+          humColor = '#22c55e';
+        } else {
+          humColor = '#3b82f6';
+          irrigationAlert = '<div class="seedy-soil-alert seedy-soil-alert-info">'
+            + '<span class="seedy-soil-alert-icon">🌊</span>'
+            + '<span>Suelo muy húmedo (' + hum + '%). No regar — riesgo de encharcamiento.</span>'
+            + '</div>';
+        }
+      }
+
+      // Battery warning
+      var batColor = '';
+      if (bat !== null && bat !== undefined && bat < 20) {
+        batColor = ' style="color:#ef4444"';
+      }
+
+      // LQI signal bars
+      var lqiBars = '';
+      var lqiLevel = lqi ? Math.min(Math.ceil(lqi / 51), 5) : 0;
+      for (var i = 1; i <= 5; i++) {
+        var h = 6 + i * 3;
+        lqiBars += '<span style="height:' + h + 'px" class="' + (i <= lqiLevel ? 'active' : '') + '"></span>';
+      }
+
+      return '<div class="seedy-device-card seedy-soil-card ' + (isOnline ? '' : 'offline') + '">'
+        + '<div class="seedy-device-card-header">'
+        + '<h3>🌱 ' + _escHtml(gName) + '</h3>'
+        + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
+        + '</div>'
+        + irrigationAlert
+        + '<div class="seedy-device-readings">'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🌡️</div><div class="seedy-reading-value" style="color:' + tempColor + '">' + tempStr + '</div><div class="seedy-reading-label">Temp. Suelo</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">💧</div><div class="seedy-reading-value" style="color:' + humColor + '">' + humStr + '</div><div class="seedy-reading-label">Humedad Suelo</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🔋</div><div class="seedy-reading-value"' + batColor + '>' + batStr + '</div><div class="seedy-reading-label">Batería</div></div>'
+        + '</div>'
+        + '<details style="padding:0 16px 8px"><summary style="font-size:0.8em;color:#9ca3af;cursor:pointer">ℹ️ Umbrales de riego</summary>'
+        + '<table class="seedy-limits-table">'
+        + '<tr><th>Nivel</th><th>Humedad</th><th>Acción</th></tr>'
+        + '<tr style="color:#ef4444"><td>🚨 Seco</td><td>&lt; 25%</td><td>Riego urgente</td></tr>'
+        + '<tr style="color:#f59e0b"><td>💧 Algo seco</td><td>25–40%</td><td>Regar pronto</td></tr>'
+        + '<tr style="color:#22c55e"><td>✅ Ideal</td><td>40–70%</td><td>No regar</td></tr>'
+        + '<tr style="color:#3b82f6"><td>🌊 Húmedo</td><td>&gt; 70%</td><td>No regar — encharcamiento</td></tr>'
+        + '</table></details>'
+        + '<div class="seedy-device-meta">'
+        + '<span>📡 ' + _escHtml(fname) + ' · ' + seenStr + '</span>'
+        + '<span class="seedy-lqi-bar" title="Señal: ' + (lqi || 0) + '/255">' + lqiBars + '</span>'
+        + '</div>'
+        + '</div>';
+  }
+
+  function _renderInfraCard(dev) {
+      var fname = dev.friendly_name || '';
+      var gName = dev.gallinero_name || 'Infraestructura';
+      var lqi = dev.last_linkquality;
+      var seen = dev.last_seen;
+      var isOnline = seen !== null && seen !== undefined;
+
+      var seenStr = '—';
+      if (seen) {
+        try {
+          var d = new Date(seen);
+          var now = new Date();
+          var diffMin = Math.floor((now - d) / 60000);
+          if (diffMin < 1) seenStr = 'ahora';
+          else if (diffMin < 60) seenStr = 'hace ' + diffMin + ' min';
+          else if (diffMin < 1440) seenStr = 'hace ' + Math.floor(diffMin/60) + 'h';
+          else seenStr = d.toLocaleDateString('es');
+        } catch(e) { seenStr = '?'; }
+      }
+
+      var lqiBars = '';
+      var lqiLevel = lqi ? Math.min(Math.ceil(lqi / 51), 5) : 0;
+      for (var i = 1; i <= 5; i++) {
+        var h = 6 + i * 3;
+        lqiBars += '<span style="height:' + h + 'px" class="' + (i <= lqiLevel ? 'active' : '') + '"></span>';
+      }
+
+      return '<div class="seedy-device-card seedy-infra-card ' + (isOnline ? '' : 'offline') + '">'
+        + '<div class="seedy-device-card-header">'
+        + '<h3>🔌 ' + _escHtml(gName) + '</h3>'
+        + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
+        + '</div>'
+        + '<div class="seedy-device-readings">'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">📶</div><div class="seedy-reading-value">' + (lqi || 0) + '</div><div class="seedy-reading-label">Link Quality</div></div>'
+        + '<div class="seedy-reading"><div class="seedy-reading-icon">🔄</div><div class="seedy-reading-value" style="font-size:0.9em">' + _escHtml(dev.model || '') + '</div><div class="seedy-reading-label">Modelo</div></div>'
+        + '</div>'
+        + '<div class="seedy-device-meta">'
+        + '<span>📡 ' + _escHtml(fname) + ' · ' + seenStr + '</span>'
+        + '<span class="seedy-lqi-bar" title="Señal: ' + (lqi || 0) + '/255">' + lqiBars + '</span>'
+        + '</div>'
+        + '</div>';
   }
 
   function _escHtml(s) {

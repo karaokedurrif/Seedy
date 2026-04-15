@@ -47,8 +47,8 @@ Sistema de inteligencia artificial multi-agente para ganadería de precisión (p
 | Red mesh | Tailscale activo para acceso remoto |
 | Cámaras | Dahua IPC 4K + 2× TP-Link VIGI en subred 10.10.10.x → go2rtc (host network, dual stream) → WebRTC/MJPEG |
 | Dron | Dell Latitude (192.168.20.102) como puente HTTP → Parrot Bebop 2 (WiFi directo, Olympe SDK) |
-| Mini PC Zigbee | 192.168.20.53 (user: karaoke, Linux Mint 22.2). CH340/CC2652 dongle, Zigbee2MQTT v2.9.2 (Docker, :8080), canal 15 |
-| Sensores Zigbee | 2× eWeLink CK-TLSR8656 (temp+humedad) en gallineros. 2× Tuya TS011F router plugs |
+| Mini PC Zigbee | 192.168.40.128 (user: karaoke, Linux Mint 22.2). CH340/CC2652 dongle, Zigbee2MQTT v2.9.2 (Docker, :8080), canal 15 |
+| Sensores Zigbee | 2× eWeLink CK-TLSR8656 (temp+humedad) en gallineros. 2× Tuya TS0601 calidad aire (gallinero_grande + gallinero_pequeno). 1× Tuya sensor suelo temp+humedad (sensor_tierra_gallineros). 2× Tuya TS011F router plugs |
 
 ---
 

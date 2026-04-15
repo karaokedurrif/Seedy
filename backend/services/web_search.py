@@ -34,16 +34,6 @@ _PRODUCT_INTENT_RE = re.compile(
     r"|nacedora[s]?\s+(?:para|de|autom[áa]tica)"
     r"|marca[s]?\s+(?:de|para)\b"             # marca/s de/para ...
     r"|modelo[s]?\s+(?:de|para)\b"            # modelo/s de/para ...
-    r"|\bBOM\b"                               # Bill of Materials
-    r"|\bqu[ée]\s+(?:sensor|dispositivo|c[aá]mara|equipo)"  # qué sensor/dispositivo poner
-    r"|dispositivo[s]?\s+(?:iot|para|de)\b"   # dispositivos IoT/para/de
-    r"|sensor[es]*\s+(?:de|para|iot|zigbee|lora)\b"  # sensores de/para/IoT
-    r"|c[aá]mara[s]?\s+(?:de|para|ip|t[ée]rmica|vigilancia)"
-    r"|panel[es]*\s+solar[es]*\b"             # paneles solares
-    r"|gateway[s]?\b"                         # gateways
-    r"|\bestaci[oó]n\s+meteorol[oó]gica"      # estación meteorológica
-    r"|collar[es]*\s+(?:gps|iot|ganado)"      # collares GPS
-    r"|equipamiento\b"                        # equipamiento
     r")",
     re.IGNORECASE,
 )

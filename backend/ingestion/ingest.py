@@ -26,7 +26,6 @@ from services.rag import (
     close as close_qdrant,
 )
 from ingestion.chunker import chunk_text, chunk_markdown, extract_text, compute_sparse_vector
-from services.quality_gate import validate_batch
 from qdrant_client.models import PointStruct, SparseVector
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -109,19 +108,6 @@ async def ingest_collection(
             ]
 
         logger.info(f"  → {len(chunk_dicts)} chunks")
-
-        # ── Quality Gate: filtrar chunks antes de indexar ──
-        for cd in chunk_dicts:
-            cd["source_file"] = filepath.name
-        passed_chunks, rejected_chunks, qg_stats = validate_batch(
-            chunk_dicts, collection_name
-        )
-        if rejected_chunks:
-            logger.info(
-                f"  ⚠ Quality Gate: {qg_stats['rejected']}/{qg_stats['total']} rechazados "
-                f"({qg_stats['rejection_reasons']})"
-            )
-        chunk_dicts = passed_chunks
 
         # Procesar en batches para embeddings
         for batch_start in range(0, len(chunk_dicts), batch_size):

@@ -1,7 +1,6 @@
-"""Seedy Backend — Servicio LLM: Together.ai (principal) + Ollama (fallback local)."""
+"""Seedy Backend — Servicio LLM: Ollama (principal, fine-tuned) + Together.ai (fallback)."""
 
 import json
-import re
 import httpx
 import logging
 from typing import AsyncGenerator
@@ -9,9 +8,6 @@ from typing import AsyncGenerator
 from config import get_settings
 
 logger = logging.getLogger(__name__)
-
-# Regex para limpiar bloques <think>...</think> de DeepSeek-R1
-_THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
 
 async def generate(
@@ -22,16 +18,17 @@ async def generate(
     max_tokens: int = 1024,
     temperature: float = 0.3,
     evidence_override: str | None = None,
+    force_together: bool = False,
 ) -> tuple[str, str]:
     """
-    Genera respuesta con Together.ai (Kimi-K2.5, principal), fallback a Ollama local.
+    Genera respuesta con Ollama (fine-tuned seedy:q8), fallback a Together.ai.
 
     Args:
         evidence_override: Si se proporciona (Fase 2 evidence builder),
             se usa como contexto en vez de los chunks crudos.
 
     Returns:
-        (respuesta, modelo_usado) — modelo_usado es "together" u "ollama"
+        (respuesta, modelo_usado) — modelo_usado es "ollama" o "together"
     """
     # Construir mensaje con contexto RAG o evidencia estructurada
     if evidence_override:
@@ -44,90 +41,21 @@ async def generate(
         messages.extend(history)
     messages.append({"role": "user", "content": full_user})
 
-    # Together.ai primero (Kimi-K2.5 — modelo potente cloud)
+    if not force_together:
+        # Ollama primero (modelo fine-tuned local, RTX 5080)
+        answer = await _call_ollama(messages, max_tokens, temperature)
+        if answer:
+            return answer, "ollama"
+        logger.warning("Ollama falló, usando Together.ai como fallback")
+    else:
+        logger.info("[Retry] Forzando Together.ai (tras bloqueo del critic)")
+
+    # Together.ai
     answer = await _call_together(messages, max_tokens, temperature)
     if answer:
         return answer, "together"
 
-    # Fallback a Ollama (modelo fine-tuned local, RTX 5080)
-    logger.warning("Together.ai falló, usando Ollama local como fallback")
-    answer = await _call_ollama(messages, max_tokens, temperature)
-    if answer:
-        return answer, "ollama"
-
     return "Lo siento, no he podido generar una respuesta en este momento. Inténtalo de nuevo.", "none"
-
-
-async def generate_report(
-    system_prompt: str,
-    user_message: str,
-    context_chunks: list[dict] | None = None,
-    history: list[dict] | None = None,
-    max_tokens: int = 4096,
-    temperature: float = 0.5,
-    evidence_override: str | None = None,
-) -> tuple[str, str]:
-    """
-    Genera informe ejecutivo usando Together.ai (DeepSeek-R1 — máximo razonamiento).
-    Limpia automáticamente los bloques <think>...</think> del output.
-
-    Returns:
-        (respuesta, modelo_usado) — modelo_usado es "together-report"
-    """
-    if evidence_override:
-        full_user = (
-            f"{evidence_override}\n\n"
-            f"SOLICITUD DEL CLIENTE:\n{user_message}"
-        )
-    else:
-        full_user = _build_user_message(user_message, context_chunks)
-
-    messages = [{"role": "system", "content": system_prompt}]
-    if history:
-        messages.extend(history)
-    messages.append({"role": "user", "content": full_user})
-
-    settings = get_settings()
-    if not settings.together_api_key:
-        logger.warning("TOGETHER_API_KEY no configurada — fallback a Ollama para informe")
-        answer = await _call_ollama(messages, max_tokens, temperature)
-        if answer:
-            return answer, "ollama"
-        return "No se pudo generar el informe. Verifica la configuración de Together.ai.", "none"
-
-    try:
-        async with httpx.AsyncClient(timeout=180.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_report_model,
-                    "messages": messages,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "top_p": 0.92,
-                    "repetition_penalty": 1.0,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            answer = data["choices"][0]["message"]["content"].strip()
-            # Limpiar bloques <think>...</think> de DeepSeek-R1
-            answer = _THINK_RE.sub("", answer).strip()
-            logger.info(f"[LLM] Informe generado via Together ({settings.together_report_model}): "
-                        f"{len(answer)} chars")
-            return answer, "together-report"
-    except Exception as e:
-        logger.error(f"[LLM] Error Together report: {e} — fallback a Together smart")
-        # Fallback a modelo smart (Kimi-K2.5) en vez de Ollama local
-        answer = await _call_together(messages, max_tokens, temperature)
-        if answer:
-            return answer, "together"
-        # Último recurso: Ollama
-        answer = await _call_ollama(messages, max_tokens, temperature)
-        if answer:
-            return answer, "ollama"
-        return "No se pudo generar el informe en este momento.", "none"
 
 
 def _build_user_message(query: str, chunks: list[dict] | None) -> str:
@@ -179,66 +107,37 @@ def _build_user_message_with_evidence(query: str, evidence: str) -> str:
 async def _call_together(
     messages: list[dict], max_tokens: int, temperature: float
 ) -> str | None:
-    """Llamada a Together.ai (Kimi-K2.5 — modelo principal).
-
-    Kimi-K2.5 es un modelo de razonamiento que usa tokens para "reasoning" interno.
-    Necesita un mínimo de 4096 max_tokens para que quede espacio tras el reasoning.
-    Si devuelve vacío por finish_reason=length, reintenta con más tokens.
-    """
+    """Llamada a Together.ai."""
     settings = get_settings()
 
     if not settings.together_api_key:
         logger.warning("TOGETHER_API_KEY no configurada")
         return None
 
-    # Kimi-K2.5 necesita headroom extra para reasoning (~1500-3000 tokens)
-    effective_max = max(max_tokens, 4096)
-
-    for attempt in range(2):  # Máx 1 retry
-        try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
-                resp = await client.post(
-                    f"{settings.together_base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                    json={
-                        "model": settings.together_model_id,
-                        "messages": messages,
-                        "max_tokens": effective_max,
-                        "temperature": temperature,
-                        "top_p": 0.9,
-                        "repetition_penalty": 1.1,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                choice = data["choices"][0]
-                answer = (choice.get("message", {}).get("content") or "").strip()
-                finish = choice.get("finish_reason", "unknown")
-                logger.info(
-                    f"[LLM] Respuesta via Together ({settings.together_model_id}): "
-                    f"{len(answer)} chars, finish_reason={finish}, max_tokens={effective_max}"
-                )
-
-                if not answer and finish == "length" and attempt == 0:
-                    # Reasoning consumió todos los tokens — reintentar con más espacio
-                    effective_max = min(effective_max * 2, 16384)
-                    logger.warning(
-                        f"[LLM] Together: reasoning agotó tokens (finish=length, 0 chars). "
-                        f"Reintentando con max_tokens={effective_max}"
-                    )
-                    continue
-
-                if not answer:
-                    logger.warning(
-                        f"[LLM] Together devolvió respuesta vacía (finish_reason={finish}). "
-                        f"Raw choice: {str(choice)[:300]}"
-                    )
-                return answer if answer else None
-        except Exception as e:
-            logger.error(f"Error en Together.ai: {e}")
-            return None
-
-    return None
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                f"{settings.together_base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.together_api_key}"},
+                json={
+                    "model": settings.together_model_id,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "top_p": 0.9,
+                    "repetition_penalty": 1.1,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"].strip()
+            if not content:
+                logger.warning(f"[Together.ai] Respuesta vacía del modelo {settings.together_model_id}")
+                return None
+            return content
+    except Exception as e:
+        logger.error(f"Error en Together.ai: {e}")
+        return None
 
 
 async def _call_ollama(
@@ -284,7 +183,7 @@ async def generate_stream(
     """
     Genera respuesta token-a-token en streaming.
     Yields: (token_text, modelo_usado)
-    Together.ai primero (Kimi-K2.5), fallback a Ollama local.
+    Ollama primero (fine-tuned local), fallback a Together.ai.
     """
     full_user = _build_user_message(user_message, context_chunks)
     messages = [{"role": "system", "content": system_prompt}]
@@ -292,7 +191,15 @@ async def generate_stream(
         messages.extend(history)
     messages.append({"role": "user", "content": full_user})
 
-    # Together.ai primero (Kimi-K2.5 — modelo potente cloud)
+    # Ollama primero (fine-tuned seedy:v12 14B Q4_K_M, RTX 5080)
+    try:
+        async for token in _stream_ollama(messages, max_tokens, temperature):
+            yield token, "ollama"
+        return
+    except Exception as e:
+        logger.warning(f"Ollama streaming falló: {e}")
+
+    # Fallback a Together.ai
     settings = get_settings()
     if settings.together_api_key:
         try:
@@ -300,15 +207,7 @@ async def generate_stream(
                 yield token, "together"
             return
         except Exception as e:
-            logger.warning(f"Together streaming falló: {e}")
-
-    # Fallback a Ollama (fine-tuned local, RTX 5080)
-    try:
-        async for token in _stream_ollama(messages, max_tokens, temperature):
-            yield token, "ollama"
-        return
-    except Exception as e:
-        logger.error(f"Ollama streaming falló: {e}")
+            logger.error(f"Together streaming falló: {e}")
 
     yield "Lo siento, no he podido generar una respuesta en este momento.", "none"
 
@@ -318,9 +217,7 @@ async def _stream_together(
 ) -> AsyncGenerator[str, None]:
     """Streaming desde Together.ai (formato SSE OpenAI-compatible)."""
     settings = get_settings()
-    # Kimi-K2.5 necesita headroom extra para reasoning interno
-    effective_max = max(max_tokens, 4096)
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         async with client.stream(
             "POST",
             f"{settings.together_base_url}/chat/completions",
@@ -328,7 +225,7 @@ async def _stream_together(
             json={
                 "model": settings.together_model_id,
                 "messages": messages,
-                "max_tokens": effective_max,
+                "max_tokens": max_tokens,
                 "temperature": temperature,
                 "top_p": 0.9,
                 "repetition_penalty": 1.1,

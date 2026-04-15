@@ -578,10 +578,10 @@ async function loadBird3DModel(birdId) {
   const genArea = document.getElementById("generate-3d-area");
   const loading = document.getElementById("model-loading");
   try {
-    const resp = await fetch(`${SEEDY_API}/api/birds/${birdId}/model.glb`, {method: "HEAD"});
+    const resp = await fetch(`${SEEDY_API}/birds/${birdId}/model.glb`, {method: "HEAD"});
     if (resp.ok) {
       container.innerHTML = `<model-viewer
-        src="${SEEDY_API}/api/birds/${birdId}/model.glb"
+        src="${SEEDY_API}/birds/${birdId}/model.glb"
         alt="Modelo 3D del ave"
         shadow-intensity="1"
         camera-controls touch-action="pan-y"
@@ -593,10 +593,10 @@ async function loadBird3DModel(birdId) {
       if (genArea) genArea.style.display = "none";
     } else {
       // No .glb — check for reference image
-      const refResp = await fetch(`${SEEDY_API}/api/birds/${birdId}/reference-image.png`, {method: "HEAD"});
+      const refResp = await fetch(`${SEEDY_API}/birds/${birdId}/reference-image`, {method: "HEAD"});
       if (refResp.ok) {
         container.innerHTML = `<div style="text-align:center;padding:20px">
-          <img src="${SEEDY_API}/api/birds/${birdId}/reference-image.png" alt="Referencia FLUX" style="max-height:440px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
+          <img src="${SEEDY_API}/birds/${birdId}/reference-image" alt="Referencia FLUX" style="max-height:440px;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.5)">
           <p style="color:#9ca3af;font-size:.8em;margin-top:10px">\ud83c\udfa8 Imagen de referencia IA (FLUX). Modelo 3D rotable pendiente.</p>
         </div>`;
       } else {
@@ -615,7 +615,7 @@ async function generateBird3D(birdId) {
   btn.textContent = "\u23f3 Generando modelo 3D...";
   btn.disabled = true;
   try {
-    const resp = await fetch(`${SEEDY_API}/api/birds/${birdId}/generate-3d`, {method: "POST"});
+    const resp = await fetch(`${SEEDY_API}/birds/${birdId}/generate-3d`, {method: "POST"});
     const data = await resp.json();
     if (data.status === "success" || data.status === "exists") {
       btn.textContent = "\u2705 Modelo generado";
@@ -633,7 +633,7 @@ async function generateBird3D(birdId) {
       btn.textContent = "\u23f3 Generando... (puede tardar 1-2 min)";
       // Poll every 10s
       const poll = setInterval(async () => {
-        const r = await fetch(`${SEEDY_API}/api/birds/${birdId}/model.glb`, {method: "HEAD"});
+        const r = await fetch(`${SEEDY_API}/birds/${birdId}/model.glb`, {method: "HEAD"});
         if (r.ok) {
           clearInterval(poll);
           loadBird3DModel(birdId);

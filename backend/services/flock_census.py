@@ -56,54 +56,26 @@ def get_all_gallineros() -> dict:
     }
 
 
-def _get_sin_asignar() -> list[dict]:
-    """Devuelve aves sin_asignar (pueden estar en cualquier gallinero)."""
-    _load()
-    sa = _census.get("sin_asignar", {})
-    return sa.get("aves", []) if isinstance(sa, dict) else []
-
-
-def _get_visitor_gallinero(gallinero_id: str) -> str | None:
-    """Devuelve el ID del gallinero de visitantes permitidos, si existe."""
-    _load()
-    gal = _census.get(gallinero_id, {})
-    return gal.get("permite_visitantes_de") if isinstance(gal, dict) else None
-
-
-def get_expected_breeds(gallinero_id: str, include_roaming: bool = True) -> list[dict]:
-    """Lista de (raza, color, sexo, cantidad) con cantidad > 0.
-
-    Si include_roaming=True, incluye sin_asignar y visitantes permitidos.
-    """
-    own = [
+def get_expected_breeds(gallinero_id: str) -> list[dict]:
+    """Lista de (raza, color, sexo, cantidad) con cantidad > 0."""
+    return [
         e for e in get_census(gallinero_id)
         if e.get("cantidad", 0) > 0
     ]
-    if not include_roaming:
-        return own
-
-    # Añadir sin_asignar (aves libres entre gallineros)
-    for e in _get_sin_asignar():
-        if e.get("cantidad", 0) > 0:
-            own.append(e)
-
-    # Añadir visitantes del gallinero permitido
-    visitor_gal = _get_visitor_gallinero(gallinero_id)
-    if visitor_gal:
-        for e in get_census(visitor_gal):
-            if e.get("cantidad", 0) > 0:
-                own.append(e)
-
-    return own
 
 
-def get_all_breeds() -> set[str]:
-    """Devuelve un set con todas las razas (lowercase) de toda la cabaña,
-    incluyendo sin_asignar."""
+def get_all_breeds(gallinero_id: str | None = None) -> set[str]:
+    """Devuelve un set con las razas (lowercase) de la cabaña.
+
+    Si gallinero_id se indica, devuelve solo las razas de ese gallinero.
+    Si no, devuelve todas las razas de todos los gallineros.
+    """
     _load()
     breeds: set[str] = set()
     for key, val in _census.items():
         if isinstance(val, dict) and "aves" in val:
+            if gallinero_id and key != gallinero_id:
+                continue
             for e in val["aves"]:
                 if e.get("raza"):
                     breeds.add(e["raza"].lower())
@@ -122,31 +94,13 @@ def get_canonical_breed_name(breed_lower: str) -> str:
 
 
 def get_quota(gallinero_id: str, breed: str, color: str, sex: str) -> int:
-    """Cuántas aves de esta raza+color+sexo se esperan para REGISTRO.
-
-    Busca en: 1) censo propio, 2) sin_asignar.
-    NO incluye visitantes de otro gallinero — esas aves se reconocen
-    pero se registran en su gallinero de origen.
-    """
-    def _match(entries: list[dict]) -> int:
-        for e in entries:
-            if (e["raza"].lower() == breed.lower()
-                    and e["color"].lower() == color.lower()
-                    and e["sexo"] == sex
-                    and e.get("cantidad", 0) > 0):
-                return e["cantidad"]
-        return 0
-
-    # 1) Censo propio del gallinero
-    q = _match(get_census(gallinero_id))
-    if q > 0:
-        return q
-
-    # 2) Sin asignar (aves libres entre gallineros)
-    q = _match(_get_sin_asignar())
-    if q > 0:
-        return q
-
+    """Cuántas aves de esta raza+color+sexo se esperan."""
+    for e in get_census(gallinero_id):
+        if (e["raza"].lower() == breed.lower()
+                and e["color"].lower() == color.lower()
+                and e["sexo"] == sex
+                and e.get("cantidad", 0) > 0):
+            return e["cantidad"]
     return 0
 
 

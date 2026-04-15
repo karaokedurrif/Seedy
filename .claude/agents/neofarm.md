@@ -48,7 +48,7 @@ Eres un agente experto en el ecosistema **NeoFarm/Seedy**, especializado en:
 - Puente HTTP (Olympe SDK) en Dell Latitude (192.168.20.102)
 
 ### 7. Zigbee IoT Hub — Gallineros (Jun 2026)
-- **Mini PC**: 192.168.20.53 (user: karaoke, Linux Mint 22.2), Docker 29.3.1
+- **Mini PC**: 192.168.40.128 (user: karaoke, Linux Mint 22.2), Docker 29.3.1
 - **Dongle**: CH340/CC2652, ZStack3x0, `/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0`
 - **Zigbee2MQTT**: v2.9.2 (Docker, port 8080), adapter: zstack, channel 15, permit_join: true
 - **Sensores**: 2× eWeLink CK-TLSR8656-SS5-01(7014) — temp, humidity, battery, voltage, linkquality
@@ -120,7 +120,7 @@ Internet ← Cloudflare Tunnel ← MSI (192.168.30.x, RTX 5080)
                                   ├── Cámaras Dahua (10.10.10.x)
                                   ├── NAS OMV (192.168.30.100)
                                   ├── Dell Latitude (192.168.20.102) ← Bebop 2 WiFi
-                                  └── Mini PC Zigbee (192.168.20.53) ← CH340 dongle ← sensors
+                                  └── Mini PC Zigbee (192.168.40.128) ← CH340 dongle ← sensors
 ```
 
 ## Directrices al Trabajar
