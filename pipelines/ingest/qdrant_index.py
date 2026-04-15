@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Mapeo dominio → colección Qdrant (las mismas que el backend)
 DOMAIN_TO_COLLECTION = {
-    "porcino": "iot_hardware",       # IoT + porcino → iot_hardware
-    "vacuno": "digital_twins",       # vacuno extensivo → digital_twins
+    "porcino": "porcino",
+    "vacuno": "bovino",
     "avicultura": "avicultura",
     "avicultura_intensiva": "avicultura_intensiva",
     "bodegas_vino": "bodegas_vino",

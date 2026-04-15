@@ -37,29 +37,29 @@ async def _get_client() -> httpx.AsyncClient:
 
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Genera embeddings para una lista de textos usando Ollama."""
+    """Genera embeddings para una lista de textos usando Ollama (batch nativo)."""
+    if not texts:
+        return []
+
     settings = get_settings()
     client = await _get_client()
-    embeddings = []
 
-    for text in texts:
-        try:
-            resp = await client.post(
-                f"{settings.ollama_base_url}/api/embed",
-                json={
-                    "model": settings.ollama_embed_model,
-                    "input": text,
-                    "truncate": True,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            embeddings.append(data["embeddings"][0])
-        except Exception as e:
-            logger.error(f"Error generando embedding: {e}")
-            raise
-
-    return embeddings
+    # Ollama /api/embed soporta input como lista → un solo request
+    try:
+        resp = await client.post(
+            f"{settings.ollama_base_url}/api/embed",
+            json={
+                "model": settings.ollama_embed_model,
+                "input": texts,
+                "truncate": True,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["embeddings"]
+    except Exception as e:
+        logger.error(f"Error en batch embedding ({len(texts)} textos): {e}")
+        raise
 
 
 async def embed_query(text: str) -> list[float]:

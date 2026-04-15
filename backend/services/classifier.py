@@ -7,11 +7,11 @@ múltiples colecciones Qdrant simultáneamente.
 
 import hashlib
 import time
-import httpx
 import logging
 
 from config import get_settings
 from models.prompts import CLASSIFIER_SYSTEM, CLASSIFIER_MULTI_SYSTEM, CATEGORIES
+from services.together_client import get_together_client
 
 logger = logging.getLogger(__name__)
 
@@ -127,32 +127,33 @@ async def classify_query(query: str, prev_category: str | None = None) -> str:
         )
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_classifier_model,
-                    "messages": [
-                        {"role": "system", "content": classifier_prompt},
-                        {"role": "user", "content": query},
-                    ],
-                    "max_tokens": 10,
-                    "temperature": 0,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = data["choices"][0]["message"]["content"].strip().upper()
+        client = await get_together_client()
+        resp = await client.post(
+            f"{settings.together_base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.together_api_key}"},
+            json={
+                "model": settings.together_classifier_model,
+                "messages": [
+                    {"role": "system", "content": classifier_prompt},
+                    {"role": "user", "content": query},
+                ],
+                "max_tokens": 10,
+                "temperature": 0,
+            },
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw = data["choices"][0]["message"]["content"].strip().upper()
 
-            for cat in CATEGORIES:
-                if cat in raw:
-                    logger.info(f"Query clasificada como: {cat}")
-                    _cache_put(h, cat)
-                    return cat
+        for cat in CATEGORIES:
+            if cat in raw:
+                logger.info(f"Query clasificada como: {cat}")
+                _cache_put(h, cat)
+                return cat
 
-            logger.warning(f"Categoría no reconocida '{raw}', usando GENERAL")
-            return "GENERAL"
+        logger.warning(f"Categoría no reconocida '{raw}', usando GENERAL")
+        return "GENERAL"
 
     except Exception as e:
         logger.error(f"Error en clasificación: {e}. Fallback a GENERAL")
@@ -191,29 +192,30 @@ async def classify_query_multi(
         )
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_classifier_model,
-                    "messages": [
-                        {"role": "system", "content": classifier_prompt},
-                        {"role": "user", "content": query},
-                    ],
-                    "max_tokens": 40,
-                    "temperature": 0,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = data["choices"][0]["message"]["content"].strip()
-            results = _parse_multi_response(raw)
+        client = await get_together_client()
+        resp = await client.post(
+            f"{settings.together_base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.together_api_key}"},
+            json={
+                "model": settings.together_classifier_model,
+                "messages": [
+                    {"role": "system", "content": classifier_prompt},
+                    {"role": "user", "content": query},
+                ],
+                "max_tokens": 40,
+                "temperature": 0,
+            },
+            timeout=15.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw = data["choices"][0]["message"]["content"].strip()
+        results = _parse_multi_response(raw)
 
-            if results:
-                logger.info(f"Query multi-clasificada: {results}")
-                _cache_put_multi(h, results)
-                return results
+        if results:
+            logger.info(f"Query multi-clasificada: {results}")
+            _cache_put_multi(h, results)
+            return results
 
     except Exception as e:
         logger.error(f"Error en clasificación multi-label: {e}")

@@ -11,9 +11,9 @@ Esto determina si se fuerza búsqueda web aunque Qdrant tenga resultados.
 
 import hashlib
 import time
-import httpx
 import logging
 from config import get_settings
+from services.together_client import get_together_client
 
 logger = logging.getLogger(__name__)
 
@@ -72,37 +72,38 @@ async def classify_temporality(query: str) -> str:
         del _temp_cache[q_hash]
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_classifier_model,
-                    "messages": [
-                        {"role": "system", "content": TEMPORALITY_SYSTEM},
-                        {"role": "user", "content": query},
-                    ],
-                    "max_tokens": 10,
-                    "temperature": 0,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = data["choices"][0]["message"]["content"].strip().upper()
+        client = await get_together_client()
+        resp = await client.post(
+            f"{settings.together_base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.together_api_key}"},
+            json={
+                "model": settings.together_classifier_model,
+                "messages": [
+                    {"role": "system", "content": TEMPORALITY_SYSTEM},
+                    {"role": "user", "content": query},
+                ],
+                "max_tokens": 10,
+                "temperature": 0,
+            },
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw = data["choices"][0]["message"]["content"].strip().upper()
 
-            for level in TEMPORALITY_LEVELS:
-                if level in raw:
-                    logger.info(f"Temporalidad: {level} para '{query[:60]}'")
-                    # Guardar en cache
-                    if len(_temp_cache) >= _TEMP_CACHE_MAX:
-                        oldest = sorted(_temp_cache, key=lambda k: _temp_cache[k][1])[:50]
-                        for k in oldest:
-                            del _temp_cache[k]
-                    _temp_cache[q_hash] = (level, time.time())
-                    return level
+        for level in TEMPORALITY_LEVELS:
+            if level in raw:
+                logger.info(f"Temporalidad: {level} para '{query[:60]}'")
+                # Guardar en cache
+                if len(_temp_cache) >= _TEMP_CACHE_MAX:
+                    oldest = sorted(_temp_cache, key=lambda k: _temp_cache[k][1])[:50]
+                    for k in oldest:
+                        del _temp_cache[k]
+                _temp_cache[q_hash] = (level, time.time())
+                return level
 
-            logger.warning(f"Temporalidad no reconocida '{raw}', usando STABLE")
-            return "STABLE"
+        logger.warning(f"Temporalidad no reconocida '{raw}', usando STABLE")
+        return "STABLE"
 
     except Exception as e:
         logger.error(f"Error en clasificación de temporalidad: {e}. Fallback STABLE")

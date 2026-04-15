@@ -45,8 +45,8 @@ REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
 TOPIC_COLLECTION_MAP = {
     "avicultura": "avicultura",
-    "porcino": "estrategia",           # porcino va a estrategia (no tiene colección propia)
-    "bovino": "estrategia",
+    "porcino": "porcino",
+    "bovino": "bovino",
     "normativa": "normativa",
     "genetica": "genetica",
     "iot_sensores": "iot_hardware",

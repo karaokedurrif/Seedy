@@ -1,7 +1,6 @@
 """Seedy Backend — Servicio RAG con Qdrant (búsqueda híbrida dense + sparse)."""
 
 import logging
-import warnings
 from qdrant_client import QdrantClient, models
 from qdrant_client.models import Distance, VectorParams, SparseVectorParams, SparseIndexParams
 
@@ -10,9 +9,6 @@ from services.embeddings import embed_query
 from ingestion.chunker import compute_sparse_vector
 
 logger = logging.getLogger(__name__)
-
-# Suprimir warning de versión qdrant-client vs server
-warnings.filterwarnings("ignore", message=".*Qdrant client version.*")
 
 _client: QdrantClient | None = None
 
@@ -27,6 +23,8 @@ FOLDER_TO_COLLECTION = {
     "7.Avicultura Extensiva & Capones": "avicultura",
     "7.Fuentes_Externas": "iot_hardware",
     "7.GeoTwin & GIS 3D": "geotwin",
+    "8.Avicultura Intensiva": "avicultura_intensiva",
+    "9.Bodegas & Vino": "bodegas_vino",
     "CDA_Resumenes": "digital_twins",
     "Carga de documentos nuevos": "avicultura",
 }
@@ -34,7 +32,7 @@ FOLDER_TO_COLLECTION = {
 # Colección especial para contenido web fresco (no mapeada a carpeta)
 FRESH_WEB_COLLECTION = "fresh_web"
 
-ALL_COLLECTIONS = list(set(FOLDER_TO_COLLECTION.values())) + [FRESH_WEB_COLLECTION]
+ALL_COLLECTIONS = list(set(FOLDER_TO_COLLECTION.values())) + [FRESH_WEB_COLLECTION, "porcino", "bovino"]
 
 
 def get_qdrant() -> QdrantClient:

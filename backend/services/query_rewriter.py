@@ -8,10 +8,10 @@ Ejemplo:
   Reescrita: "Sulmtaler gallina para capón gourmet cruces"
 """
 
-import httpx
 import logging
 
 from config import get_settings
+from services.together_client import get_together_client
 
 logger = logging.getLogger(__name__)
 
@@ -60,35 +60,36 @@ async def rewrite_query(query: str, history: list[dict] | None = None) -> str:
     )
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_classifier_model,
-                    "messages": [
-                        {"role": "system", "content": REWRITER_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "max_tokens": 40,
-                    "temperature": 0,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            rewritten = data["choices"][0]["message"]["content"].strip()
+        client = await get_together_client()
+        resp = await client.post(
+            f"{settings.together_base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {settings.together_api_key}"},
+            json={
+                "model": settings.together_classifier_model,
+                "messages": [
+                    {"role": "system", "content": REWRITER_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": 40,
+                "temperature": 0,
+            },
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        rewritten = data["choices"][0]["message"]["content"].strip()
 
-            # Sanitizar: quitar comillas y prefijos
-            rewritten = rewritten.strip('"\'')
-            if rewritten.lower().startswith("consulta"):
-                rewritten = rewritten.split(":", 1)[-1].strip()
+        # Sanitizar: quitar comillas y prefijos
+        rewritten = rewritten.strip('"\'')
+        if rewritten.lower().startswith("consulta"):
+            rewritten = rewritten.split(":", 1)[-1].strip()
 
-            # Si la reescritura es vacía o muy corta, usar original
-            if len(rewritten) < 3:
-                return query
+        # Si la reescritura es vacía o muy corta, usar original
+        if len(rewritten) < 3:
+            return query
 
-            logger.info(f"Query reescrita: '{query[:50]}' → '{rewritten[:50]}'")
-            return rewritten
+        logger.info(f"Query reescrita: '{query[:50]}' → '{rewritten[:50]}'")
+        return rewritten
 
     except Exception as e:
         logger.warning(f"Error en query rewriting: {e}. Usando query original.")
