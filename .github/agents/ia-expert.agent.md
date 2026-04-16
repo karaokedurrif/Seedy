@@ -49,6 +49,7 @@ Sistema de inteligencia artificial multi-agente para ganadería de precisión (p
 | Dron | Dell Latitude (192.168.20.102) como puente HTTP → Parrot Bebop 2 (WiFi directo, Olympe SDK) |
 | Mini PC Zigbee | 192.168.40.128 (user: karaoke, Linux Mint 22.2). CH340/CC2652 dongle, Zigbee2MQTT v2.9.2 (Docker, :8080), canal 15 |
 | Sensores Zigbee | 2× eWeLink CK-TLSR8656 (temp+humedad) en gallineros. 2× Tuya TS0601 calidad aire (gallinero_grande + gallinero_pequeno). 1× Tuya sensor suelo temp+humedad (sensor_tierra_gallineros). 2× Tuya TS011F router plugs |
+| Estación meteo | Ecowitt GW2000A (WiFi, MAC `88:57:21:17:AC:A7`). Cloud API v3 `api.ecowitt.net`. Temp, humedad, viento, presión, lluvia, UV, radiación solar |
 
 ---
 
@@ -321,10 +322,48 @@ Together.ai es PRIMARY, Ollama es FALLBACK.
 
 ## 9. IoT Y TELEMETRÍA
 
+### 9.1 Flujo de datos
+
 ```
 Sensores ESP32 → MQTT → Node-RED → InfluxDB → Grafana
-Zigbee (eWeLink) → Zigbee2MQTT (mini PC) → MQTT → Backend → InfluxDB → OvoSfera
+Zigbee (eWeLink/Tuya) → Zigbee2MQTT (mini PC :8080) → MQTT → telemetry.py → InfluxDB → OvoSfera
+Ecowitt GW2000A → WiFi → Cloud API v3 → ecowitt.py → devices.py → OvoSfera
 ```
+
+### 9.2 Servicios backend IoT
+
+| Servicio | Fichero | Función |
+|----------|---------|----------|
+| **telemetry.py** | `backend/services/telemetry.py` | Listener MQTT Zigbee → InfluxDB. Campos: temperature, humidity, battery, voltage, pressure, linkquality, co2, **voc**, **formaldehyd** (9 campos) |
+| **ecowitt.py** | `backend/services/ecowitt.py` | Cliente async Ecowitt cloud API v3 (`api.ecowitt.net/api/v3/device/real_time`). Cache 60s. Devuelve outdoor/indoor/wind/pressure/rain/solar |
+| **devices.py** | `backend/routers/devices.py` | REST API `/ovosfera/devices` y `/ovosfera/devices/status`. Lista 7 sensores Zigbee + 1 Ecowitt (type `ecowitt`). Incluye `last_voc`, `last_formaldehyd` en sensores de calidad de aire |
+
+### 9.3 Ecowitt GW2000A — Estación Meteorológica
+
+- **Conexión:** WiFi (NO Zigbee). MAC: `88:57:21:17:AC:A7`
+- **API:** Ecowitt Cloud v3 — `api.ecowitt.net/api/v3/device/real_time`
+- **Credenciales (.env):** `ECOWITT_APPLICATION_KEY`, `ECOWITT_API_KEY`, `ECOWITT_MAC`
+- **Parámetros API:** `temp_unitid=1` (°C), `pressure_unitid=3` (hPa), `wind_speed_unitid=7` (km/h), `rainfall_unitid=12` (mm)
+- **call_back:** `outdoor,indoor,wind,pressure,rainfall,rainfall_piezo,solar_and_uvi`
+- **Cache:** 60 segundos en `ecowitt.py` (la API tiene rate-limit)
+- **Integración:** `devices.py` lo incluye en `/ovosfera/devices` como device con `type: "ecowitt"` y campo `ecowitt: {...}`. También en `/ovosfera/devices/status` como `weather: {...}`
+- **Frontend:** `ovosfera-inject.js` ya tiene `_renderEcowittCard()` que lee `dev.ecowitt`
+
+### 9.4 Sensores Zigbee — campos telemetría
+
+| Tipo sensor | Campos MQTT | Notas |
+|-------------|-------------|-------|
+| eWeLink CK-TLSR8656 | temperature, humidity, battery, voltage, linkquality | Temp+humedad gallineros |
+| Tuya TS0601 calidad aire | temperature, humidity, co2, **voc**, **formaldehyd**, linkquality | `formaldehyd` sin 'e' final (así lo envía Z2M) |
+| Tuya sensor suelo | temperature, humidity, linkquality | sensor_tierra_gallineros |
+| Tuya TS011F plugs | state, linkquality | Router plugs, sin telemetría útil |
+
+### 9.5 Mini PC Zigbee gateway
+
+- **IP:** 192.168.40.128 (VLAN40), user: karaoke, Linux Mint 22.2
+- **Zigbee2MQTT:** v2.9.2 (Docker, :8080), dongle CH340/CC2652, canal 15
+- **WiFi watchdog v2:** systemd timer cada 30s, TCP check al broker MQTT (192.168.20.131:1883). Si falla → `nmcli con down/up`
+- **MQTT bridge:** Z2M publica en `zigbee2mqtt/{device}` → Mosquitto en MSI Vector (:1883)
 
 ---
 
@@ -356,7 +395,8 @@ Zigbee (eWeLink) → Zigbee2MQTT (mini PC) → MQTT → Backend → InfluxDB →
 | `/api/birds` (3D) | Foto → modelo 3D (.glb) |
 | `/api/dron` | Control Bebop 2 |
 | `/ovosfera` | Bridge OvoSfera |
-| `/ovosfera/devices` | Sensores Zigbee |
+| `/ovosfera/devices` | Lista sensores Zigbee + Ecowitt (8 devices) |
+| `/ovosfera/devices/status` | **NUEVO** — Estado consolidado: sensores + weather Ecowitt |
 | `/health` | Health check |
 
 ---
@@ -440,5 +480,8 @@ Zigbee (eWeLink) → Zigbee2MQTT (mini PC) → MQTT → Backend → InfluxDB →
 | Test YOLO local | `execute` → `docker exec seedy-backend python -c "from ultralytics import YOLO; m=YOLO('/app/yolo_models/seedy_breeds_best.pt'); print(m.names)"` |
 | Verificar Dahua CGI | `execute` → `curl --digest -u admin:1234567a http://10.10.10.108/cgi-bin/configManager.cgi?action=getConfig&name=Encode` |
 | Contar frames curados | `execute` → `ls data/curated_frames/images/ \| wc -l` |
+| Estado Ecowitt | `execute` → `curl -s localhost:8000/ovosfera/devices/status \| python -m json.tool` |
+| Test Ecowitt API directo | `execute` → `curl -s "https://api.ecowitt.net/api/v3/device/real_time?application_key=$ECOWITT_APPLICATION_KEY&api_key=$ECOWITT_API_KEY&mac=$ECOWITT_MAC&temp_unitid=1&pressure_unitid=3&wind_speed_unitid=7&rainfall_unitid=12&call_back=outdoor,indoor,wind,pressure,solar_and_uvi" \| python -m json.tool` |
+| Devices OvoSfera | `execute` → `curl -s localhost:8000/ovosfera/devices \| python -m json.tool` |
 | Buscar en conocimientos | `search` → `conocimientos/**/*.md` |
 | Verificar imports | `mcp_pylance_mcp_s_pylanceImports` |
