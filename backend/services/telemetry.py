@@ -33,7 +33,22 @@ INFLUXDB_BUCKET = os.environ.get("INFLUXDB_BUCKET", "porcidata")
 # Mapeo nombre friendly Zigbee → gallinero OvoSfera
 # Gallinero unificado: gallinero_palacio (antes durrif_1 + durrif_2)
 DEVICE_GALLINERO_MAP: dict[str, dict] = {
-    "gallinero_palacio": {"gallinero_id": 2, "gallinero_name": "Palacio"},
+    "gallinero_durrif_1": {"gallinero_id": 2, "gallinero_name": "Palacio (zona 1)"},
+    "gallinero_durrif_2": {"gallinero_id": 2, "gallinero_name": "Palacio (zona 2)"},
+    "sensor_tierra_gallineros": {"gallinero_id": 2, "gallinero_name": "Palacio (suelo)"},
+    "sensor_aire_gallinero_grande": {"gallinero_id": 2, "gallinero_name": "Palacio (aire grande)"},
+    "sensor_aire_gallinero_pequeno": {"gallinero_id": 2, "gallinero_name": "Palacio (aire pequeño)"},
+}
+
+# Categoría de cada sensor (para el inject.js de OvoSfera)
+DEVICE_CATEGORY_MAP: dict[str, str] = {
+    "gallinero_durrif_1": "sensor",
+    "gallinero_durrif_2": "sensor",
+    "sensor_tierra_gallineros": "soil",
+    "sensor_aire_gallinero_grande": "air_quality",
+    "sensor_aire_gallinero_pequeno": "air_quality",
+    "router_gallineros": "infrastructure",
+    "enchufe_switch_poe": "infrastructure",
 }
 
 # Último valor recibido de cada sensor (cache en memoria)
@@ -49,6 +64,11 @@ _mqtt_client = None
 def get_device_map() -> dict[str, dict]:
     """Devuelve el mapeo actual de dispositivos → gallineros."""
     return DEVICE_GALLINERO_MAP.copy()
+
+
+def get_device_category(friendly_name: str) -> str:
+    """Devuelve la categoría de un sensor (sensor/soil/air_quality)."""
+    return DEVICE_CATEGORY_MAP.get(friendly_name, "sensor")
 
 
 def get_last_values() -> dict[str, dict]:
@@ -82,10 +102,14 @@ def _on_message(client, userdata, msg):
     if topic == "zigbee2mqtt/bridge/devices":
         _bridge_devices.clear()
         for dev in payload:
-            if dev.get("type") == "EndDevice":
+            dtype = dev.get("type", "")
+            fname = dev.get("friendly_name", "")
+            # Incluir EndDevice (sensores) y Routers que son sensores (air quality, plugs con sensor)
+            # Excluir Coordinator y dispositivos sin friendly_name útil
+            if dtype in ("EndDevice", "Router") and fname and fname != "Coordinator":
                 _bridge_devices.append({
                     "ieee_address": dev.get("ieee_address", ""),
-                    "friendly_name": dev.get("friendly_name", ""),
+                    "friendly_name": fname,
                     "model": dev.get("definition", {}).get("model", "unknown"),
                     "vendor": dev.get("definition", {}).get("vendor", "unknown"),
                     "description": dev.get("definition", {}).get("description", ""),
@@ -132,7 +156,7 @@ def _write_to_influx(friendly_name: str, gallinero_name: str, gallinero_id: int,
         return
 
     fields = []
-    for key in ("temperature", "humidity", "battery", "voltage", "pressure", "linkquality"):
+    for key in ("temperature", "humidity", "battery", "voltage", "pressure", "linkquality", "co2", "voc", "formaldehyd"):
         if key in payload:
             val = payload[key]
             if isinstance(val, (int, float)):
@@ -142,7 +166,11 @@ def _write_to_influx(friendly_name: str, gallinero_name: str, gallinero_id: int,
         return
 
     # Line protocol: measurement,tags fields timestamp
-    tags = f"sensor={friendly_name},gallinero={gallinero_name},gallinero_id={gallinero_id}"
+    # Escapar espacios y caracteres especiales en tag values para InfluxDB line protocol
+    def _escape_tag(v: str) -> str:
+        return v.replace(" ", "\\ ").replace(",", "\\,").replace("=", "\\=")
+
+    tags = f"sensor={_escape_tag(friendly_name)},gallinero={_escape_tag(gallinero_name)},gallinero_id={gallinero_id}"
     fields_str = ",".join(fields)
     ts_ns = int(time.time() * 1e9)
     line = f"gallinero_climate,{tags} {fields_str} {ts_ns}"
@@ -228,7 +256,7 @@ from(bucket: "{INFLUXDB_BUCKET}")
                     for h, v in zip(headers, vals):
                         if h in ("_time", "sensor", "gallinero", "gallinero_id",
                                  "temperature", "humidity", "battery", "voltage",
-                                 "pressure", "linkquality"):
+                                 "pressure", "linkquality", "co2", "voc", "formaldehyd"):
                             row[h.lstrip("_")] = v
                     if row:
                         results.append(row)

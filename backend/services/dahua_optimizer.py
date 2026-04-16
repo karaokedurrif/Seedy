@@ -1,158 +1,81 @@
-"""
-Seedy Backend — Optimizador Dahua WizSense IPC
+"""Seedy Backend — Optimización de cámaras Dahua via CGI.
 
-Configura parámetros óptimos de la cámara Dahua vía CGI para captura
-de aves en movimiento: exposición rápida, WDR, sub-stream H.264.
+Configura exposición, sub-stream, compresión e imagen para captura
+óptima de aves en movimiento.
 """
 
 import logging
-from typing import Optional
+from typing import Any
 
 import httpx
 from httpx import DigestAuth
 
 logger = logging.getLogger(__name__)
 
-# Config Dahua
-DAHUA_IP = "10.10.10.108"
-DAHUA_USER = "admin"
-DAHUA_PASSWORD = "1234567a"
-DAHUA_BASE = f"http://{DAHUA_IP}/cgi-bin"
 
-# Auth digest (Dahua require digest auth)
-_auth = DigestAuth(DAHUA_USER, DAHUA_PASSWORD)
+async def optimize_dahua_settings(
+    ip: str,
+    user: str = "admin",
+    password: str = "1234567a",
+) -> dict[str, Any]:
+    """Configura la Dahua WizSense para captura óptima de aves.
 
-
-async def optimize_dahua_settings() -> dict:
+    Returns:
+        dict con resultado por parámetro configurado.
     """
-    Aplica configuración óptima para captura de aves en movimiento.
+    auth = DigestAuth(user, password)
+    base = f"http://{ip}/cgi-bin/configManager.cgi"
 
-    - Exposición manual 1/200s (congelar aves en movimiento)
-    - Sub-stream: H.264, D1, 15fps, 1Mbps
-    - Main: H.265, 4K, GOP=15 (1 I-frame/s)
-    - WDR activo (80%) para contraluz
-    - Sharpness 70, Contraste 60, Saturación 55
-    """
-    results = {}
+    settings: list[tuple[str, str]] = [
+        # ── Exposición: 1/200s para congelar movimiento ──
+        ("Encode[0].MainFormat[0].Video.ExposureMode", "Manual"),
+        ("Encode[0].MainFormat[0].Video.ExposureValue", "200"),
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        # 1. Exposición manual para congelar movimiento de aves
-        try:
-            r = await client.get(
-                f"{DAHUA_BASE}/configManager.cgi",
-                params={
-                    "action": "setConfig",
-                    "VideoInExposure[0].ExposureMode": "Manual",
-                    "VideoInExposure[0].ExposureSpeed": "1/200",
-                    "VideoInExposure[0].GainMax": "80",
-                },
-                auth=_auth,
-            )
-            results["exposure"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception as e:
-            results["exposure"] = f"error:{e}"
+        # ── Sub-stream: H.264, D1, 15fps, 1Mbps (tracking) ──
+        ("Encode[0].ExtraFormat[0].Video.Compression", "H.264"),
+        ("Encode[0].ExtraFormat[0].Video.FPS", "15"),
+        ("Encode[0].ExtraFormat[0].Video.BitRate", "1024"),
+        ("Encode[0].ExtraFormat[0].Video.Resolution", "D1"),
 
-        # 2. WDR para contraluz (gallinero con ventanas)
-        try:
-            r = await client.get(
-                f"{DAHUA_BASE}/configManager.cgi",
-                params={
-                    "action": "setConfig",
-                    "VideoInBacklight[0].BacklightMode": "WDR",
-                    "VideoInBacklight[0].WideDynamic.Range": "80",
-                },
-                auth=_auth,
-            )
-            results["wdr"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception as e:
-            results["wdr"] = f"error:{e}"
+        # ── Main-stream: H.265, 4K, GOP=15 (1 I-frame/s) ──
+        ("Encode[0].MainFormat[0].Video.Compression", "H.265"),
+        ("Encode[0].MainFormat[0].Video.FPS", "15"),
+        ("Encode[0].MainFormat[0].Video.GOP", "15"),
+        ("Encode[0].MainFormat[0].Video.BitRate", "8192"),
 
-        # 3. Imagen: sharpness, contraste, saturación
-        try:
-            r = await client.get(
-                f"{DAHUA_BASE}/configManager.cgi",
-                params={
-                    "action": "setConfig",
-                    "VideoColor[0][0].Sharpness": "70",
-                    "VideoColor[0][0].Contrast": "60",
-                    "VideoColor[0][0].Saturation": "55",
-                },
-                auth=_auth,
-            )
-            results["image"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception as e:
-            results["image"] = f"error:{e}"
+        # ── Mejora de imagen para plumaje ──
+        ("VideoColor[0][0].Brightness", "55"),
+        ("VideoColor[0][0].Contrast", "60"),
+        ("VideoColor[0][0].Saturation", "55"),
+        ("VideoColor[0][0].Sharpness", "70"),
+        ("VideoColor[0][0].Gamma", "60"),
 
-        # 4. Sub-stream: H.264, D1, 15fps, 1Mbps (para tracking continuo)
-        try:
-            r = await client.get(
-                f"{DAHUA_BASE}/configManager.cgi",
-                params={
-                    "action": "setConfig",
-                    "Encode[0].ExtraFormat[0].Video.Compression": "H.264",
-                    "Encode[0].ExtraFormat[0].Video.Resolution": "D1",
-                    "Encode[0].ExtraFormat[0].Video.FPS": "15",
-                    "Encode[0].ExtraFormat[0].Video.BitRate": "1024",
-                    "Encode[0].ExtraFormat[0].Video.BitRateControl": "CBR",
-                },
-                auth=_auth,
-            )
-            results["sub_stream"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception as e:
-            results["sub_stream"] = f"error:{e}"
+        # ── WDR para contraluz (aves contra cielo) ──
+        ("VideoInOptions[0].BacklightMode", "2"),
+        ("VideoInOptions[0].DynamicRange", "80"),
 
-        # 5. Main-stream: H.265, 4K, GOP=15 (1 I-frame/s a 15fps)
-        try:
-            r = await client.get(
-                f"{DAHUA_BASE}/configManager.cgi",
-                params={
-                    "action": "setConfig",
-                    "Encode[0].MainFormat[0].Video.Compression": "H.265",
-                    "Encode[0].MainFormat[0].Video.Resolution": "3840x2160",
-                    "Encode[0].MainFormat[0].Video.GOP": "15",
-                    "Encode[0].MainFormat[0].Video.FPS": "15",
-                },
-                auth=_auth,
-            )
-            results["main_stream"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception as e:
-            results["main_stream"] = f"error:{e}"
+        # ── Anti-flicker off (exterior) ──
+        ("VideoInOptions[0].AntiFlicker", "0"),
 
-    all_ok = all(v == "ok" for v in results.values())
-    logger.info(f"🎥 Dahua optimizer: {'✅ ALL OK' if all_ok else '⚠️ PARTIAL'} — {results}")
-    return {"success": all_ok, "results": results}
+        # ── Detección de movimiento Dahua (complementaria a YOLO) ──
+        ("MotionDetect[0].Enable", "true"),
+        ("MotionDetect[0].Sensitivity", "4"),
+    ]
 
+    results: dict[str, str] = {}
+    async with httpx.AsyncClient(auth=auth, timeout=10) as client:
+        for param, value in settings:
+            url = f"{base}?action=setConfig&{param}={value}"
+            try:
+                resp = await client.get(url)
+                ok = resp.status_code == 200 and "OK" in resp.text
+                results[param] = "ok" if ok else f"fail:{resp.status_code}"
+                if not ok:
+                    logger.warning(f"Dahua config failed: {param}={value} → {resp.text}")
+            except Exception as e:
+                results[param] = f"error:{e}"
+                logger.error(f"Dahua config error: {param} → {e}")
 
-async def get_dahua_config() -> Optional[dict]:
-    """Lee la configuración actual de la Dahua."""
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            configs = {}
-            for name in ("Encode", "VideoInExposure", "VideoInBacklight", "VideoColor"):
-                r = await client.get(
-                    f"{DAHUA_BASE}/configManager.cgi",
-                    params={"action": "getConfig", "name": name},
-                    auth=_auth,
-                )
-                if r.status_code == 200:
-                    configs[name] = r.text[:2000]  # Truncar para legibilidad
-            return configs
-    except Exception as e:
-        logger.error(f"Error leyendo config Dahua: {e}")
-        return None
-
-
-async def take_snapshot() -> Optional[bytes]:
-    """Captura snapshot 4K vía CGI (más rápido que RTSP)."""
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            r = await client.get(
-                f"http://{DAHUA_IP}/cgi-bin/snapshot.cgi?channel=1",
-                auth=_auth,
-            )
-            if r.status_code == 200 and len(r.content) > 1000:
-                return r.content
-            return None
-    except Exception as e:
-        logger.error(f"Error capturando snapshot Dahua: {e}")
-        return None
+    ok_count = sum(1 for v in results.values() if v == "ok")
+    logger.info(f"Dahua {ip} optimizada: {ok_count}/{len(settings)} parámetros configurados")
+    return {"ip": ip, "configured": ok_count, "total": len(settings), "details": results}

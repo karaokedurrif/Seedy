@@ -11,10 +11,10 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from models.merit_index import MeritInput, MeritResult, MeritWeights, MeritRankingResponse
-from services.merit_index import calculate_merit_index, get_history, get_target_weight, evaluate_pairing
+from services.merit_index import calculate_merit_index, get_history, get_target_weight
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +33,10 @@ class RankingRequest(BaseModel):
     weights: Optional[MeritWeights] = None
 
 
-class PairingRequest(BaseModel):
-    sire: MeritInput
-    dam: MeritInput
-    expected_coi: float = Field(..., ge=0, le=1, description="COI esperado de la descendencia (A[sire,dam]/2)")
-    weights: Optional[MeritWeights] = None
-
-
 @router.post("/calculate", response_model=MeritResult)
-async def calculate_im(inp: MeritInput, weights: Optional[MeritWeights] = None):
+async def calculate_im(inp: MeritInput):
     """Calcula el Índice de Mérito para un ave individual."""
-    return calculate_merit_index(inp, weights)
+    return calculate_merit_index(inp)
 
 
 @router.post("/batch", response_model=List[MeritResult])
@@ -123,14 +116,3 @@ async def gompertz_target(
         "breed": breed,
         "target_weight_grams": round(target, 1),
     }
-
-
-@router.post("/evaluate-pairing")
-async def evaluate_pairing_endpoint(body: PairingRequest):
-    """
-    Evalúa un apareamiento propuesto: IM de ambos + verificación COI.
-
-    Bloquea si COI esperado > 0.25 (riesgo de depresión endogámica).
-    El expected_coi se calcula externamente: A[sire, dam] / 2 (matriz de parentesco).
-    """
-    return evaluate_pairing(body.sire, body.dam, body.expected_coi, body.weights)

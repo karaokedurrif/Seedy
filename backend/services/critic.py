@@ -89,13 +89,23 @@ async def evaluate_response(
         logger.warning("[Critic] Sin TOGETHER_API_KEY — skip critic")
         return {"verdict": "PASS"}
 
-    # Pre-filtro: si el modelo admite honestamente que no tiene contexto,
-    # eso es bueno, no confusión de especie → PASS directo
+    # Pre-filtro: si el modelo admite honestamente que no tiene contexto
+    # Y el contexto realmente es vacío/pobre, PASS directo.
+    # PERO si hay chunks relevantes, NO auto-PASS — el modelo debería haber usado la evidencia.
     answer_lower = draft_answer.lower()
-    for phrase in _honest_phrases:
-        if phrase in answer_lower:
-            logger.info(f"[Critic] PASS directo — admisión honesta detectada: '{phrase}'")
+    has_honest_phrase = any(phrase in answer_lower for phrase in _honest_phrases)
+    
+    if has_honest_phrase:
+        # Solo auto-PASS si el contexto era realmente pobre (< 500 chars total)
+        total_ctx_len = sum(len(c.get("text", "")) for c in context_chunks)
+        if total_ctx_len < 500:
+            logger.info(f"[Critic] PASS directo — admisión honesta + contexto pobre ({total_ctx_len} chars)")
             return {"verdict": "PASS"}
+        else:
+            logger.warning(
+                f"[Critic] Modelo dice 'no hay info' pero contexto tiene {total_ctx_len} chars "
+                f"en {len(context_chunks)} chunks — evaluando con critic"
+            )
 
     # Construir contexto resumido (máx 3000 chars para no explotar tokens)
     ctx_parts = []
@@ -257,7 +267,7 @@ async def evaluate_technical(
                 f"{settings.together_base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {settings.together_api_key}"},
                 json={
-                    "model": settings.together_critic_model,  # Llama 70B
+                    "model": settings.together_critic_model,  # Qwen3-235B
                     "messages": [
                         {"role": "system", "content": TECHNICAL_CRITIC_SYSTEM},
                         {"role": "user", "content": user_msg},

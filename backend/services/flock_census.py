@@ -64,18 +64,13 @@ def get_expected_breeds(gallinero_id: str) -> list[dict]:
     ]
 
 
-def get_all_breeds(gallinero_id: str | None = None) -> set[str]:
-    """Devuelve un set con las razas (lowercase) de la cabaña.
-
-    Si gallinero_id se indica, devuelve solo las razas de ese gallinero.
-    Si no, devuelve todas las razas de todos los gallineros.
-    """
+def get_all_breeds() -> set[str]:
+    """Devuelve un set con todas las razas (lowercase) de toda la cabaña,
+    incluyendo sin_asignar."""
     _load()
     breeds: set[str] = set()
     for key, val in _census.items():
         if isinstance(val, dict) and "aves" in val:
-            if gallinero_id and key != gallinero_id:
-                continue
             for e in val["aves"]:
                 if e.get("raza"):
                     breeds.add(e["raza"].lower())

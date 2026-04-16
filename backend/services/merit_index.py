@@ -170,35 +170,23 @@ def calculate_merit_index(
     im_score = min(im_score, 1.0)  # clamp
 
     # Categorización
-    sex_label = ""
-    if inp.sex == "male":
-        sex_label = " (macho)"
-    elif inp.sex == "female":
-        sex_label = " (hembra)"
-
     if im_score >= 0.85:
         category = SelectionCategory.REPRODUCTOR
         recommendation = (
-            f"Ave {inp.bird_id}{sex_label}: IM={im_score:.2f} → REPRODUCTOR. "
+            f"Ave {inp.bird_id}: IM={im_score:.2f} → REPRODUCTOR. "
             "Candidato a padre/madre de siguiente generación. Reservar para clanes de cría."
         )
     elif im_score >= 0.60:
         category = SelectionCategory.PRODUCCION
-        if inp.sex == "male":
-            destino = "capón"
-        elif inp.sex == "female":
-            destino = "pularda o ponedora"
-        else:
-            destino = "capón (macho) o pularda/ponedora (hembra)"
         recommendation = (
-            f"Ave {inp.bird_id}{sex_label}: IM={im_score:.2f} → PRODUCCIÓN. "
-            f"Destinar a {destino}. "
+            f"Ave {inp.bird_id}: IM={im_score:.2f} → PRODUCCIÓN. "
+            "Destinar a capón (macho) o pularda/ponedora (hembra). "
             "Buen individuo pero no top para reproducción."
         )
     else:
         category = SelectionCategory.DESCARTE
         recommendation = (
-            f"Ave {inp.bird_id}{sex_label}: IM={im_score:.2f} → DESCARTE. "
+            f"Ave {inp.bird_id}: IM={im_score:.2f} → DESCARTE. "
             "Vender como pollo campero o engorde. No aporta al programa genético."
         )
 
@@ -250,68 +238,3 @@ def get_history(bird_id: str) -> list[dict]:
         if line:
             records.append(json.loads(line))
     return records
-
-
-# ── Guard IM × COI ────────────────────────────────────
-
-COI_BLOCK_THRESHOLD = 0.25  # F esperado de la cría > esto → bloquear apareamiento
-
-
-def evaluate_pairing(
-    sire: MeritInput,
-    dam: MeritInput,
-    expected_coi: float,
-    weights: Optional[MeritWeights] = None,
-) -> dict:
-    """
-    Evalúa un apareamiento propuesto: calcula IM de ambos y comprueba COI.
-
-    El COI esperado de la descendencia se pasa como parámetro porque depende
-    del pedigrí completo (calculado externamente con BLUPEngine.build_relationship_matrix).
-    Fórmula: COI_offspring = A[sire, dam] / 2
-
-    Returns:
-        dict con IM de ambos, COI, decisión (APPROVED/BLOCKED) y motivos.
-    """
-    w = weights or MeritWeights()
-    sire_result = calculate_merit_index(sire, w)
-    dam_result = calculate_merit_index(dam, w)
-
-    blocked = False
-    warnings: list[str] = []
-
-    # Guard 1: COI de descendencia
-    if expected_coi > COI_BLOCK_THRESHOLD:
-        blocked = True
-        warnings.append(
-            f"COI esperado de la cría = {expected_coi:.3f} (> {COI_BLOCK_THRESHOLD}). "
-            "Riesgo de depresión endogámica. Apareamiento BLOQUEADO."
-        )
-    elif expected_coi > 0.125:
-        warnings.append(
-            f"COI esperado = {expected_coi:.3f} (equivalente a primos hermanos). "
-            "Precaución: vigilar vigor de la descendencia."
-        )
-
-    # Guard 2: ambos deben ser REPRODUCTOR
-    if sire_result.category != SelectionCategory.REPRODUCTOR:
-        warnings.append(
-            f"Padre {sire.bird_id}: IM={sire_result.im_score:.2f} → "
-            f"{sire_result.category.value}. No es reproductor."
-        )
-    if dam_result.category != SelectionCategory.REPRODUCTOR:
-        warnings.append(
-            f"Madre {dam.bird_id}: IM={dam_result.im_score:.2f} → "
-            f"{dam_result.category.value}. No es reproductora."
-        )
-
-    decision = "BLOCKED" if blocked else "APPROVED"
-
-    return {
-        "decision": decision,
-        "sire": sire_result.model_dump(),
-        "dam": dam_result.model_dump(),
-        "expected_coi": round(expected_coi, 4),
-        "coi_threshold": COI_BLOCK_THRESHOLD,
-        "warnings": warnings,
-    }

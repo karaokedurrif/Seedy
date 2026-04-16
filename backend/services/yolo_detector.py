@@ -37,10 +37,13 @@ YOLO_IMGSZ = int(os.environ.get("YOLO_IMGSZ", "1280"))
 # Filtramos solo las que nos interesan del modelo COCO preentrenado
 COCO_CLASSES_OF_INTEREST = {
     14: "bird",       # ave genérica (gallinas + gorriones + todo)
-    15: "cat",        # depredador
-    16: "dog",        # depredador / perro guardián
-    21: "cow",        # vaca (puede colarse si hay pasto cerca)
+    15: "cat",        # depredador — conf mínima 0.5 (ver filtro abajo)
+    # 16: dog — eliminado: falsos positivos constantes en cámaras avícolas
+    # 21: cow — eliminado: falsos positivos constantes en cámaras avícolas
 }
+
+# Confianza mínima para pest classes COCO (evitar falsos positivos)
+COCO_PEST_MIN_CONFIDENCE = 0.50
 
 # ── Taxonomía Seedy completa ──
 # Estas son las clases objetivo del modelo custom
@@ -183,7 +186,13 @@ def detect(frame_bytes: bytes, confidence: float | None = None, imgsz: int | Non
                     continue
                 class_name = COCO_CLASSES_OF_INTEREST[cls_id]
                 # Reclasificar para coherencia interna
-                category = "poultry" if cls_id == 14 else "pest"
+                if cls_id == 14:
+                    category = "poultry"
+                else:
+                    # Pest: exigir confianza alta para evitar falsos positivos
+                    if cls_conf < COCO_PEST_MIN_CONFIDENCE:
+                        continue
+                    category = "pest"
             else:
                 class_name = _custom_classes.get(cls_id, f"class_{cls_id}")
                 if cls_id in SEEDY_POULTRY_CLASSES:
@@ -237,74 +246,6 @@ def detect_birds(frame_bytes: bytes, confidence: float | None = None, imgsz: int
     result["count"] = result["poultry_count"]
     return result
 
-
-def detect_breed(frame_bytes: bytes, confidence: float | None = None, imgsz: int | None = None) -> dict:
-    """Detection using the BREED model (no tiling). For close-up cameras."""
-    import numpy as np
-    from PIL import Image
-
-    model = get_breed_model()
-    if model is None:
-        logger.warning("Breed model not available, falling back to COCO")
-        return detect_birds(frame_bytes, confidence, imgsz)
-
-    conf = confidence or 0.35
-    sz = imgsz or YOLO_IMGSZ
-    t0 = time.time()
-
-    img = Image.open(io.BytesIO(frame_bytes))
-    W, H = img.size
-
-    results = model.predict(
-        source=np.array(img), conf=conf, imgsz=sz,
-        device=YOLO_DEVICE, verbose=False,
-    )
-
-    elapsed_ms = (time.time() - t0) * 1000
-    detections = []
-    for r in results:
-        if r.boxes is None:
-            continue
-        for box in r.boxes:
-            cls_id = int(box.cls[0])
-            cls_conf = float(box.conf[0])
-            class_name = _breed_classes.get(cls_id, f"breed_{cls_id}")
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
-
-            detections.append({
-                "class_name": class_name,
-                "class_id": cls_id,
-                "confidence": round(cls_conf, 3),
-                "bbox": [round(x1, 1), round(y1, 1), round(x2, 1), round(y2, 1)],
-                "bbox_norm": [round(x1/W, 4), round(y1/H, 4), round(x2/W, 4), round(y2/H, 4)],
-                "category": "poultry",
-                "area_norm": round(((x2-x1)/W) * ((y2-y1)/H), 6),
-            })
-
-    # Filter out detections covering >20% of frame (likely false positives)
-    detections = [d for d in detections if d.get("area_norm", 0) <= 0.20]
-
-    # Filter out tiny detections (area < 0.15% of frame → noise/artifacts)
-    detections = [d for d in detections if d.get("area_norm", 0) >= 0.0015]
-
-    poultry = detections  # all breed detections are poultry
-
-    logger.info(f"[YOLO-breed] {len(poultry)} aves ({elapsed_ms:.0f}ms, {Path(_breed_model_name).name})")
-
-    return {
-        "detections": detections,
-        "poultry": poultry,
-        "pests": [],
-        "infra": [],
-        "poultry_count": len(poultry),
-        "pest_count": 0,
-        "count": len(poultry),
-        "model": Path(_breed_model_name).name,
-        "model_type": "breed",
-        "inference_ms": round(elapsed_ms, 1),
-        "frame_width": W,
-        "frame_height": H,
-    }
 
 def detect_tiled(frame_bytes: bytes, confidence: float | None = None, overlap: float = 0.2, tile_size: int = 1280) -> dict:
     """SAHI-style tiled detection for distant/wide-angle cameras.
@@ -436,145 +377,8 @@ def _nms(detections, iou_threshold=0.5):
     return keep
 
 
-def detect_tiled_breed(frame_bytes: bytes, confidence: float | None = None,
-                       overlap: float = 0.3, tile_size: int = 960) -> dict:
-    """Tiled detection using the BREED model instead of COCO.
-
-    The breed model (14 chicken/rooster classes) detects poultry far better
-    than COCO's generic 'bird' class, especially for barnyard scenes.
-
-    NOTE: The current breed model was trained on single-bird-fills-frame images,
-    so it tends to classify entire tiles as breeds (tile-artifacts).
-    The tile-coverage filter below eliminates these artifacts.
-    When the model is retrained with proper bbox annotations from camera footage,
-    this filter can be relaxed.
-    """
-    import numpy as np
-    from PIL import Image
-
-    model = get_breed_model()
-    if model is None:
-        logger.warning("Breed model not available, falling back to COCO tiled")
-        return detect_tiled(frame_bytes, confidence, overlap, tile_size)
-
-    conf = confidence or 0.40
-    t0 = time.time()
-
-    img = Image.open(io.BytesIO(frame_bytes))
-    W, H = img.size
-    img_np = np.array(img)
-
-    stride = int(tile_size * (1 - overlap))
-    all_dets = []
-    n_tile_artifacts = 0
-
-    for y0 in range(0, H, stride):
-        for x0 in range(0, W, stride):
-            x1 = min(x0 + tile_size, W)
-            y1 = min(y0 + tile_size, H)
-            if (x1 - x0) < tile_size // 3 or (y1 - y0) < tile_size // 3:
-                continue
-            tile = img_np[y0:y1, x0:x1]
-            tw, th = x1 - x0, y1 - y0
-
-            results = model.predict(
-                source=tile, conf=conf, imgsz=tile_size,
-                device=YOLO_DEVICE, verbose=False,
-            )
-
-            for r in results:
-                if r.boxes is None:
-                    continue
-                for box in r.boxes:
-                    cls_id = int(box.cls[0])
-                    cls_conf = float(box.conf[0])
-                    class_name = _breed_classes.get(cls_id, f"breed_{cls_id}")
-
-                    bx1, by1, bx2, by2 = box.xyxy[0].tolist()
-
-                    # ── Tile-artifact filter ──
-                    # The breed model often classifies entire tiles as a breed,
-                    # producing detections that span >45% of the tile.
-                    # Real individual birds occupy a small fraction of the tile.
-                    det_w = bx2 - bx1
-                    det_h = by2 - by1
-                    if det_w / tw > 0.45 or det_h / th > 0.45:
-                        n_tile_artifacts += 1
-                        continue
-
-                    bx1 += x0; bx2 += x0
-                    by1 += y0; by2 += y0
-
-                    all_dets.append({
-                        "class_name": class_name,
-                        "class_id": cls_id,
-                        "confidence": round(cls_conf, 3),
-                        "bbox": [round(bx1, 1), round(by1, 1), round(bx2, 1), round(by2, 1)],
-                        "bbox_norm": [round(bx1/W, 4), round(by1/H, 4), round(bx2/W, 4), round(by2/H, 4)],
-                        "category": "poultry",
-                        "area_norm": round(((bx2-bx1)/W) * ((by2-by1)/H), 6),
-                    })
-
-    if n_tile_artifacts:
-        logger.debug(f"[YOLO-breed-tiled] {n_tile_artifacts} tile-artifacts filtered")
-
-    detections = _nms(all_dets, iou_threshold=0.5)
-
-    # Filter out detections covering >20% of frame (likely false positives at distance)
-    detections = [d for d in detections if d.get("area_norm", 0) <= 0.20]
-
-    # Filter out tiny detections (area < 0.15% of frame → noise/artifacts)
-    detections = [d for d in detections if d.get("area_norm", 0) >= 0.0015]
-
-    # Filter detections touching 3+ frame borders — likely full-frame false positives
-    def _not_border_clipped(d):
-        bn = d.get("bbox_norm", [0, 0, 0, 0])
-        touches = 0
-        if bn[0] <= 0.01: touches += 1   # left
-        if bn[1] <= 0.01: touches += 1   # top
-        if bn[2] >= 0.99: touches += 1   # right
-        if bn[3] >= 0.99: touches += 1   # bottom
-        return touches < 3
-    detections = [d for d in detections if _not_border_clipped(d)]
-
-    # Filter out extreme aspect ratios (> 3.5:1 or < 1:3.5 → not a bird)
-    def _valid_aspect(d):
-        bn = d.get("bbox_norm", [0, 0, 0, 0])
-        w = bn[2] - bn[0]
-        h = bn[3] - bn[1]
-        if w <= 0 or h <= 0:
-            return False
-        ratio = max(w / h, h / w)
-        return ratio < 3.5
-    detections = [d for d in detections if _valid_aspect(d)]
-
-    elapsed_ms = (time.time() - t0) * 1000
-    poultry = [d for d in detections if d["category"] == "poultry"]
-
-    logger.info(f"[YOLO-breed-tiled] {len(poultry)} aves detectadas "
-                f"({elapsed_ms:.0f}ms, {len(all_dets)} post-artifact → "
-                f"{len(detections)} final, {n_tile_artifacts} artifacts filtered, "
-                f"{Path(_breed_model_name).name})")
-
-    return {
-        "detections": detections,
-        "poultry": poultry,
-        "pests": [],
-        "infra": [],
-        "poultry_count": len(poultry),
-        "pest_count": 0,
-        "count": len(poultry),
-        "model": Path(_breed_model_name).name,
-        "model_type": "breed",
-        "inference_ms": round(elapsed_ms, 1),
-        "frame_width": W,
-        "frame_height": H,
-        "tiled": True,
-    }
-
-
-def crop_detections(frame_bytes: bytes, detections: list[dict], max_side: int = 640) -> list[bytes]:
-    """Recorta cada detección del frame original. Redimensiona a max_side px para mantener payload ligero."""
+def crop_detections(frame_bytes: bytes, detections: list[dict]) -> list[bytes]:
+    """Recorta cada detección del frame original. Útil para clasificación."""
     from PIL import Image
 
     img = Image.open(io.BytesIO(frame_bytes))
@@ -595,11 +399,6 @@ def crop_detections(frame_bytes: bytes, detections: list[dict], max_side: int = 
         y2 = min(H, y2 + margin_y)
 
         crop = img.crop((x1, y1, x2, y2))
-        # Resize to max_side keeping aspect ratio (reduces 1.5MB→~50KB)
-        cw, ch = crop.size
-        if max(cw, ch) > max_side:
-            scale = max_side / max(cw, ch)
-            crop = crop.resize((int(cw * scale), int(ch * scale)), Image.LANCZOS)
         buf = io.BytesIO()
         crop.save(buf, format="JPEG", quality=85)
         crops.append(buf.getvalue())
@@ -834,9 +633,7 @@ def draw_detections(
 
         # Etiqueta
         icon = "🐦" if cat == "pest" else ("🔧" if cat == "infra" else "")
-        # Below 50% confidence, show generic label to avoid misleading breed names
-        display_cls = cls if conf >= 0.50 or cat != "poultry" else "Ave"
-        label = f"{icon}{display_cls} {conf:.0%}"
+        label = f"{icon}{cls} {conf:.0%}"
         tb = draw.textbbox((0, 0), label, font=font)
         tw, th = tb[2] - tb[0] + 10, tb[3] - tb[1] + 6
         ly = max(0, y1 - th - 2)

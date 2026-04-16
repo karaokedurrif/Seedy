@@ -14,8 +14,10 @@ from typing import Any
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
+from services.ecowitt import fetch_realtime as ecowitt_fetch_realtime
 from services.telemetry import (
     get_bridge_devices,
+    get_device_category,
     get_device_map,
     get_last_values,
     query_influx_history,
@@ -49,10 +51,14 @@ async def list_devices():
             **dev,
             "gallinero_id": assignment.get("gallinero_id"),
             "gallinero_name": assignment.get("gallinero_name"),
+            "device_category": get_device_category(fname),
             "last_temperature": last.get("temperature"),
             "last_humidity": last.get("humidity"),
             "last_battery": last.get("battery"),
             "last_linkquality": last.get("linkquality"),
+            "last_co2": last.get("co2"),
+            "last_voc": last.get("voc"),
+            "last_formaldehyd": last.get("formaldehyd"),
             "last_seen": last.get("_ts"),
         })
 
@@ -71,12 +77,43 @@ async def list_devices():
                 "interview_completed": True,
                 "gallinero_id": assignment.get("gallinero_id"),
                 "gallinero_name": assignment.get("gallinero_name"),
+                "device_category": get_device_category(fname),
                 "last_temperature": last.get("temperature"),
                 "last_humidity": last.get("humidity"),
                 "last_battery": last.get("battery"),
                 "last_linkquality": last.get("linkquality"),
+                "last_co2": last.get("co2"),
+                "last_voc": last.get("voc"),
+                "last_formaldehyd": last.get("formaldehyd"),
                 "last_seen": last.get("_ts"),
             })
+
+    # Añadir Ecowitt como dispositivo
+    ecowitt = await ecowitt_fetch_realtime()
+    if "error" not in ecowitt:
+        outdoor = ecowitt.get("outdoor", {})
+        devices.append({
+            "ieee_address": "",
+            "friendly_name": "Estación Meteo Ecowitt",
+            "type": "ecowitt",
+            "model": "Ecowitt GW2000A",
+            "vendor": "Ecowitt",
+            "description": "Estación meteorológica exterior",
+            "supported": True,
+            "interview_completed": True,
+            "gallinero_id": None,
+            "gallinero_name": "Finca Palacio",
+            "device_category": "weather",
+            "last_temperature": outdoor.get("temperature"),
+            "last_humidity": outdoor.get("humidity"),
+            "last_battery": None,
+            "last_linkquality": None,
+            "last_co2": None,
+            "last_voc": None,
+            "last_formaldehyd": None,
+            "last_seen": ecowitt.get("last_seen"),
+            "ecowitt": ecowitt,
+        })
 
     return {"devices": devices, "count": len(devices)}
 
@@ -93,28 +130,63 @@ async def assign_device(req: AssignDeviceRequest):
 
 @router.get("/status")
 async def devices_status():
-    """Estado resumido: un registro por gallinero con su sensor asignado."""
+    """Estado resumido: un registro por gallinero con sensores agregados."""
     last_values = get_last_values()
     device_map = get_device_map()
 
-    gallineros = {}
+    gallineros: dict[int, dict] = {}
     for fname, info in device_map.items():
         gid = info["gallinero_id"]
         gname = info["gallinero_name"]
         last = last_values.get(fname, {})
-        gallineros[gid] = {
-            "gallinero_id": gid,
-            "gallinero_name": gname,
+        temp = last.get("temperature")
+        hum = last.get("humidity")
+
+        if gid not in gallineros:
+            gallineros[gid] = {
+                "gallinero_id": gid,
+                "gallinero_name": gname.split(" (")[0] if " (" in gname else gname,
+                "sensors": [],
+                "temperature": None,
+                "humidity": None,
+                "online": False,
+            }
+
+        g = gallineros[gid]
+        g["sensors"].append({
             "sensor": fname,
-            "temperature": last.get("temperature"),
-            "humidity": last.get("humidity"),
+            "category": get_device_category(fname),
+            "temperature": temp,
+            "humidity": hum,
             "battery": last.get("battery"),
             "linkquality": last.get("linkquality"),
+            "co2": last.get("co2"),
+            "voc": last.get("voc"),
+            "formaldehyd": last.get("formaldehyd"),
             "last_seen": last.get("_ts"),
             "online": last.get("_ts") is not None,
-        }
+        })
 
-    return {"gallineros": gallineros}
+        # Agregar: usar la temp/hum del sensor de tipo 'sensor' (no soil/air)
+        cat = get_device_category(fname)
+        if cat == "sensor" and temp is not None:
+            if g["temperature"] is None:
+                g["temperature"] = temp
+            else:
+                g["temperature"] = round((g["temperature"] + temp) / 2, 1)
+        if cat == "sensor" and hum is not None:
+            if g["humidity"] is None:
+                g["humidity"] = hum
+            else:
+                g["humidity"] = round((g["humidity"] + hum) / 2, 1)
+        if last.get("_ts"):
+            g["online"] = True
+
+    # Ecowitt weather
+    ecowitt = await ecowitt_fetch_realtime()
+    weather = ecowitt if "error" not in ecowitt else None
+
+    return {"gallineros": gallineros, "weather": weather}
 
 
 @router.get("/history")
