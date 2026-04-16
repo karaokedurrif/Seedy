@@ -49,6 +49,25 @@ _PRODUCT_INTENT_RE = re.compile(
 )
 
 
+# Limpieza de query para búsquedas web: quitar saludos, prefijos, ruido
+_QUERY_NOISE_RE = re.compile(
+    r"^(?:hola\s+seedy[,.]?\s*|seedy[,.]?\s*|query:\s*|dime\s+|me\s+pasas?\s+|por\s+favor\s+)",
+    re.IGNORECASE,
+)
+_QUERY_TRAILING_NOISE_RE = re.compile(
+    r"\s*(?:por\s+favor|gracias|me\s+pasas?\s+enlaces?.*|y\s+me\s+(?:pasas?|das?|envías?).*?)$",
+    re.IGNORECASE,
+)
+
+
+def _clean_query_for_web(query: str) -> str:
+    """Limpia la query de ruido conversacional antes de enviar a SearXNG."""
+    q = _QUERY_NOISE_RE.sub("", query).strip()
+    q = _QUERY_TRAILING_NOISE_RE.sub("", q).strip()
+    # Si quedó vacía o muy corta, usar original
+    return q if len(q) > 5 else query
+
+
 def needs_product_search(query: str) -> bool:
     """Detecta queries con intención comercial/producto que necesitan búsqueda web."""
     return bool(_PRODUCT_INTENT_RE.search(query))
@@ -72,8 +91,8 @@ async def search_web(query: str, max_results: int = MAX_WEB_RESULTS, product_mod
     if not searxng_url:
         return []
 
-    # En modo producto, enriquecer query y aumentar resultados
-    search_query = query
+    # Limpiar query de ruido conversacional
+    search_query = _clean_query_for_web(query)
     if product_mode:
         max_results = max(max_results, 8)
         # Añadir términos comerciales si no los tiene ya

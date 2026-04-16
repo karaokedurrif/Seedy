@@ -59,16 +59,23 @@ engines:
   - name: wikipedia
     weight: 1.0
     disabled: false
-  # DISABLED: too much noise for agritech queries
+  # Fallback engines (activados para resiliencia)
+  - name: bing
+    weight: 1.0
+    disabled: false
+  - name: qwant
+    weight: 1.0
+    disabled: false
+  - name: mojeek
+    weight: 0.8
+    disabled: false
+  - name: startpage
+    weight: 1.0
+    disabled: false
+  # DISABLED: demasiado ruido o sin valor para agritech
   - name: arxiv
     disabled: true
-  - name: bing
-    disabled: true
-  - name: qwant
-    disabled: true
   - name: yahoo
-    disabled: true
-  - name: mojeek
     disabled: true
   - name: yandex
     disabled: true

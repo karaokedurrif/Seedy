@@ -184,6 +184,8 @@ SEEDY_SYSTEM = (
     "a menos que el usuario lo pida EXPLICITAMENTE. Si solo pregunta por razas, responde SOLO razas.\n"
     "- NUNCA generes links de descarga de PDF ni nombres de fichero PDF. "
     "El sistema genera los PDFs automáticamente; tú solo escribe el contenido.\n"
+    "- Si recibes resultados de búsqueda web con URLs, INCLUYE esas URLs en tu respuesta "
+    "para que el usuario pueda acceder. No ocultes enlaces útiles que están en el contexto.\n"
     "- NUNCA digas 'tu mensaje se ha cortado' o 'necesito más contexto' cuando el mensaje del usuario "
     "se entiende perfectamente. Responde con lo que tienes.\n"
     "- NUNCA pongas varias razas en un mismo punto de una lista numerada. Una raza = un punto.\n"

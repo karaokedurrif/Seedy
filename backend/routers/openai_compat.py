@@ -430,7 +430,8 @@ async def _rag_pipeline(query: str, history: list[dict] | None = None):
         else:
             reason = "RAG insuficiente"
         logger.info(f"[OpenAI] {reason} → buscando en SearXNG...")
-        web_results = await search_web(query, product_mode=force_product)
+        web_query = search_query if search_query != query else query
+        web_results = await search_web(web_query, product_mode=force_product)
         web_context = format_web_results(web_results)
         if web_context:
             logger.info(f"[OpenAI] SearXNG: {len(web_results)} resultados web añadidos")
@@ -446,16 +447,17 @@ async def _rag_pipeline(query: str, history: list[dict] | None = None):
         if force_product:
             product_guard = (
                 "[INSTRUCCION CRITICA: El usuario pregunta por productos, precios o recomendaciones de compra. "
-                "Usa UNICAMENTE la informacion de estos resultados web. NO inventes productos, marcas, "
-                "precios, tiendas ni URLs que no aparezcan aqui. Si la informacion es insuficiente, "
-                "dilo claramente y sugiere al usuario buscar en tiendas especializadas.]\n\n"
+                "INCLUYE las URLs de los resultados web en tu respuesta para que el usuario pueda acceder directamente. "
+                "Presenta los productos y enlaces de forma clara y util. "
+                "NO inventes productos, marcas, precios ni URLs que no aparezcan aqui. "
+                "Si la informacion es insuficiente, dilo claramente y sugiere buscar en tiendas especializadas.]\n\n"
             )
-        top_chunks.append({
+        top_chunks.insert(0, {
             "text": f"{product_guard}[Resultados de búsqueda web]\n{web_context}",
             "file": "searxng_web",
             "collection": "web",
             "chunk_index": 0,
-            "rerank_score": 0.5,
+            "rerank_score": 0.95 if force_product else 0.5,
         })
     elif force_product:
         # No hay resultados web pero es query de producto → guardia anti-alucinación
