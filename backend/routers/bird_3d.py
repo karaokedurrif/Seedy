@@ -37,7 +37,8 @@ REGISTRY_PATH = Path("/app/data/birds_registry.json")
 # ── Breed prompts for FLUX studio reference images ──
 
 BREED_PROMPTS = {
-    "Bresse_M": (
+    # ── Bresse (blanca pura, patas azuladas) ──
+    "Bresse_blanco_M": (
         "Photorealistic studio photograph of a single white Bresse Gauloise rooster, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Bright white plumage, steel-blue legs, single red comb, red wattles, white earlobes. "
@@ -45,14 +46,41 @@ BREED_PROMPTS = {
         "High detail on feather texture, sharp focus. Professional poultry breed photography. "
         "Isolated subject, no other objects, no text."
     ),
-    "Bresse_F": (
+    "Bresse_blanco_F": (
         "Photorealistic studio photograph of a single white Bresse Gauloise hen, "
         "standing in 3/4 profile view on a plain light grey background. "
         "White plumage, steel-blue legs, small single red comb. "
         "Full body visible. Clean studio lighting. Professional poultry photography. "
         "Isolated subject, no other objects."
     ),
-    "Vorwerk_M": (
+    # ── Sussex Light / blanco (armiñada: blanca con collar negro) ──
+    "Sussex_blanco_F": (
+        "Photorealistic studio photograph of a single Light Sussex hen, "
+        "standing in 3/4 profile view on a plain light grey background. "
+        "White body with black neck hackles (columbian pattern), black tail feathers. Pink-white legs. "
+        "Full body visible. Clean studio lighting. High detail on feather patterns. "
+        "Isolated subject, no other objects."
+    ),
+    # ── Sussex Silver (plateada: cuerpo plateado-gris con collar negro, muy distinta de Light) ──
+    "Sussex_silver_M": (
+        "Photorealistic studio photograph of a single Silver Sussex rooster, "
+        "standing in 3/4 profile view on a plain light grey background. "
+        "Silvery-white body with bold black striping on each feather, black neck hackles edged in silver, "
+        "glossy black tail with green sheen. Pink-white legs. Large single red comb and wattles. "
+        "Muscular heavy build, 4-5 kg. Full body visible including feet and tail. "
+        "Clean studio lighting. Professional poultry breed photography. "
+        "Isolated subject, no other objects, no text."
+    ),
+    "Sussex_silver_F": (
+        "Photorealistic studio photograph of a single Silver Sussex hen, "
+        "standing in 3/4 profile view on a plain light grey background. "
+        "Silver-grey body feathers with fine black penciling, black neck hackles edged silver, "
+        "dark tail. Pink-white legs. Small neat single red comb. "
+        "Full body visible. Clean studio lighting. Detail on silvered feather pattern. "
+        "Isolated subject, no other objects."
+    ),
+    # ── Vorwerk (cuerpo dorado, cuello y cola negros) ──
+    "Vorwerk_dorado_M": (
         "Photorealistic studio photograph of a single Vorwerk rooster, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Black head and neck hackles with golden buff body plumage. Slate-blue legs. Single red comb. "
@@ -60,80 +88,95 @@ BREED_PROMPTS = {
         "High detail on the contrast between black neck and golden body feathers. "
         "Isolated subject, no other objects."
     ),
-    "Vorwerk_F": (
+    "Vorwerk_dorado_F": (
         "Photorealistic studio photograph of a single Vorwerk hen, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Black neck hackles transitioning to golden buff body. Slate-blue legs. Small single comb. "
         "Full body visible. Clean studio lighting. Professional poultry photography. "
         "Isolated subject, no other objects."
     ),
-    "Sussex_F": (
-        "Photorealistic studio photograph of a single Light Sussex hen, "
+    # ── Sulmtaler (trigueño/atigrado, cresta tipo corona) ──
+    "Sulmtaler_trigueño_M": (
+        "Photorealistic studio photograph of a single Sulmtaler rooster, "
         "standing in 3/4 profile view on a plain light grey background. "
-        "White body with black neck hackles (columbian pattern), black tail feathers. Pink-white legs. "
-        "Full body visible. Clean studio lighting. High detail on feather patterns. "
+        "Wheaten golden-brown plumage with dark tail, small crest on head. Light legs. "
+        "Wickler (rose) comb. Strong build. Full body visible. Clean studio lighting. "
+        "Austrian heritage breed. Isolated subject, no other objects."
+    ),
+    "Sulmtaler_trigueño_F": (
+        "Photorealistic studio photograph of a single Sulmtaler hen, "
+        "standing in 3/4 profile view on a plain light grey background. "
+        "Wheaten golden buff plumage with subtle darker lacing, small crest on head. Light legs. "
+        "Wickler (rose) comb. Full body visible. Clean studio lighting. Professional breed photography. "
         "Isolated subject, no other objects."
     ),
-    "Sussex_M": (
-        "Photorealistic studio photograph of a single Light Sussex rooster, "
-        "standing in 3/4 profile view on a plain light grey background. "
-        "White body with black neck hackles, black tail. Pink-white legs. Large single red comb. "
-        "Full body visible. Clean studio lighting. "
-        "Isolated subject, no other objects."
-    ),
-    "Marans_F": (
+    # ── Marans (negro cobrizo, patas emplumadas) ──
+    "Marans_negro cobrizo_F": (
         "Photorealistic studio photograph of a single Black Copper Marans hen, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Dark brown-black plumage with copper hackles. Feathered legs. Single red comb. "
         "Full body visible. Clean studio lighting. Rich dark feather detail. "
         "Isolated subject, no other objects."
     ),
-    "Marans_M": (
+    "Marans_negro cobrizo_M": (
         "Photorealistic studio photograph of a single Black Copper Marans rooster, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Glossy black body with bright copper hackles and saddle. Feathered legs. Large single red comb. "
         "Full body visible. Clean studio lighting. "
         "Isolated subject, no other objects."
     ),
-    "Sulmtaler_F": (
-        "Photorealistic studio photograph of a single Sulmtaler hen, "
-        "standing in 3/4 profile view on a plain light grey background. "
-        "Wheaten golden buff plumage, small crest on head. Light legs. Wickler comb. "
-        "Full body visible. Clean studio lighting. Professional breed photography. "
-        "Isolated subject, no other objects."
-    ),
-    "Andaluza_F": (
+    # ── Andaluza Azul (gris-azulado uniforme) ──
+    "Andaluza Azul_azul_F": (
         "Photorealistic studio photograph of a single Blue Andalusian hen, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Blue-grey slate plumage with darker lacing. White earlobes. Single large red comb. "
         "Full body visible. Clean studio lighting. Detail on blue-laced feather pattern. "
         "Isolated subject, no other objects."
     ),
-    "Pita Pinta_F": (
+    # ── Pita Pinta Asturiana (moteada blanco y negro) ──
+    "Pita Pinta_pinta_F": (
         "Photorealistic studio photograph of a single Pita Pinta Asturiana hen, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Black and white mottled plumage (pinta pattern). Yellow-green legs. Single red comb. "
         "Full body visible. Clean studio lighting. Spanish heritage breed. "
         "Isolated subject, no other objects."
     ),
-    "Araucana_F": (
-        "Photorealistic studio photograph of a single Araucana hen, "
+    # ── Araucana negra (sin cola, penachos auriculares) ──
+    "Araucana_negra_F": (
+        "Photorealistic studio photograph of a single black Araucana hen, "
         "standing in 3/4 profile view on a plain light grey background. "
-        "Wheaten or lavender plumage, ear tufts, rumpless (no tail). Yellow-green legs. "
-        "Full body visible. Clean studio lighting. "
-        "Isolated subject, no other objects."
+        "Solid glossy black plumage with green iridescence, ear tufts, rumpless (no tail). "
+        "Yellow-green legs. Small pea comb. Full body visible. Clean studio lighting. "
+        "Blue egg-laying breed from Chile. Isolated subject, no other objects."
     ),
-    "F1 (cruce)_F": (
-        "Photorealistic studio photograph of a single mixed-breed heritage chicken, "
+    # ── Araucana trigueña (sin cola, penachos auriculares) ──
+    "Araucana_trigueña_F": (
+        "Photorealistic studio photograph of a single wheaten Araucana hen, "
+        "standing in 3/4 profile view on a plain light grey background. "
+        "Warm wheaten-brown plumage, ear tufts, rumpless (no tail). Yellow-green legs. "
+        "Small pea comb. Full body visible. Clean studio lighting. "
+        "Blue egg-laying breed from Chile. Isolated subject, no other objects."
+    ),
+    # ── F1 (cruce) — aspecto rústico variable ──
+    "F1 (cruce)_variado_F": (
+        "Photorealistic studio photograph of a single mixed-breed heritage hen, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Mixed coloring showing hybrid vigor: reddish-brown body with dark tail, medium build. "
         "Full body visible. Clean studio lighting. Rustic farm chicken appearance. "
         "Isolated subject, no other objects."
     ),
-    "F1 (cruce)_M": (
+    "F1 (cruce)_variado_M": (
         "Photorealistic studio photograph of a single mixed-breed heritage rooster, "
         "standing in 3/4 profile view on a plain light grey background. "
         "Reddish-brown plumage with dark green-black tail feathers, strong build. "
+        "Full body visible. Clean studio lighting. "
+        "Isolated subject, no other objects."
+    ),
+    # ── Fallback: ave genérica por determinar ──
+    "Por determinar_desconocido_F": (
+        "Photorealistic studio photograph of a single brown heritage chicken, "
+        "standing in 3/4 profile view on a plain light grey background. "
+        "Brown-red plumage, medium build, single red comb. "
         "Full body visible. Clean studio lighting. "
         "Isolated subject, no other objects."
     ),
@@ -152,19 +195,37 @@ def _find_bird(bird_id: str) -> dict | None:
     return None
 
 
-def _get_prompt_key(breed: str, sex: str) -> str:
-    """Get the best matching prompt key for breed + sex."""
+def _get_prompt_key(breed: str, sex: str, color: str = "") -> str:
+    """Get the best matching prompt key for breed + color + sex.
+
+    Keys follow the format: ``{breed}_{color}_{sex_code}``.
+    Searches with decreasing specificity:
+      1. breed_color_sex  (exact)
+      2. breed_*_sex       (any color, same sex)
+      3. breed_*_*         (any entry for breed)
+      4. F1 (cruce) fallback
+    """
     sex_code = "M" if sex in ("M", "male") else "F"
-    # Try exact match
-    key = f"{breed}_{sex_code}"
+    color = (color or "").strip().lower()
+
+    # 1. Exact: breed_color_sex
+    key = f"{breed}_{color}_{sex_code}"
     if key in BREED_PROMPTS:
         return key
-    # Try without sex
+
+    # 2. Any color, same sex
     for k in BREED_PROMPTS:
-        if k.startswith(breed):
+        if k.startswith(f"{breed}_") and k.endswith(f"_{sex_code}"):
             return k
-    # Fallback
-    return f"F1 (cruce)_{sex_code}"
+
+    # 3. Any entry for this breed
+    for k in BREED_PROMPTS:
+        if k.startswith(f"{breed}_"):
+            return k
+
+    # 4. Fallback
+    fb = f"F1 (cruce)_variado_{sex_code}"
+    return fb if fb in BREED_PROMPTS else "Por determinar_desconocido_F"
 
 
 async def _generate_flux_image(prompt: str) -> bytes:
@@ -298,6 +359,7 @@ async def generate_bird_3d(bird_id: str):
 
     breed = bird.get("breed", "F1 (cruce)")
     sex = bird.get("sex", "female")
+    color = bird.get("color", "")
 
     # Step 1: Generate or load FLUX reference image
     ref_path = REF_IMG_DIR / f"{bird_id}.png"
@@ -305,7 +367,7 @@ async def generate_bird_3d(bird_id: str):
         image_bytes = ref_path.read_bytes()
         logger.info("Using existing reference image for %s", bird_id)
     else:
-        prompt_key = _get_prompt_key(breed, sex)
+        prompt_key = _get_prompt_key(breed, sex, color)
         prompt = BREED_PROMPTS[prompt_key]
         logger.info("Generating FLUX reference for %s (prompt key: %s)", bird_id, prompt_key)
         image_bytes = await _generate_flux_image(prompt)
@@ -347,7 +409,8 @@ async def generate_reference_only(bird_id: str):
 
     breed = bird.get("breed", "F1 (cruce)")
     sex = bird.get("sex", "female")
-    prompt_key = _get_prompt_key(breed, sex)
+    color = bird.get("color", "")
+    prompt_key = _get_prompt_key(breed, sex, color)
     prompt = BREED_PROMPTS[prompt_key]
 
     ref_path = REF_IMG_DIR / f"{bird_id}.png"
@@ -391,7 +454,8 @@ async def batch_generate_refs(
         try:
             breed = bird.get("breed", "F1 (cruce)")
             sex = bird.get("sex", "female")
-            prompt_key = _get_prompt_key(breed, sex)
+            color = bird.get("color", "")
+            prompt_key = _get_prompt_key(breed, sex, color)
             prompt = BREED_PROMPTS[prompt_key]
             image_bytes = await _generate_flux_image(prompt)
             ref_path.write_bytes(image_bytes)

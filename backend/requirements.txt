@@ -5,6 +5,7 @@ python-multipart>=0.0.9
 pydantic==2.*
 pydantic-settings==2.*
 httpx==0.28.*
+psutil>=5.9
 
 # RAG
 qdrant-client==1.17.*

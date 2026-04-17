@@ -764,6 +764,211 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
         logger.debug(f"Tracking enrichment failed ({gallinero_id}): {e}")
 
 
+def _enrich_with_tracking_v2(gallinero_id: str, frame_bytes: bytes, detections: dict):
+    """v4.2: Tracking + behavior reutilizando detecciones ya computadas.
+
+    Elimina la doble inferencia YOLO: el CaptureManager ya ejecutó detect()
+    y pasa el resultado directamente. Esto reduce la carga de CPU ~50%.
+    """
+    try:
+        from services.bird_tracker import get_tracker
+        from services.pest_alert import get_pest_manager
+        from services.health_analyzer import get_growth_tracker
+        from services.behavior_event_store import get_event_store
+        from services.mating_detector import get_mating_detector
+
+        result = detections
+        if not result or not result.get("detections"):
+            return
+
+        # 1. Tracking: actualizar posiciones
+        tracker = get_tracker(gallinero_id)
+        tracker.update(result["detections"])
+
+        # 1b. Breed classification periódica (cada 30s) sobre tracks sin breed
+        try:
+            _breed_last = getattr(_enrich_with_tracking_v2, "_breed_last", {})
+            now_bc = time.time()
+            if now_bc - _breed_last.get(gallinero_id, 0) >= 30:
+                _breed_last[gallinero_id] = now_bc
+                _enrich_with_tracking_v2._breed_last = _breed_last
+                from services.yolo_detector import classify_breed_crop
+                from services.identity.breed_parser import parse_breed_class
+                from services.identity.identity_voting import IdentityVotingBuffer
+                from PIL import Image
+
+                if not hasattr(_enrich_with_tracking_v2, "_voting_buffers"):
+                    _enrich_with_tracking_v2._voting_buffers = {}
+                voting_buffers = _enrich_with_tracking_v2._voting_buffers
+                if gallinero_id not in voting_buffers:
+                    voting_buffers[gallinero_id] = IdentityVotingBuffer()
+                voting = voting_buffers[gallinero_id]
+
+                img = Image.open(io.BytesIO(frame_bytes))
+                w, h = img.size
+                need_classify = [
+                    t for t in tracker.tracks.values()
+                    if t.active and t.last_bbox_norm and len(t.last_bbox_norm) == 4
+                    and (not t.breed or (t.breed and not t.identity_locked))
+                ]
+                classified = 0
+                skipped_small = 0
+                for t in need_classify:
+                    bn = t.last_bbox_norm
+                    x1 = max(0, int(bn[0] * w))
+                    y1 = max(0, int(bn[1] * h))
+                    x2 = min(w, int(bn[2] * w))
+                    y2 = min(h, int(bn[3] * h))
+                    cw, ch = x2 - x1, y2 - y1
+                    if cw < 32 or ch < 32:
+                        skipped_small += 1
+                        continue
+                    crop = img.crop((x1, y1, x2, y2))
+
+                    # T2: upscale 2× para sub-streams pequeños (VIGI ≤800px)
+                    if w <= 800 and cw < 96:
+                        try:
+                            import cv2
+                            import numpy as np
+                            crop_np = np.array(crop)
+                            crop_np = cv2.resize(crop_np, None, fx=2, fy=2,
+                                                 interpolation=cv2.INTER_CUBIC)
+                            crop = Image.fromarray(crop_np)
+                        except Exception:
+                            pass
+
+                    buf = io.BytesIO()
+                    crop.save(buf, format="JPEG", quality=85)
+                    res = classify_breed_crop(buf.getvalue(), confidence=0.25)
+                    if res and res["confidence"] >= 0.30:
+                        raw = res["breed_class"]
+                        parsed = parse_breed_class(raw)
+
+                        if parsed["breed"]:
+                            t.breed = parsed["breed"]
+                        if parsed["sex"]:
+                            t.sex = parsed["sex"]
+                        if parsed["color"]:
+                            t.color = parsed["color"]
+                        t.breed_raw_class = raw
+
+                        vote_result = voting.add_vote(
+                            track_id=t.track_id,
+                            breed=parsed["breed"],
+                            color=parsed["color"],
+                            sex=parsed["sex"],
+                            confidence=res["confidence"],
+                        )
+
+                        if vote_result.confirmed and t.identity_locked and t.identity_lock:
+                            t.identity_lock.refresh(vote_result.mean_confidence)
+
+                        classified += 1
+                if need_classify:
+                    logger.info(
+                        f"[{gallinero_id}] Breed classify: {len(need_classify)} need classify, "
+                        f"{classified} classified, {skipped_small} small, frame={w}x{h}"
+                    )
+        except Exception as e:
+            logger.debug(f"Breed classification failed ({gallinero_id}): {e}")
+
+        # 1c. Sync periódico (cada 60s)
+        try:
+            _sync_last = getattr(_enrich_with_tracking_v2, "_sync_last", {})
+            now_sync = time.time()
+            if now_sync - _sync_last.get(gallinero_id, 0) >= 60:
+                _sync_last[gallinero_id] = now_sync
+                _enrich_with_tracking_v2._sync_last = _sync_last
+                import httpx as httpx_sync
+                import asyncio
+                async def _do_sync():
+                    async with httpx_sync.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(
+                            "http://localhost:8000/birds/",
+                            params={"gallinero": "gallinero_palacio"},
+                        )
+                        if resp.status_code == 200:
+                            registered = resp.json().get("birds", [])
+                            if registered:
+                                synced = tracker.sync_registered_ids(registered)
+                                if synced:
+                                    logger.info(
+                                        f"[{gallinero_id}] Sync Re-ID: {synced} aves identificadas"
+                                    )
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(_do_sync())
+                except RuntimeError:
+                    pass
+        except Exception as e:
+            logger.debug(f"Sync Re-ID failed ({gallinero_id}): {e}")
+
+        # 2. Behavior event store
+        try:
+            event_store = get_event_store()
+            event_store.snapshot(gallinero_id, tracker)
+        except Exception as e:
+            logger.debug(f"Behavior snapshot failed ({gallinero_id}): {e}")
+
+        # 3. Mating detection
+        try:
+            mating = get_mating_detector(gallinero_id)
+            mating.process_frame(tracker)
+        except Exception as e:
+            logger.debug(f"Mating detection failed ({gallinero_id}): {e}")
+
+        # 4. Pest alerts
+        if result.get("pest_count", 0) > 0:
+            pest_mgr = get_pest_manager()
+            alerts = pest_mgr.process_detections(gallinero_id, result)
+            if alerts:
+                logger.warning(
+                    f"[{gallinero_id}] Pest alerts: "
+                    f"{[a['pest_type'] for a in alerts]}"
+                )
+
+        # 5. Growth tracking
+        growth = get_growth_tracker()
+        for t in tracker.tracks.values():
+            if t.active and t.sizes:
+                growth.record(t.track_id, t.sizes[-1])
+
+        # 6. ML conductual
+        try:
+            import asyncio
+            from services.behavior_ml import get_behavior_ml_engine
+            ml_engine = get_behavior_ml_engine()
+            for t in tracker.tracks.values():
+                if not t.active or not t.ai_vision_id:
+                    continue
+                total_zone = max(sum(t.zone_time.values()), 1)
+                snapshot = {
+                    "bird_id": t.ai_vision_id,
+                    "zone_nido_pct": t.zone_time.get("nido", 0) / total_zone,
+                    "zone_comedero_pct": t.zone_time.get("comedero", 0) / total_zone,
+                    "zone_bebedero_pct": t.zone_time.get("bebedero", 0) / total_zone,
+                    "zone_aseladero_pct": t.zone_time.get("aseladero", 0) / total_zone,
+                    "zone_libre_pct": t.zone_time.get("zona_libre", 0) / total_zone,
+                    "avg_speed": 0.0,
+                    "distance_moved": 0.0,
+                    "social_proximity": 0,
+                    "interactions_count": 0,
+                    "ts": result.get("timestamp", ""),
+                }
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(ml_engine.analyze_snapshot(gallinero_id, snapshot))
+                except RuntimeError:
+                    pass
+        except Exception as e:
+            logger.debug(f"ML analysis failed ({gallinero_id}): {e}")
+
+    except Exception as e:
+        logger.debug(f"Tracking enrichment v2 failed ({gallinero_id}): {e}")
+
+
 # Mapeo stream go2rtc → nombre gallinero en OvoSfera
 _STREAM_TO_GALLINERO_NAME = {
     "gallinero_durrif_1": "Gallinero Durrif I",

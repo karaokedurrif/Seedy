@@ -95,6 +95,15 @@ async def lifespan(app: FastAPI):
     # Auto-start bird identification loop (quality-first: solo 1 ave aislada por frame)
     asyncio.create_task(_auto_start_identification())
 
+    # CPU Watchdog — monitorea CPU y throttlea CaptureManager dinámicamente
+    try:
+        from services.cpu_watchdog import get_cpu_watchdog
+        cpu_wd = get_cpu_watchdog()
+        await cpu_wd.start()
+        app.state.cpu_watchdog = cpu_wd
+    except Exception as e:
+        logger.warning(f"CPU Watchdog init failed: {e}")
+
     # Dual-stream capture manager (sub-stream tracking + main-stream event-driven)
     asyncio.create_task(_start_capture_manager())
 
@@ -113,6 +122,13 @@ async def lifespan(app: FastAPI):
     watchdog_task.cancel()
     for t in auto_learn_tasks:
         t.cancel()
+    # CPU watchdog
+    try:
+        cpu_wd = getattr(app.state, "cpu_watchdog", None)
+        if cpu_wd:
+            await cpu_wd.stop()
+    except Exception:
+        pass
     stop_mqtt_listener()
     vision_identify.stop_loop()
     await stop_capture_manager()

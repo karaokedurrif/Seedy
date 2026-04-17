@@ -14,6 +14,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from typing import Any, Optional
 
 import cv2
@@ -144,8 +145,9 @@ class CaptureRequest:
 MIN_BRIGHTNESS = 25
 MIN_CAPTURE_INTERVAL = 10          # Mín 10s entre capturas 4K por cámara
 SCHEDULED_INTERVAL = 300           # Captura periódica cada 5 min
-SUB_FRAME_SKIP = 2                 # Procesar 1 de cada N frames del sub-stream
+SUB_FRAME_SKIP = 2                 # Procesar 1 de cada N frames del sub-stream (base)
 RECONNECT_DELAY = 5                # Segundos antes de reconectar sub-stream
+MAX_PROCESS_TIME = 2.0             # Máx segundos por frame antes de skip automático
 
 
 # ─── Capture Manager ───
@@ -161,14 +163,29 @@ class CaptureManager:
         self._worker_task: asyncio.Task | None = None
         self._running = False
         self._stats: dict[str, dict] = {}
+        self._http_client: httpx.AsyncClient | None = None
+        self._frame_skip: int = SUB_FRAME_SKIP  # Dinámico vía watchdog
 
     async def start(self):
         """Arranca sub-stream readers + main-capture worker."""
         self._running = True
+        self._http_client = httpx.AsyncClient(timeout=10.0)
+
+        # Integrar CPU watchdog
+        try:
+            from services.cpu_watchdog import get_cpu_watchdog
+            wd = get_cpu_watchdog()
+            wd.on_throttle(self._on_watchdog_throttle)
+            wd.on_pause(self._on_watchdog_pause)
+            wd.on_resume(self._on_watchdog_resume)
+        except Exception as e:
+            logger.debug(f"CPU watchdog integration failed: {e}")
+
         for cam_id, config in CAMERAS.items():
             self._stats[cam_id] = {
                 "sub_frames": 0, "main_captures": 0,
                 "triggers": {e.value: 0 for e in CaptureEvent},
+                "skipped_slow": 0,
             }
             self._sub_tasks[cam_id] = asyncio.create_task(
                 self._sub_stream_loop(config), name=f"sub_{cam_id}"
@@ -176,7 +193,7 @@ class CaptureManager:
         self._worker_task = asyncio.create_task(
             self._main_capture_worker(), name="main_capture_worker"
         )
-        logger.info(f"📹 CaptureManager started: {len(CAMERAS)} cameras")
+        logger.info(f"📹 CaptureManager started: {len(CAMERAS)} cameras, frame_skip={self._frame_skip}")
 
     async def stop(self):
         """Detiene todas las tareas."""
@@ -185,17 +202,41 @@ class CaptureManager:
             task.cancel()
         if self._worker_task:
             self._worker_task.cancel()
+        if self._http_client:
+            await self._http_client.aclose()
+            self._http_client = None
         self._sub_tasks.clear()
         self._worker_task = None
         logger.info("📹 CaptureManager stopped")
 
+    def _on_watchdog_throttle(self, new_skip: int):
+        self._frame_skip = new_skip
+        logger.info(f"📹 CaptureManager throttled: frame_skip→{new_skip}")
+
+    def _on_watchdog_pause(self):
+        self._frame_skip = 999  # Effectively pause processing
+        logger.warning("📹 CaptureManager PAUSED by CPU watchdog")
+
+    def _on_watchdog_resume(self, new_skip: int):
+        self._frame_skip = new_skip
+        logger.info(f"📹 CaptureManager resumed: frame_skip→{new_skip}")
+
     def get_stats(self) -> dict:
-        return {"running": self._running, "cameras": self._stats}
+        return {
+            "running": self._running,
+            "frame_skip": self._frame_skip,
+            "cameras": self._stats,
+        }
 
     # ─── Sub-stream loop ───
 
     async def _sub_stream_loop(self, config: CameraConfig):
-        """Lee sub-stream vía go2rtc MJPEG, ejecuta YOLO + tracking + behavior."""
+        """Lee sub-stream vía go2rtc MJPEG, ejecuta YOLO + tracking + behavior.
+
+        v4.2: YOLO se ejecuta en thread pool para no bloquear el event loop.
+        Las detecciones se pasan directamente a _enrich_tracking (eliminando
+        la doble inferencia YOLO que causaba saturación de CPU).
+        """
         go2rtc = os.environ.get("GO2RTC_URL", "http://host.docker.internal:1984")
         mjpeg_url = f"{go2rtc}/api/frame.jpeg?src={config.stream_sub}"
         frame_interval = 1.0 / config.sub_stream_fps
@@ -203,35 +244,55 @@ class CaptureManager:
 
         while self._running:
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    resp = await client.get(mjpeg_url)
-                    if resp.status_code != 200 or len(resp.content) < 1000:
-                        await asyncio.sleep(RECONNECT_DELAY)
-                        continue
-                    frame_bytes = resp.content
+                client = self._http_client
+                if not client:
+                    await asyncio.sleep(RECONNECT_DELAY)
+                    continue
+
+                resp = await client.get(mjpeg_url)
+                if resp.status_code != 200 or len(resp.content) < 1000:
+                    await asyncio.sleep(RECONNECT_DELAY)
+                    continue
+                frame_bytes = resp.content
 
                 frame_count += 1
                 if config.camera_id in self._stats:
                     self._stats[config.camera_id]["sub_frames"] = frame_count
 
-                # Skip frames para reducir carga GPU
-                if frame_count % SUB_FRAME_SKIP != 0:
+                # Skip frames — dinámico vía CPU watchdog
+                if frame_count % self._frame_skip != 0:
                     await asyncio.sleep(frame_interval)
                     continue
 
-                # Brightness check
-                if not self._check_brightness(frame_bytes):
+                # Brightness check (rápido, PIL solo)
+                bright_ok = await asyncio.to_thread(self._check_brightness, frame_bytes)
+                if not bright_ok:
                     await asyncio.sleep(frame_interval)
                     continue
 
-                # YOLO COCO detection (sub-stream: 640px, rápido)
-                detections = self._yolo_detect(frame_bytes, config.sub_imgsz)
+                # YOLO COCO detection en thread pool (no bloquea event loop)
+                t0 = time.monotonic()
+                detections = await asyncio.to_thread(
+                    self._yolo_detect, frame_bytes, config.sub_imgsz
+                )
+                elapsed = time.monotonic() - t0
+
+                # Si YOLO tardó demasiado, skip automático
+                if elapsed > MAX_PROCESS_TIME:
+                    if config.camera_id in self._stats:
+                        self._stats[config.camera_id]["skipped_slow"] += 1
+                    await asyncio.sleep(frame_interval)
+                    continue
+
                 if not detections:
                     await asyncio.sleep(frame_interval)
                     continue
 
-                # Tracking + behavior + mating + pests + breed classify + sync (SIEMPRE)
-                self._enrich_tracking(config.gallinero_id, frame_bytes)
+                # Tracking + behavior (reutiliza detecciones, NO re-ejecuta YOLO)
+                await asyncio.to_thread(
+                    self._enrich_tracking_with_detections,
+                    config.gallinero_id, frame_bytes, detections
+                )
 
                 # Evaluar triggers para captura 4K
                 poultry = [d for d in detections.get("detections", [])
@@ -457,12 +518,34 @@ class CaptureManager:
 
     @staticmethod
     def _enrich_tracking(gallinero_id: str, frame_bytes: bytes):
-        """Ejecuta tracker + behavior + mating + pests (delegado a vision_identify)."""
+        """Ejecuta tracker + behavior + mating + pests (delegado a vision_identify).
+        LEGACY: ejecuta doble YOLO. Usar _enrich_tracking_with_detections."""
         try:
             from routers.vision_identify import _enrich_with_tracking
             _enrich_with_tracking(gallinero_id, frame_bytes)
         except Exception as e:
             logger.debug(f"Tracking enrichment failed ({gallinero_id}): {e}")
+
+    @staticmethod
+    def _enrich_tracking_with_detections(
+        gallinero_id: str, frame_bytes: bytes, detections: dict
+    ):
+        """Tracking + behavior reutilizando detecciones ya computadas.
+
+        Elimina la doble inferencia YOLO que causaba saturación de CPU.
+        """
+        try:
+            from routers.vision_identify import _enrich_with_tracking_v2
+            _enrich_with_tracking_v2(gallinero_id, frame_bytes, detections)
+        except ImportError:
+            # Fallback a v1 si _enrich_with_tracking_v2 no existe aún
+            try:
+                from routers.vision_identify import _enrich_with_tracking
+                _enrich_with_tracking(gallinero_id, frame_bytes)
+            except Exception as e:
+                logger.debug(f"Tracking enrichment fallback failed ({gallinero_id}): {e}")
+        except Exception as e:
+            logger.debug(f"Tracking enrichment v2 failed ({gallinero_id}): {e}")
 
     @staticmethod
     async def _sync_ids_to_tracker(

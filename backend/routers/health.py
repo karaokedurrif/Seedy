@@ -129,3 +129,14 @@ async def watchdog_status():
         "checks": results,
         "failed": failed,
     }
+
+
+@router.get("/health/cpu")
+async def cpu_watchdog_status():
+    """Estado del CPU watchdog: uso de CPU, throttle level, frame skip."""
+    try:
+        from services.cpu_watchdog import get_cpu_watchdog
+        wd = get_cpu_watchdog()
+        return {"status": "ok", **wd.get_status()}
+    except Exception as e:
+        return {"status": "unavailable", "error": str(e)}
