@@ -3620,6 +3620,8 @@
       var cat = dev.device_category || '';
       if (dev.type === 'ecowitt') {
         html += _renderEcowittCard(dev);
+      } else if (dev.type === 'esp32_cam' || cat === 'camera') {
+        html += _renderEsp32CamCard(dev);
       } else if (cat === 'soil') {
         html += _renderSoilSensorCard(dev, gallineros);
       } else if (cat === 'air_quality' || (dev.last_co2 !== null && dev.last_co2 !== undefined)) {
@@ -3632,6 +3634,67 @@
     });
 
     grid.innerHTML = html;
+  }
+
+  function _renderEsp32CamCard(dev) {
+    var cam = dev.esp32_cam || {};
+    var fname = dev.friendly_name || 'Cámara ESP32';
+    var gName = dev.gallinero_name || '';
+    var rssi = dev.last_linkquality || cam.rssi || 0;
+    var fw = cam.firmware || '?';
+    var ip = cam.ip || '?';
+    var lux = cam.lux != null ? cam.lux.toFixed(0) : '—';
+    var irOn = cam.ir_on ? '🔴 ON' : '⚫ OFF';
+    var psramMB = cam.free_psram ? (cam.free_psram / 1048576).toFixed(1) : '—';
+    var uptimeH = cam.uptime_s ? (cam.uptime_s / 3600).toFixed(1) : '—';
+    var isOnline = !!cam.ip;
+
+    // Determine stream name from friendly_name or use gallinero context
+    var streamName = '';
+    if (fname.indexOf('Palacio') !== -1) streamName = 'gallinero_palacio_esp32';
+    else if (fname.indexOf('Peque') !== -1) streamName = 'gallinero_pequeno_esp32';
+    var snapUrl = streamName ? (SEEDY_API + '/ovosfera/stream/' + streamName + '/snapshot?_t=' + Date.now()) : '';
+
+    // RSSI bars (WiFi: -30=excellent ... -90=weak)
+    var rssiLevel = 0;
+    if (rssi && rssi < 0) {
+      if (rssi >= -50) rssiLevel = 5;
+      else if (rssi >= -60) rssiLevel = 4;
+      else if (rssi >= -70) rssiLevel = 3;
+      else if (rssi >= -80) rssiLevel = 2;
+      else rssiLevel = 1;
+    }
+    var rssiBars = '';
+    for (var i = 1; i <= 5; i++) {
+      var h = 6 + i * 3;
+      rssiBars += '<span style="height:' + h + 'px" class="' + (i <= rssiLevel ? 'active' : '') + '"></span>';
+    }
+
+    var snapHtml = snapUrl
+      ? '<div style="margin:8px 0;border-radius:8px;overflow:hidden;background:#111;position:relative;cursor:pointer" '
+        + 'onclick="this.querySelector(\'img\').src=\'' + SEEDY_API + '/ovosfera/stream/' + streamName + '/snapshot?_t=\' + Date.now()">'
+        + '<img src="' + snapUrl + '" style="width:100%;display:block;border-radius:8px" onerror="this.style.display=\'none\'" />'
+        + '<div style="position:absolute;bottom:6px;right:8px;background:rgba(0,0,0,0.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:4px">📷 Click = refresh</div>'
+        + '</div>'
+      : '';
+
+    return '<div class="seedy-device-card ' + (isOnline ? '' : 'offline') + '" style="grid-column: span 2;">'
+      + '<div class="seedy-device-card-header">'
+      + '<h3>📹 ' + _escHtml(fname) + '</h3>'
+      + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
+      + '</div>'
+      + snapHtml
+      + '<div class="seedy-device-readings">'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">💡</div><div class="seedy-reading-value">' + lux + '</div><div class="seedy-reading-label">Lux amb.</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">' + (cam.ir_on ? '🔴' : '⚫') + '</div><div class="seedy-reading-value">' + irOn + '</div><div class="seedy-reading-label">IR LED</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">📶</div><div class="seedy-reading-value">' + rssi + '</div><div class="seedy-reading-label">RSSI dBm</div></div>'
+      + '<div class="seedy-reading"><div class="seedy-reading-icon">⏱️</div><div class="seedy-reading-value">' + uptimeH + 'h</div><div class="seedy-reading-label">Uptime</div></div>'
+      + '</div>'
+      + '<div class="seedy-device-meta">'
+      + '<span>🏠 ' + _escHtml(gName) + ' · ' + _escHtml(ip) + ' · FW ' + _escHtml(fw) + ' · PSRAM ' + psramMB + 'MB</span>'
+      + '<span class="seedy-lqi-bar" title="WiFi: ' + rssi + 'dBm">' + rssiBars + '</span>'
+      + '</div>'
+      + '</div>';
   }
 
   function _renderEcowittCard(dev) {
