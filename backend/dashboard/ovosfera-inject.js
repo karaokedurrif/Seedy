@@ -3648,11 +3648,13 @@
     var psramMB = cam.free_psram ? (cam.free_psram / 1048576).toFixed(1) : '—';
     var uptimeH = cam.uptime_s ? (cam.uptime_s / 3600).toFixed(1) : '—';
     var isOnline = !!cam.ip;
+    var audioOk = !!cam.audio_available;
 
-    // Determine stream name from friendly_name or use gallinero context
+    // Determine stream name and device_id from friendly_name
     var streamName = '';
-    if (fname.indexOf('Palacio') !== -1) streamName = 'gallinero_palacio_esp32';
-    else if (fname.indexOf('Peque') !== -1) streamName = 'gallinero_pequeno_esp32';
+    var espDeviceId = '';
+    if (fname.indexOf('Palacio') !== -1) { streamName = 'gallinero_palacio_esp32'; espDeviceId = 'palacio'; }
+    else if (fname.indexOf('Peque') !== -1) { streamName = 'gallinero_pequeno_esp32'; espDeviceId = 'pequeno'; }
     var snapUrl = streamName ? (SEEDY_API + '/ovosfera/stream/' + streamName + '/snapshot?_t=' + Date.now()) : '';
 
     // RSSI bars (WiFi: -30=excellent ... -90=weak)
@@ -3678,12 +3680,27 @@
         + '</div>'
       : '';
 
+    // Audio controls (only when audio_available)
+    var audioHtml = '';
+    if (audioOk && espDeviceId) {
+      var levelId = 'audio-level-' + espDeviceId;
+      var btnId = 'audio-btn-' + espDeviceId;
+      audioHtml = '<div style="margin:6px 0;padding:8px 12px;background:rgba(78,205,196,0.08);border-radius:8px;display:flex;align-items:center;gap:10px">'
+        + '<span style="font-size:1.2em">🎙️</span>'
+        + '<span id="' + levelId + '" style="font-size:0.85em;color:#aaa">— dBFS</span>'
+        + '<button id="' + btnId + '" onclick="window._seedyRecordAudio(\'' + espDeviceId + '\',this)" '
+        + 'style="margin-left:auto;padding:4px 12px;background:#4ecdc4;color:#111;border:none;border-radius:6px;cursor:pointer;font-size:0.82em;font-weight:600">'
+        + '⏺ Grabar 5s</button>'
+        + '</div>';
+    }
+
     return '<div class="seedy-device-card ' + (isOnline ? '' : 'offline') + '" style="grid-column: span 2;">'
       + '<div class="seedy-device-card-header">'
       + '<h3>📹 ' + _escHtml(fname) + '</h3>'
       + '<span class="seedy-device-status ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '● Online' : '● Offline') + '</span>'
       + '</div>'
       + snapHtml
+      + audioHtml
       + '<div class="seedy-device-readings">'
       + '<div class="seedy-reading"><div class="seedy-reading-icon">💡</div><div class="seedy-reading-value">' + lux + '</div><div class="seedy-reading-label">Lux amb.</div></div>'
       + '<div class="seedy-reading"><div class="seedy-reading-icon">' + (cam.ir_on ? '🔴' : '⚫') + '</div><div class="seedy-reading-value">' + irOn + '</div><div class="seedy-reading-label">IR LED</div></div>'
@@ -3691,7 +3708,8 @@
       + '<div class="seedy-reading"><div class="seedy-reading-icon">⏱️</div><div class="seedy-reading-value">' + uptimeH + 'h</div><div class="seedy-reading-label">Uptime</div></div>'
       + '</div>'
       + '<div class="seedy-device-meta">'
-      + '<span>🏠 ' + _escHtml(gName) + ' · ' + _escHtml(ip) + ' · FW ' + _escHtml(fw) + ' · PSRAM ' + psramMB + 'MB</span>'
+      + '<span>🏠 ' + _escHtml(gName) + ' · ' + _escHtml(ip) + ' · FW ' + _escHtml(fw) + ' · PSRAM ' + psramMB + 'MB'
+      + (audioOk ? ' · 🎙️ Audio' : '') + '</span>'
       + '<span class="seedy-lqi-bar" title="WiFi: ' + rssi + 'dBm">' + rssiBars + '</span>'
       + '</div>'
       + '</div>';
@@ -4642,6 +4660,54 @@
       }
     }, 500);
   }
+
+  // ── ESP32 Audio helpers ──
+  window._seedyRecordAudio = function(deviceId, btn) {
+    if (!SEEDY_API || !deviceId) return;
+    btn.disabled = true;
+    btn.textContent = '⏺ Grabando...';
+    btn.style.background = '#ef4444';
+    fetch(SEEDY_API + '/ovosfera/esp32/' + deviceId + '/audio?seconds=5')
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.blob();
+      })
+      .then(function(blob) {
+        var url = URL.createObjectURL(blob);
+        // Play audio
+        var audio = new Audio(url);
+        audio.play().catch(function(){});
+        // Also offer download
+        var a = document.createElement('a');
+        a.href = url; a.download = 'seedy_' + deviceId + '_' + Date.now() + '.wav';
+        a.click();
+        btn.textContent = '✅ Grabado';
+        btn.style.background = '#22c55e';
+        setTimeout(function() { btn.textContent = '⏺ Grabar 5s'; btn.style.background = '#4ecdc4'; btn.disabled = false; }, 3000);
+      })
+      .catch(function(e) {
+        btn.textContent = '❌ Error';
+        btn.style.background = '#ef4444';
+        setTimeout(function() { btn.textContent = '⏺ Grabar 5s'; btn.style.background = '#4ecdc4'; btn.disabled = false; }, 3000);
+      });
+  };
+
+  // Poll audio levels for ESP32 cards
+  function _pollEsp32AudioLevels() {
+    ['palacio', 'pequeno'].forEach(function(devId) {
+      var el = document.getElementById('audio-level-' + devId);
+      if (!el || !SEEDY_API) return;
+      fetch(SEEDY_API + '/ovosfera/esp32/' + devId + '/audio/level')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(d) {
+          if (!d) return;
+          el.textContent = d.db_fs.toFixed(0) + ' dBFS (peak ' + d.peak + ')';
+          el.style.color = d.db_fs > -20 ? '#4ecdc4' : '#888';
+        })
+        .catch(function() { el.textContent = '— dBFS'; el.style.color = '#666'; });
+    });
+  }
+  setInterval(_pollEsp32AudioLevels, 10000);
 
   // Start when DOM ready
   if (document.readyState === "loading") {

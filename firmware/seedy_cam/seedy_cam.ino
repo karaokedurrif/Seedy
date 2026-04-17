@@ -27,6 +27,7 @@
 #include <Update.h>
 #include <esp_camera.h>
 #include <Wire.h>
+#include <driver/i2s_pdm.h>
 
 // ════════════════════════════════════════════
 // CONFIGURACIÓN POR DISPOSITIVO
@@ -88,6 +89,11 @@ float lastLux = -1;
 bool irAutoMode = true;
 bool irManualOn = false;
 
+// ── Audio (I2S PDM) ──
+static i2s_chan_handle_t pdm_rx_handle = NULL;
+static bool audioAvailable = false;
+static volatile bool audioRecording = false;
+
 // ── Forward declarations ──
 void initCamera();
 void initWiFi();
@@ -98,6 +104,9 @@ void updateIR();
 void handleStream();
 void handleCapture();
 void handleAudio();
+void handleAudioLevel();
+bool initI2SPDM();
+void writeWavHeader(uint8_t *buf, uint32_t dataSize, uint32_t sampleRate);
 void handleStatus();
 void handleOTA();
 void handleOTAUpload();
@@ -132,6 +141,9 @@ void setup() {
   // Light sensor
   initALS();
 
+  // Audio (PDM mic) — non-fatal, camera works without it
+  audioAvailable = initI2SPDM();
+
   // WiFi
   initWiFi();
   if (WiFi.status() != WL_CONNECTED) {
@@ -148,6 +160,7 @@ void setup() {
   server.on("/stream", HTTP_GET, handleStream);
   server.on("/capture", HTTP_GET, handleCapture);
   server.on("/audio", HTTP_GET, handleAudio);
+  server.on("/audio/level", HTTP_GET, handleAudioLevel);
   server.on("/status", HTTP_GET, handleStatus);
   server.on("/update", HTTP_POST, handleOTA, handleOTAUpload);
   server.on("/reboot", HTTP_POST, handleReboot);
@@ -335,7 +348,7 @@ void initMDNS() {
     MDNS.addService("http", "tcp", 80);
     MDNS.addServiceTxt("http", "tcp", "type", "seedy-cam");
     MDNS.addServiceTxt("http", "tcp", "device", deviceId.c_str());
-    MDNS.addServiceTxt("http", "tcp", "firmware", "1.0.0");
+    MDNS.addServiceTxt("http", "tcp", "firmware", "1.1.0");
     Serial.printf("[mDNS] %s.local\n", deviceHostname.c_str());
   }
 }
@@ -399,6 +412,69 @@ void updateIR() {
 }
 
 // ════════════════════════════════════════════
+// I2S PDM MICROPHONE
+// ════════════════════════════════════════════
+bool initI2SPDM() {
+  if (pdm_rx_handle != NULL) return true;
+
+  i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  chan_cfg.dma_desc_num = 8;
+  chan_cfg.dma_frame_num = 256;
+
+  esp_err_t err = i2s_new_channel(&chan_cfg, NULL, &pdm_rx_handle);
+  if (err != ESP_OK) {
+    Serial.printf("[MIC] Channel create fail: 0x%x\n", err);
+    return false;
+  }
+
+  i2s_pdm_rx_clk_config_t clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(AUDIO_SAMPLE_RATE);
+  i2s_pdm_rx_slot_config_t slot_cfg = I2S_PDM_RX_SLOT_DEFAULT_CONFIG(
+      I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO);
+
+  i2s_pdm_rx_config_t pdm_cfg = {};
+  pdm_cfg.clk_cfg = clk_cfg;
+  pdm_cfg.slot_cfg = slot_cfg;
+  pdm_cfg.gpio_cfg.clk = (gpio_num_t)MIC_CLOCK_PIN;
+  pdm_cfg.gpio_cfg.din = (gpio_num_t)MIC_DATA_PIN;
+  pdm_cfg.gpio_cfg.invert_flags.clk_inv = false;
+
+  err = i2s_channel_init_pdm_rx_mode(pdm_rx_handle, &pdm_cfg);
+  if (err != ESP_OK) {
+    Serial.printf("[MIC] PDM RX init fail: 0x%x\n", err);
+    i2s_del_channel(pdm_rx_handle);
+    pdm_rx_handle = NULL;
+    return false;
+  }
+
+  Serial.println("[MIC] I2S PDM RX OK (16kHz mono 16-bit)");
+  return true;
+}
+
+void writeWavHeader(uint8_t *buf, uint32_t dataSize, uint32_t sampleRate) {
+  uint32_t fileSize = dataSize + 36;
+  uint16_t numChannels = 1;
+  uint16_t bitsPerSample = 16;
+  uint32_t byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  uint16_t blockAlign = numChannels * bitsPerSample / 8;
+  uint16_t audioFormat = 1;
+  uint32_t fmtChunkSize = 16;
+
+  memcpy(buf +  0, "RIFF", 4);
+  memcpy(buf +  4, &fileSize, 4);
+  memcpy(buf +  8, "WAVE", 4);
+  memcpy(buf + 12, "fmt ", 4);
+  memcpy(buf + 16, &fmtChunkSize, 4);
+  memcpy(buf + 20, &audioFormat, 2);
+  memcpy(buf + 22, &numChannels, 2);
+  memcpy(buf + 24, &sampleRate, 4);
+  memcpy(buf + 28, &byteRate, 4);
+  memcpy(buf + 32, &blockAlign, 2);
+  memcpy(buf + 34, &bitsPerSample, 2);
+  memcpy(buf + 36, "data", 4);
+  memcpy(buf + 40, &dataSize, 4);
+}
+
+// ════════════════════════════════════════════
 // HTTP HANDLERS
 // ════════════════════════════════════════════
 
@@ -415,7 +491,8 @@ void handleRoot() {
     "<p><img src='/capture' id='snap'></p>"
     "<p><a href='/stream'>📹 MJPEG Stream</a> | "
     "<a href='/capture'>📸 Snapshot</a> | "
-    "<a href='/audio'>🎙️ Grabar Audio (5s)</a> | "
+    "<a href='/audio'>🎙️ Grabar Audio</a> | "
+    "<a href='/audio/level'>🔊 Nivel</a> | "
     "<a href='/status'>📊 Status</a></p>"
     "<div class='status'>"
     "<b>IP:</b> " + WiFi.localIP().toString() + "<br>"
@@ -423,6 +500,7 @@ void handleRoot() {
     "<b>Uptime:</b> " + String((millis() - bootTime) / 1000) + "s<br>"
     "<b>Luz:</b> " + String(lastLux, 1) + " lux<br>"
     "<b>IR:</b> " + String(digitalRead(LED_IR_PIN) ? "ON" : "OFF") + "<br>"
+    "<b>Audio:</b> " + String(audioAvailable ? "✅ PDM" : "❌ N/A") + "<br>"
     "<b>Free heap:</b> " + String(ESP.getFreeHeap() / 1024) + " KB<br>"
     "</div>"
     "<script>setInterval(()=>{document.getElementById('snap').src='/capture?t='+Date.now()},3000)</script>"
@@ -484,14 +562,155 @@ void handleCapture() {
   esp_camera_fb_return(fb);
 }
 
-// ── Audio recording — TODO: add via OTA when I2S/HWCDC conflict is resolved ──
+// ── Audio recording (PDM mic → WAV 16kHz mono 16-bit) ──
 void handleAudio() {
+  if (audioRecording) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(409, "application/json", "{\"error\":\"Recording in progress\"}");
+    return;
+  }
+
+  if (!audioAvailable) {
+    audioAvailable = initI2SPDM();
+    if (!audioAvailable) {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.send(500, "application/json",
+        "{\"error\":\"I2S PDM init failed\",\"device\":\"" + deviceId + "\"}");
+      return;
+    }
+  }
+
+  int seconds = AUDIO_REC_SECONDS;
+  if (server.hasArg("seconds")) {
+    seconds = server.arg("seconds").toInt();
+    if (seconds < 1) seconds = 1;
+    if (seconds > 10) seconds = 10;
+  }
+  // Cap at 3s without PSRAM (limited heap)
+  if (!psramFound() && seconds > 3) seconds = 3;
+
+  uint32_t dataSize = AUDIO_SAMPLE_RATE * 2 * seconds;
+  uint32_t totalSize = 44 + dataSize;
+
+  uint8_t *wavBuf = NULL;
+  if (psramFound()) wavBuf = (uint8_t *)ps_malloc(totalSize);
+  if (!wavBuf) wavBuf = (uint8_t *)malloc(totalSize);
+  if (!wavBuf) {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.send(500, "application/json",
+      "{\"error\":\"Buffer alloc failed\",\"needed\":" + String(totalSize) + "}");
+    return;
+  }
+
+  audioRecording = true;
+  writeWavHeader(wavBuf, dataSize, AUDIO_SAMPLE_RATE);
+
+  i2s_channel_enable(pdm_rx_handle);
+  Serial.printf("[MIC] Recording %ds...\n", seconds);
+
+  uint32_t bytesRead = 0;
+  uint32_t offset = 44;
+  size_t readSize;
+  while (bytesRead < dataSize) {
+    size_t toRead = dataSize - bytesRead;
+    if (toRead > 1024) toRead = 1024;
+    esp_err_t err = i2s_channel_read(pdm_rx_handle, wavBuf + offset,
+        toRead, &readSize, pdMS_TO_TICKS(1000));
+    if (err != ESP_OK) {
+      Serial.printf("[MIC] Read error: 0x%x\n", err);
+      break;
+    }
+    offset += readSize;
+    bytesRead += readSize;
+    yield();
+  }
+
+  i2s_channel_disable(pdm_rx_handle);
+  audioRecording = false;
+  Serial.printf("[MIC] Recorded %u bytes\n", bytesRead);
+
+  if (bytesRead < dataSize) {
+    writeWavHeader(wavBuf, bytesRead, AUDIO_SAMPLE_RATE);
+    totalSize = 44 + bytesRead;
+  }
+
+  // Send via raw client to avoid WebServer internal buffering
+  WiFiClient client = server.client();
+  client.printf("HTTP/1.1 200 OK\r\n");
+  client.printf("Content-Type: audio/wav\r\n");
+  client.printf("Content-Length: %u\r\n", totalSize);
+  client.printf("Content-Disposition: attachment; filename=\"seedy_%s_%lu.wav\"\r\n",
+    deviceId.c_str(), millis());
+  client.printf("Access-Control-Allow-Origin: *\r\n");
+  client.printf("Cache-Control: no-cache\r\n");
+  client.printf("\r\n");
+
+  uint32_t sent = 0;
+  while (sent < totalSize) {
+    size_t chunk = totalSize - sent;
+    if (chunk > 4096) chunk = 4096;
+    size_t written = client.write(wavBuf + sent, chunk);
+    if (written == 0) break;
+    sent += written;
+    yield();
+  }
+
+  free(wavBuf);
+  Serial.printf("[MIC] Sent %u/%u bytes\n", sent, totalSize);
+}
+
+// ── Audio level (quick RMS check, no full recording) ──
+void handleAudioLevel() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
-  String json = "{\"status\":\"not_implemented\","
-    "\"message\":\"Audio recording coming in firmware v1.1 via OTA. "
-    "Hardware: PDM mic GPIO38/39 ready.\","
-    "\"device\":\"" + deviceId + "\"}";
-  server.send(501, "application/json", json);
+
+  if (!audioAvailable) {
+    audioAvailable = initI2SPDM();
+    if (!audioAvailable) {
+      server.send(500, "application/json", "{\"error\":\"I2S PDM init failed\"}");
+      return;
+    }
+  }
+  if (audioRecording) {
+    server.send(409, "application/json", "{\"error\":\"Recording in progress\"}");
+    return;
+  }
+
+  int16_t samples[512];
+  size_t readSize;
+
+  i2s_channel_enable(pdm_rx_handle);
+  // Discard first read (I2S warmup noise)
+  i2s_channel_read(pdm_rx_handle, samples, sizeof(samples), &readSize, pdMS_TO_TICKS(500));
+  esp_err_t err = i2s_channel_read(pdm_rx_handle, samples, sizeof(samples),
+      &readSize, pdMS_TO_TICKS(500));
+  i2s_channel_disable(pdm_rx_handle);
+
+  if (err != ESP_OK) {
+    server.send(500, "application/json", "{\"error\":\"Read failed\"}");
+    return;
+  }
+
+  int numSamples = readSize / 2;
+  int64_t sumSq = 0;
+  int16_t peak = 0;
+  for (int i = 0; i < numSamples; i++) {
+    int16_t s = samples[i];
+    sumSq += (int64_t)s * s;
+    int16_t absS = s < 0 ? -s : s;
+    if (absS > peak) peak = absS;
+  }
+  float rms = sqrtf((float)sumSq / numSamples);
+  float dbFS = (rms > 0) ? 20.0f * log10f(rms / 32768.0f) : -96.0f;
+
+  String json = "{";
+  json += "\"rms\":" + String(rms, 1) + ",";
+  json += "\"peak\":" + String(peak) + ",";
+  json += "\"db_fs\":" + String(dbFS, 1) + ",";
+  json += "\"samples\":" + String(numSamples) + ",";
+  json += "\"device\":\"" + deviceId + "\"";
+  json += "}";
+
+  server.send(200, "application/json", json);
 }
 
 // ── Status JSON ──
@@ -509,7 +728,9 @@ void handleStatus() {
   json += "\"ir_auto\":" + String(irAutoMode ? "true" : "false") + ",";
   json += "\"free_heap\":" + String(ESP.getFreeHeap()) + ",";
   json += "\"free_psram\":" + String(ESP.getFreePsram()) + ",";
-  json += "\"firmware\":\"seedy-cam-1.0.0\",";
+  json += "\"firmware\":\"seedy-cam-1.1.0\",";
+  json += "\"audio_available\":" + String(audioAvailable ? "true" : "false") + ",";
+  json += "\"audio_recording\":" + String(audioRecording ? "true" : "false") + ",";
   json += "\"camera\":\"OV3660\"";
   json += "}";
 
@@ -533,17 +754,17 @@ void handleOTAUpload() {
   if (upload.status == UPLOAD_FILE_START) {
     Serial.printf("[OTA] Start: %s\n", upload.filename.c_str());
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-      Update.printError(Serial);
+      Serial.printf("[OTA] Begin error: %s\n", Update.errorString());
     }
   } else if (upload.status == UPLOAD_FILE_WRITE) {
     if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-      Update.printError(Serial);
+      Serial.printf("[OTA] Write error: %s\n", Update.errorString());
     }
   } else if (upload.status == UPLOAD_FILE_END) {
     if (Update.end(true)) {
       Serial.printf("[OTA] Success: %u bytes\n", upload.totalSize);
     } else {
-      Update.printError(Serial);
+      Serial.printf("[OTA] End error: %s\n", Update.errorString());
     }
   }
 }

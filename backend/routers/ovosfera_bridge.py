@@ -364,6 +364,61 @@ async def bulk_assign_gallineros(assignments: list[dict]):
     return {"results": results}
 
 
+# ── ESP32 Audio proxy ──
+
+ESP32_ENDPOINTS = {
+    "palacio": "http://host.docker.internal:8061",
+    "pequeno": "http://host.docker.internal:8062",
+}
+
+
+def _get_esp32_url(device_id: str) -> str:
+    url = ESP32_ENDPOINTS.get(device_id)
+    if not url:
+        raise HTTPException(404, f"ESP32 '{device_id}' no encontrado")
+    return url
+
+
+@router.get("/esp32/{device_id}/audio/level")
+async def esp32_audio_level(device_id: str):
+    """Nivel de audio RMS + dBFS del micrófono PDM del ESP32."""
+    base = _get_esp32_url(device_id)
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{base}/audio/level")
+            if resp.status_code == 200:
+                return resp.json()
+            raise HTTPException(resp.status_code, resp.text)
+    except httpx.RequestError as e:
+        raise HTTPException(503, f"ESP32 {device_id} no accesible: {e}")
+
+
+@router.get("/esp32/{device_id}/audio")
+async def esp32_audio_record(device_id: str, seconds: int = 5):
+    """Graba audio WAV desde el micrófono PDM del ESP32 (1-10 segundos)."""
+    if seconds < 1 or seconds > 10:
+        raise HTTPException(400, "seconds debe ser 1-10")
+    base = _get_esp32_url(device_id)
+    try:
+        async with httpx.AsyncClient(timeout=float(seconds + 10)) as client:
+            resp = await client.get(f"{base}/audio", params={"seconds": seconds})
+            if resp.status_code == 200:
+                return Response(
+                    content=resp.content,
+                    media_type="audio/wav",
+                    headers={
+                        "Content-Disposition": resp.headers.get(
+                            "Content-Disposition",
+                            f'attachment; filename="seedy_{device_id}.wav"',
+                        ),
+                        "Cache-Control": "no-cache",
+                    },
+                )
+            raise HTTPException(resp.status_code, resp.text)
+    except httpx.RequestError as e:
+        raise HTTPException(503, f"ESP32 {device_id} no accesible: {e}")
+
+
 # ── Chat proxy con visión en tiempo real ──
 
 _SEEDY_CHAT_URL = "https://seedy-api.neofarm.io/v1/chat/completions"

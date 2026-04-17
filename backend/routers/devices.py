@@ -153,6 +153,8 @@ async def list_devices():
                             "ir_on": cam_data.get("ir_on"),
                             "free_psram": cam_data.get("free_psram"),
                             "uptime_s": cam_data.get("uptime_s"),
+                            "audio_available": cam_data.get("audio_available", False),
+                            "audio_recording": cam_data.get("audio_recording", False),
                             "stream_url": f"{cam_url}/stream",
                             "snapshot_url": f"{cam_url}/capture",
                         },
