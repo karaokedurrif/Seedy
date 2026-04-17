@@ -17,6 +17,7 @@ _HEALTH_CHECK_INTERVAL = 30.0  # segundos entre health checks
 
 # Mapeo de carpetas de conocimientos → colección Qdrant
 FOLDER_TO_COLLECTION = {
+    "0.Prompts & Arquitectura": "estrategia",
     "1.PorciData — IoT & Hardware": "iot_hardware",
     "2.Nutricion & Formulacion": "nutricion",
     "3.NeoFarm Genetica": "genetica",
