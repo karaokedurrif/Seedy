@@ -31,6 +31,10 @@ streams:
   gallinero_palacio_esp32:
     - http://localhost:8061/stream
 
+  # ── ESP32-S3 AI Camera — Gallinero Pequeño (vía SSH tunnel) ──
+  gallinero_pequeno_esp32:
+    - http://localhost:8062/stream
+
   # ── Streams H.264 para navegador (MSE/MJPEG) ──
   # ffmpeg transcodifica H.265→H.264 desde substreams (bajo coste CPU)
   gallinero_durrif_1_web:

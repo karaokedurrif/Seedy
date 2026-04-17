@@ -28,6 +28,14 @@
         { id: "interior", label: "Cám. Interior (ESP32 IR)", stream: "gallinero_palacio_esp32", active: true },
       ],
     },
+    3: {
+      name: "Gallinero Pequeño",
+      stream: "gallinero_pequeno_esp32",
+      gallinero: "gallinero_pequeno",
+      cameras: [
+        { id: "interior", label: "Cám. Interior (ESP32 IR)", stream: "gallinero_pequeno_esp32", active: true },
+      ],
+    },
   };
 
   // ── Styles ──

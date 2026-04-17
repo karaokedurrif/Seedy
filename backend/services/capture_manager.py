@@ -142,6 +142,24 @@ CAMERAS: dict[str, CameraConfig] = {
         stream_sub="gallinero_palacio_esp32",
         name="Interior Palacio (ESP32 IR)",
     ),
+    "gallinero_pequeno_esp32": CameraConfig(
+        camera_id="gallinero_pequeno_esp32",
+        ip="0.0.0.0",  # IP será asignada por DHCP, se accede vía tunnel
+        gallinero_id="gallinero_pequeno",
+        sub_stream_url="http://host.docker.internal:8062/stream",
+        sub_stream_fps=5,
+        sub_imgsz=640,
+        main_snapshot_url="http://host.docker.internal:8062/capture",
+        main_imgsz=640,
+        use_tiled=False,
+        auth_type="none",
+        username="",
+        password="",
+        snapshot_auth=("", ""),
+        stream="gallinero_pequeno_esp32",
+        stream_sub="gallinero_pequeno_esp32",
+        name="Interior Pequeño (ESP32 IR)",
+    ),
 }
 
 

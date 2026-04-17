@@ -117,8 +117,9 @@ async def list_devices():
 
     # Añadir cámaras ESP32 Seedy como dispositivos
     import httpx
-    for cam_name, cam_url in [
-        ("Cám. Interior Palacio (ESP32 IR)", "http://host.docker.internal:8061"),
+    for cam_name, cam_url, gall_id, gall_name in [
+        ("Cám. Interior Palacio (ESP32 IR)", "http://host.docker.internal:8061", 2, "Gallinero Palacio"),
+        ("Cám. Interior Pequeño (ESP32 IR)", "http://host.docker.internal:8062", 3, "Gallinero Pequeño"),
     ]:
         try:
             async with httpx.AsyncClient(timeout=3) as client:
@@ -134,8 +135,8 @@ async def list_devices():
                         "description": f"Cámara IR interior - {cam_data.get('camera', 'OV3660')}",
                         "supported": True,
                         "interview_completed": True,
-                        "gallinero_id": 2,
-                        "gallinero_name": "Gallinero Palacio",
+                        "gallinero_id": gall_id,
+                        "gallinero_name": gall_name,
                         "device_category": "camera",
                         "last_temperature": None,
                         "last_humidity": None,
