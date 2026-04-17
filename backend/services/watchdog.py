@@ -170,7 +170,7 @@ def _smtp_test() -> tuple[bool, str]:
 
 
 async def _check_bird_registry() -> tuple[bool, str]:
-    """Registro de aves — 26 aves en gallinero_palacio."""
+    """Registro de aves — 25 aves en gallinero_palacio."""
     try:
         from routers.birds import _registry
         total = len(_registry)

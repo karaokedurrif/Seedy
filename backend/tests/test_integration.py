@@ -133,13 +133,13 @@ class TestRAG:
 
 class TestBirds:
     def test_list_birds(self, client):
-        """Verifica que el registro de aves devuelve 26 aves del gallinero_palacio."""
+        """Verifica que el registro de aves devuelve 25 aves del gallinero_palacio."""
         r = client.get("/birds/")
         assert r.status_code == 200
         data = r.json()
         birds = data.get("birds", data) if isinstance(data, dict) else data
         assert isinstance(birds, list)
-        assert len(birds) == 26, f"Esperadas 26 aves, got {len(birds)}"
+        assert len(birds) == 25, f"Esperadas 25 aves, got {len(birds)}"
 
     def test_bird_detail(self, client):
         """Verifica que se puede obtener detalle de un ave."""

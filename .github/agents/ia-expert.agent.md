@@ -26,7 +26,7 @@ Sistema de inteligencia artificial multi-agente para ganadería de precisión (p
 - **LLM multi-tier** — Together.ai PRIMARY (Kimi-K2.5 + DeepSeek-R1 + Qwen3-235B), Ollama FALLBACK (seedy:v16)
 - **RAG híbrido** — Qdrant (dense mxbai-embed-large 1024d + BM25 sparse), reranker bge-reranker-v2-m3
 - **Visión v4.1** — Dual-stream (sub 15fps tracking + main 4K event-triggered), COCO v8s como DETECTOR (bird+dog+cat, conf 0.20) + Breed v3 como CLASIFICADOR sobre crops + Gemini 2.5 Flash, tile-artifact filter, curación dual (crops + frames anotados)
-- **Behavior ML** — 7 dimensiones conductuales + detector de monta + tracker por centroide + ML adaptativo (GMM rutinas, IsolationForest anomalías, PageRank jerarquía, predicción de puesta) — gallinero_palacio unificado (26 aves)
+- **Behavior ML** — 7 dimensiones conductuales + detector de monta + tracker por centroide + ML adaptativo (GMM rutinas, IsolationForest anomalías, PageRank jerarquía, predicción de puesta) — gallinero_palacio unificado (25 aves)
 - **Motor genético** — BLUP/GBLUP, predicción F1-F5, cruces óptimos
 - **Gemelo digital** — BIM-lite, plano 2D, integración GeoTwin (Cesium 3D + PNOA), renders FLUX.1.1 Pro
 - **IoT** — MQTT (Mosquitto) → InfluxDB → Node-RED → Grafana + Zigbee (Sonoff sensors)
@@ -125,7 +125,7 @@ Query → URL Fetcher (crawl4ai) → Query Rewriter (Together Qwen2.5-7B)
 
 ### 5.0 Diagnóstico crítico (Fase 25 — 13 abril 2026)
 
-**GALLINERO UNIFICADO:** Las 26 aves están en un solo espacio. Las 3 cámaras cubren el mismo gallinero (`gallinero_palacio`).
+**GALLINERO UNIFICADO:** Las 25 aves están en un solo espacio. Las 3 cámaras cubren el mismo gallinero (`gallinero_palacio`).
 
 **BREED ≠ DETECTOR:** `seedy_breeds_best.pt` fue entrenado con crops de 1 ave llenando todo el frame. Al usarlo como detector sobre tiles, cada tile entero "es un ave" → artefactos. **El breed es un CLASIFICADOR, no un detector.** Siempre usarlo sobre crops recortados por COCO, NUNCA sobre frames/tiles completos.
 
@@ -173,7 +173,7 @@ Cámara (RTSP)
 | VIGI Nueva | 10.10.10.11 | `stream2` 10fps | tile=960 | Basic admin/123456 |
 | VIGI Gallinero | 10.10.10.10 | `stream2` 10fps | tile=1280 | Basic admin/123456 |
 
-**Todas cubren `gallinero_palacio`** (26 aves, un solo espacio).
+**Todas cubren `gallinero_palacio`** (25 aves, un solo espacio).
 
 **Optimización Dahua (CGI):**
 - Exposición manual 1/200s (congelar aves en movimiento)
@@ -232,7 +232,7 @@ Motor de aprendizaje sobre datos de `data/behavior_events/`:
 - Detector de anomalías (IsolationForest, contamination=5%)
 - Predictor de puesta (correlación nesting + feeding → huevo 24h)
 
-**Modelo de rebaño (gallinero_palacio — 26 aves unificadas):**
+**Modelo de rebaño (gallinero_palacio — 25 aves unificadas):**
 - Perfil circadiano (actividad media × hora, 24 bins)
 - Grafo social (co-ocurrencia en zona → PageRank de dominancia)
 - Anomalía de grupo (z-score > 2.5 del perfil circadiano)
@@ -277,7 +277,7 @@ Motor de aprendizaje sobre datos de `data/behavior_events/`:
 | behavior_features | `behavior_features.py` | 30+ features conductuales |
 | behavior_baseline | `behavior_baseline.py` | Baseline individual + grupo (EMA α=0.3) |
 | behavior_inference | `behavior_inference.py` | 7 dimensiones |
-| flock_census | `flock_census.py` | Censo gallinero_palacio unificado (26 aves) |
+| flock_census | `flock_census.py` | Censo gallinero_palacio unificado (25 aves) |
 | pest_alert | `pest_alert.py` | Detección plagas → MQTT |
 | health_analyzer | `health_analyzer.py` | Growth tracking |
 
@@ -424,7 +424,7 @@ Ecowitt GW2000A → WiFi → Cloud API v3 → ecowitt.py → devices.py → OvoS
 - **Artifact filter siempre activo:** Rechazar bbox >45% del tile. Es el parche contra artefactos del breed
 - **Tile configs por cámara:** Sauna=800, Nueva=960, Gallinero=1280. No cambiar sin verificar
 - **COCO conf=0.20, NMS IoU=0.45:** Bajados de 0.25/0.50 por miss rate alto en gallinas
-- **Gallinero unificado:** `gallinero_palacio`, 26 aves, 3 cámaras. Ya no hay durrif_1 vs durrif_2 separados
+- **Gallinero unificado:** `gallinero_palacio`, 25 aves, 3 cámaras. Ya no hay durrif_1 vs durrif_2 separados
 - **Dual stream siempre:** sub-stream para tracking, main-stream solo bajo trigger
 - **Curación DUAL:** Track A (crops→clasificación) + Track B (frames+bboxes→detección). Track B es el fix definitivo
 - **Dahua es la estrella:** configurar exposición y WDR al startup

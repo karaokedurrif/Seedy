@@ -1,7 +1,7 @@
 {
-  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Gallinero unificado: 26 aves juntas.",
-  "_nota_distribucion": "26 aves totales. Gallinero único Palacio (antes Durrif I+II). 3 cámaras: VIGI nueva, VIGI gallinero, Dahua sauna.",
-  "_total": 26,
+  "_doc": "Censo real de la cabaña — fuente de verdad para identificación por IA Vision. Gallinero unificado: 25 aves juntas.",
+  "_nota_distribucion": "25 aves totales. Gallinero único Palacio (antes Durrif I+II). 3 cámaras: VIGI nueva, VIGI gallinero, Dahua sauna.",
+  "_total": 25,
   "gallinero_palacio": {
     "name": "Gallinero Palacio",
     "ovosfera_id": 2,
@@ -11,7 +11,7 @@
       "gallinero_durrif_2",
       "sauna_durrif_1"
     ],
-    "_nota": "26 aves totales (jul 2026). Unificación de G1+G2. Las 3 cámaras cubren el espacio completo.",
+    "_nota": "25 aves totales (abr 2026). Unificación de G1+G2. Las 3 cámaras cubren el espacio completo. Gallo Sulmtaler regalado 17-abr-2026.",
     "aves": [
       {
         "raza": "Bresse",
@@ -59,8 +59,8 @@
         "raza": "Sulmtaler",
         "color": "trigueño",
         "sexo": "male",
-        "cantidad": 2,
-        "notas": "PAL-0014, PAL-0021. Gallos Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado."
+        "cantidad": 1,
+        "notas": "PAL-0014. Gallo Sulmtaler. Cresta pequeña, plumaje trigueño/atigrado. (PAL-0021 regalado 17-abr-2026)"
       },
       {
         "raza": "Araucana",
