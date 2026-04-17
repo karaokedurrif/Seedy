@@ -366,6 +366,14 @@ class CaptureManager:
                 if detected_birds:
                     await _register_or_update_birds(detected_birds, cam_config.gallinero_id, frame)
 
+                    # Sync IDs del registro → tracker activo
+                    try:
+                        await self._sync_ids_to_tracker(
+                            cam_config.gallinero_id, req.metadata,
+                        )
+                    except Exception as e:
+                        logger.debug(f"ID sync to tracker failed: {e}")
+
                     # Curación de crops (si el módulo está disponible)
                     try:
                         from services.crop_curator import get_crop_curator
@@ -455,6 +463,57 @@ class CaptureManager:
             _enrich_with_tracking(gallinero_id, frame_bytes)
         except Exception as e:
             logger.debug(f"Tracking enrichment failed ({gallinero_id}): {e}")
+
+    @staticmethod
+    async def _sync_ids_to_tracker(
+        gallinero_id: str, trigger_metadata: dict,
+    ):
+        """Sincroniza ai_vision_ids del registro de aves con tracks activos.
+
+        1. Si el trigger fue NEW_BIRD con track_id, intenta asignar directamente.
+        2. Luego hace sync general por breed matching para todos los tracks sin ID.
+        """
+        from services.bird_tracker import get_tracker
+
+        tracker = get_tracker(gallinero_id)
+
+        # 1. Obtener aves registradas del gallinero
+        async with httpx.AsyncClient(
+            timeout=5.0, base_url="http://localhost:8000",
+        ) as client:
+            resp = await client.get(
+                "/birds/", params={"gallinero": gallinero_id},
+            )
+            if resp.status_code != 200:
+                return
+            registered = resp.json().get("birds", [])
+
+        if not registered:
+            return
+
+        # 2. Si trigger fue NEW_BIRD, asignar al track que lo disparó
+        trigger_track_id = trigger_metadata.get("track_id")
+        if trigger_track_id:
+            track = tracker.tracks.get(trigger_track_id)
+            if track and track.active and not track.ai_vision_id:
+                # Buscar el ave más recientemente registrada (última en la lista)
+                # que aún no esté asignada a ningún track activo
+                assigned_ids = {
+                    t.ai_vision_id for t in tracker.tracks.values()
+                    if t.active and t.ai_vision_id
+                }
+                for bird in reversed(registered):
+                    vid = bird.get("ai_vision_id", "")
+                    if vid and vid not in assigned_ids:
+                        tracker.assign_vision_id(
+                            trigger_track_id, vid,
+                            breed=bird.get("breed", ""),
+                            sex=bird.get("sex", ""),
+                        )
+                        break
+
+        # 3. Sync general por breed matching
+        tracker.sync_registered_ids(registered)
 
 
 # ─── Singleton ───

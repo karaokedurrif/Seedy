@@ -431,6 +431,88 @@ class GallineroTracker:
 
         return alerts
 
+    def assign_vision_id(self, track_id: int, ai_vision_id: str,
+                         breed: str = "", sex: str = "") -> bool:
+        """Asigna un ai_vision_id a un track específico (feedback de registro)."""
+        t = self.tracks.get(track_id)
+        if t and t.active and not t.ai_vision_id:
+            t.ai_vision_id = ai_vision_id
+            if breed:
+                t.breed = breed
+            if sex:
+                t.sex = sex
+            logger.info(
+                f"✅ Track #{track_id} → {ai_vision_id} "
+                f"({breed or '?'} {sex or '?'}) en {self.gallinero_id}"
+            )
+            return True
+        return False
+
+    def sync_registered_ids(self, registered_birds: list[dict]) -> int:
+        """Sincroniza ai_vision_ids del registro con tracks activos sin ID.
+
+        Para cada track sin ai_vision_id, intenta encontrar un match único
+        por breed/color/sex contra las aves registradas. Solo asigna cuando
+        el match es inequívoco (1 candidato posible).
+
+        Args:
+            registered_birds: lista de dicts con al menos
+                {ai_vision_id, breed, color, sex}
+
+        Returns:
+            Número de tracks actualizados.
+        """
+        if not registered_birds:
+            return 0
+
+        # IDs ya asignados a tracks activos
+        assigned_ids = {
+            t.ai_vision_id for t in self.tracks.values()
+            if t.active and t.ai_vision_id
+        }
+
+        # Aves registradas aún no vinculadas a ningún track
+        available = [
+            b for b in registered_birds
+            if b.get("ai_vision_id") and b["ai_vision_id"] not in assigned_ids
+        ]
+        if not available:
+            return 0
+
+        synced = 0
+        for t in self.tracks.values():
+            if not t.active or t.ai_vision_id:
+                continue
+            # Solo intentar match con tracks que tienen breed (del YOLO breed)
+            if not t.breed:
+                continue
+            # Buscar aves registradas con el mismo breed
+            breed_lower = t.breed.lower()
+            candidates = [
+                b for b in available
+                if b.get("breed", "").lower() == breed_lower
+            ]
+            # Si hay exactamente 1 candidato, match inequívoco
+            if len(candidates) == 1:
+                bird = candidates[0]
+                t.ai_vision_id = bird["ai_vision_id"]
+                if bird.get("sex"):
+                    t.sex = bird["sex"]
+                assigned_ids.add(bird["ai_vision_id"])
+                available.remove(bird)
+                synced += 1
+                logger.info(
+                    f"🔗 Sync Track #{t.track_id} → {bird['ai_vision_id']} "
+                    f"(breed match: {t.breed}) en {self.gallinero_id}"
+                )
+
+        if synced:
+            logger.info(
+                f"[Tracker] Synced {synced} track(s) con IDs del registro "
+                f"en {self.gallinero_id}"
+            )
+        return synced
+
     def reset(self):
         """Reset completo del tracker."""
         self.tracks.clear()

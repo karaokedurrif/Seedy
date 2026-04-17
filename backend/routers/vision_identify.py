@@ -604,11 +604,11 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
             from services.behavior_ml import get_behavior_ml_engine
             ml_engine = get_behavior_ml_engine()
             for t in tracker.tracks.values():
-                if not t.active or not t.bird_id:
+                if not t.active or not t.ai_vision_id:
                     continue
                 total_zone = max(sum(t.zone_time.values()), 1)
                 snapshot = {
-                    "bird_id": t.bird_id,
+                    "bird_id": t.ai_vision_id,
                     "zone_nido_pct": t.zone_time.get("nido", 0) / total_zone,
                     "zone_comedero_pct": t.zone_time.get("comedero", 0) / total_zone,
                     "zone_bebedero_pct": t.zone_time.get("bebedero", 0) / total_zone,
