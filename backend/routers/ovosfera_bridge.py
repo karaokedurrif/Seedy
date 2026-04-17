@@ -53,6 +53,7 @@ ALLOWED_STREAMS = {
     "gallinero_durrif_2", "gallinero_durrif_2_sub",
     "sauna_durrif_1", "sauna_durrif_1_sub",
     "gallinero_durrif_1_web", "gallinero_durrif_2_web", "sauna_durrif_1_web",
+    "gallinero_palacio_esp32",
 }
 
 

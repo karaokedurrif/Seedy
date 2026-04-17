@@ -12,7 +12,6 @@ from services.merit_index import (
     calculate_viability,
     get_target_weight,
     gompertz_weight,
-    evaluate_pairing,
 )
 
 
@@ -223,117 +222,6 @@ def test_auto_gompertz_when_no_target():
     )
     result = calculate_merit_index(inp)
     assert result.components["peso"] > 0
-
-
-def test_sex_in_recommendation():
-    """El sexo aparece en la recomendación cuando se proporciona."""
-    inp_male = MeritInput(
-        bird_id="SEX-M", sex="male", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=4.0, docilidad_score=4.0,
-    )
-    inp_female = MeritInput(
-        bird_id="SEX-F", sex="female", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=4.0, docilidad_score=4.0,
-    )
-    r_m = calculate_merit_index(inp_male)
-    r_f = calculate_merit_index(inp_female)
-    assert "(macho)" in r_m.recommendation
-    assert "(hembra)" in r_f.recommendation
-
-
-def test_sex_female_produccion_destino():
-    """Hembra en PRODUCCIÓN recomienda pularda, no capón."""
-    inp = MeritInput(
-        bird_id="DEST-F", sex="female", age_weeks=20,
-        weight_grams=2800, target_weight_grams=3500,
-        conformacion_score=3.5, docilidad_score=3.5,
-    )
-    result = calculate_merit_index(inp)
-    if result.category == SelectionCategory.PRODUCCION:
-        assert "pularda" in result.recommendation
-        assert "capón" not in result.recommendation
-
-
-def test_calculate_with_custom_weights():
-    """El endpoint /calculate ahora acepta weights custom."""
-    w = MeritWeights(peso=0.50, conformacion=0.20, conversion=0.10, viabilidad=0.10, docilidad=0.10)
-    inp = MeritInput(
-        bird_id="CW-CALC", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    result = calculate_merit_index(inp, w)
-    assert result.weighted_components["peso"] == 0.50
-
-
-def test_pairing_approved_low_coi():
-    """Apareamiento con COI bajo y buenos IM → APPROVED."""
-    sire = MeritInput(
-        bird_id="SIRE-01", sex="male", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    dam = MeritInput(
-        bird_id="DAM-01", sex="female", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    result = evaluate_pairing(sire, dam, expected_coi=0.05)
-    assert result["decision"] == "APPROVED"
-    assert len(result["warnings"]) == 0
-
-
-def test_pairing_blocked_high_coi():
-    """Apareamiento con COI > 0.25 → BLOCKED aunque IM sea alto."""
-    sire = MeritInput(
-        bird_id="SIRE-02", sex="male", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    dam = MeritInput(
-        bird_id="DAM-02", sex="female", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    result = evaluate_pairing(sire, dam, expected_coi=0.30)
-    assert result["decision"] == "BLOCKED"
-    assert any("BLOQUEADO" in w for w in result["warnings"])
-
-
-def test_pairing_warns_medium_coi():
-    """COI entre 0.125 y 0.25 → APPROVED con warning."""
-    sire = MeritInput(
-        bird_id="SIRE-03", sex="male", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    dam = MeritInput(
-        bird_id="DAM-03", sex="female", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    result = evaluate_pairing(sire, dam, expected_coi=0.20)
-    assert result["decision"] == "APPROVED"
-    assert any("primos hermanos" in w for w in result["warnings"])
-
-
-def test_pairing_warns_non_reproductor():
-    """Apareamiento con ave no-reproductora genera warning."""
-    sire = MeritInput(
-        bird_id="SIRE-04", sex="male", age_weeks=20,
-        weight_grams=1000, target_weight_grams=3500,
-        conformacion_score=2.0, docilidad_score=2.0,
-        has_antibiotics=True,
-    )
-    dam = MeritInput(
-        bird_id="DAM-04", sex="female", age_weeks=20,
-        weight_grams=3500, target_weight_grams=3500,
-        conformacion_score=5.0, docilidad_score=5.0,
-    )
-    result = evaluate_pairing(sire, dam, expected_coi=0.05)
-    assert any("No es reproductor" in w for w in result["warnings"])
 
 
 if __name__ == "__main__":

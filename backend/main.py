@@ -5,6 +5,13 @@ Sistema de IA para NeoFarm: clasificación → RAG → rerank → LLM.
 Incluye scheduler de actualización diaria (circuito B offline).
 """
 
+# ── Limitar torch ANTES de cualquier import que lo use ──
+import multiprocessing
+multiprocessing.set_start_method("fork", force=True)  # evitar spawn que crea workers zombie
+import torch
+torch.set_num_threads(2)       # limitar CPU del reranker
+torch.set_num_interop_threads(1)
+
 import asyncio
 import logging
 import os

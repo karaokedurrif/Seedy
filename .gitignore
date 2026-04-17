@@ -30,7 +30,7 @@ Thumbs.db
 
 # Large data directories
 conocimientos/
-data/raw/
+data/
 hf_datasets/
 vision/runs/
 vision/poultry/
@@ -41,6 +41,11 @@ yolo_dataset/
 yolo_models/
 yolo_breed_dataset
 yolo_breed_models
+
+# Backend runtime data (managed by Docker volumes)
+backend/runs/
+backend/data/
+briefs/
 
 # TLS certs (private keys)
 certs/

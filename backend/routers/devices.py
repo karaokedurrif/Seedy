@@ -115,6 +115,50 @@ async def list_devices():
             "ecowitt": ecowitt,
         })
 
+    # Añadir cámaras ESP32 Seedy como dispositivos
+    import httpx
+    for cam_name, cam_url in [
+        ("Cám. Interior Palacio (ESP32 IR)", "http://host.docker.internal:8061"),
+    ]:
+        try:
+            async with httpx.AsyncClient(timeout=3) as client:
+                resp = await client.get(f"{cam_url}/status")
+                if resp.status_code == 200:
+                    cam_data = resp.json()
+                    devices.append({
+                        "ieee_address": cam_data.get("mac", ""),
+                        "friendly_name": cam_name,
+                        "type": "esp32_cam",
+                        "model": "DFRobot DFR1154 ESP32-S3 AI CAM",
+                        "vendor": "DFRobot / Seedy",
+                        "description": f"Cámara IR interior - {cam_data.get('camera', 'OV3660')}",
+                        "supported": True,
+                        "interview_completed": True,
+                        "gallinero_id": 2,
+                        "gallinero_name": "Gallinero Palacio",
+                        "device_category": "camera",
+                        "last_temperature": None,
+                        "last_humidity": None,
+                        "last_battery": None,
+                        "last_linkquality": cam_data.get("rssi"),
+                        "last_co2": None,
+                        "last_voc": None,
+                        "last_formaldehyd": None,
+                        "last_seen": None,
+                        "esp32_cam": {
+                            "ip": cam_data.get("ip"),
+                            "firmware": cam_data.get("firmware"),
+                            "lux": cam_data.get("lux"),
+                            "ir_on": cam_data.get("ir_on"),
+                            "free_psram": cam_data.get("free_psram"),
+                            "uptime_s": cam_data.get("uptime_s"),
+                            "stream_url": f"{cam_url}/stream",
+                            "snapshot_url": f"{cam_url}/capture",
+                        },
+                    })
+        except Exception:
+            pass
+
     return {"devices": devices, "count": len(devices)}
 
 

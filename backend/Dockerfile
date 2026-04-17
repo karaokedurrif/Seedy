@@ -19,4 +19,6 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# SIN --reload: evita spawn de worker hijo que crece a 5GB+ RAM
+# Para desarrollo, reiniciar con: docker restart seedy-backend
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-keep-alive", "30"]

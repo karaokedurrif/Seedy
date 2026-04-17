@@ -25,6 +25,7 @@
         { id: "nueva", label: "Cám. Nueva (VIGI)", stream: "gallinero_durrif_1", active: true },
         { id: "sauna", label: "Cám. Sauna (Dahua)", stream: "sauna_durrif_1", active: true },
         { id: "gii", label: "Cám. Gallinero (VIGI)", stream: "gallinero_durrif_2", active: true },
+        { id: "interior", label: "Cám. Interior (ESP32 IR)", stream: "gallinero_palacio_esp32", active: true },
       ],
     },
   };
