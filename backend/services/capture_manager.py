@@ -230,7 +230,7 @@ class CaptureManager:
                     await asyncio.sleep(frame_interval)
                     continue
 
-                # Tracking + behavior + mating + pests (SIEMPRE)
+                # Tracking + behavior + mating + pests + breed classify + sync (SIEMPRE)
                 self._enrich_tracking(config.gallinero_id, frame_bytes)
 
                 # Evaluar triggers para captura 4K

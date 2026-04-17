@@ -55,6 +55,7 @@ class BehaviorEventStore:
             active_tracks.append({
                 "track_id": t.track_id,
                 "bird_id": t.ai_vision_id or "",
+                "breed": t.breed or "",
                 "center": list(last_pt.center),
                 "zone": last_pt.zone,
                 "confidence": round(last_pt.confidence, 3),

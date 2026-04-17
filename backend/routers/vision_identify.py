@@ -567,6 +567,97 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
         tracker = get_tracker(gallinero_id)
         tracker.update(result["detections"])
 
+        # 1b. Breed classification periódica (cada 30s) sobre tracks sin breed
+        _BREED_ALIASES = {
+            "Sussex Silver": "Sussex", "Sussex White": "Sussex",
+            "Ameraucana": "Araucana",
+        }
+        try:
+            _breed_last = getattr(_enrich_with_tracking, "_breed_last", {})
+            now_bc = time.time()
+            if now_bc - _breed_last.get(gallinero_id, 0) >= 30:
+                _breed_last[gallinero_id] = now_bc
+                _enrich_with_tracking._breed_last = _breed_last
+                from services.yolo_detector import classify_breed_crop
+                from PIL import Image
+                img = Image.open(io.BytesIO(frame_bytes))
+                w, h = img.size
+                no_breed = [t for t in tracker.tracks.values()
+                            if t.active and not t.breed and t.last_bbox_norm and len(t.last_bbox_norm) == 4]
+                classified = 0
+                skipped_small = 0
+                for t in no_breed:
+                    bn = t.last_bbox_norm
+                    x1 = max(0, int(bn[0] * w))
+                    y1 = max(0, int(bn[1] * h))
+                    x2 = min(w, int(bn[2] * w))
+                    y2 = min(h, int(bn[3] * h))
+                    cw, ch = x2 - x1, y2 - y1
+                    if cw < 32 or ch < 32:
+                        skipped_small += 1
+                        continue
+                    crop = img.crop((x1, y1, x2, y2))
+                    buf = io.BytesIO()
+                    crop.save(buf, format="JPEG", quality=85)
+                    res = classify_breed_crop(buf.getvalue(), confidence=0.25)
+                    if res and res["confidence"] >= 0.30:
+                        raw = res["breed_class"]
+                        # Parsear breed y sex (e.g., "pita_pinta_gallina" → breed="Pita Pinta", sex="hembra")
+                        if raw.endswith("_gallina"):
+                            breed_name = raw[:-8].replace("_", " ").title()
+                            t.sex = "hembra"
+                        elif raw.endswith("_gallo"):
+                            breed_name = raw[:-6].replace("_", " ").title()
+                            t.sex = "macho"
+                        else:
+                            breed_name = raw.replace("_", " ").title()
+                        t.breed = _BREED_ALIASES.get(breed_name, breed_name)
+                        classified += 1
+                    elif res:
+                        logger.debug(
+                            f"Breed low conf: {res['breed_class']} {res['confidence']:.2f} "
+                            f"crop={cw}x{ch}"
+                        )
+                if no_breed:
+                    logger.info(
+                        f"[{gallinero_id}] Breed classify: {len(no_breed)} sin raza, "
+                        f"{classified} clasificados, {skipped_small} pequeños, frame={w}x{h}"
+                    )
+        except Exception as e:
+            logger.debug(f"Breed classification failed ({gallinero_id}): {e}")
+
+        # 1c. Sync periódico: propagar ai_vision_id del registro → tracker (cada 60s)
+        try:
+            _sync_last = getattr(_enrich_with_tracking, "_sync_last", {})
+            now_sync = time.time()
+            if now_sync - _sync_last.get(gallinero_id, 0) >= 60:
+                _sync_last[gallinero_id] = now_sync
+                _enrich_with_tracking._sync_last = _sync_last
+                import httpx
+                import asyncio
+                async def _do_sync():
+                    async with httpx.AsyncClient(timeout=5.0) as client:
+                        resp = await client.get(
+                            "http://localhost:8000/birds/",
+                            params={"gallinero": "gallinero_palacio"},
+                        )
+                        if resp.status_code == 200:
+                            registered = resp.json().get("birds", [])
+                            if registered:
+                                synced = tracker.sync_registered_ids(registered)
+                                if synced:
+                                    logger.info(
+                                        f"[{gallinero_id}] Sync Re-ID: {synced} aves identificadas"
+                                    )
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(_do_sync())
+                except RuntimeError:
+                    pass
+        except Exception as e:
+            logger.debug(f"Sync Re-ID failed ({gallinero_id}): {e}")
+
         # 2. Behavior event store: snapshot periódico (respeta intervalo interno)
         try:
             event_store = get_event_store()

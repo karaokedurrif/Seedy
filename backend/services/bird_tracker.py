@@ -487,10 +487,10 @@ class GallineroTracker:
             if not t.breed:
                 continue
             # Buscar aves registradas con el mismo breed
-            breed_lower = t.breed.lower()
+            breed_lower = t.breed.lower().replace("_", " ")
             candidates = [
                 b for b in available
-                if b.get("breed", "").lower() == breed_lower
+                if b.get("breed", "").lower().replace("_", " ") == breed_lower
             ]
             # Si hay exactamente 1 candidato, match inequívoco
             if len(candidates) == 1:
