@@ -452,3 +452,55 @@ async def get_bird_events(bird_id: str):
     # Sort chronologically
     events.sort(key=lambda e: e.get("date", ""), reverse=True)
     return {"bird_id": bird_id, "events": events}
+
+
+# ─── v4.2: Identity management endpoints ────────────
+
+
+@router.post("/{bird_id}/reset_ai_vision_id")
+async def reset_ai_vision_id(bird_id: str):
+    """Resetea el ai_vision_id de un ave, liberando su IdentityLock.
+
+    Útil cuando la IA asignó mal una identidad (e.g., Sussex Silver → bresseblan1).
+    Tras el reset, el sistema re-evaluará la identidad en el siguiente ciclo sync.
+    """
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    old_vid = bird.get("ai_vision_id", "")
+
+    # Liberar del AssignmentRegistry en todos los trackers activos
+    try:
+        from services.bird_tracker import get_tracker
+        from services.identity.identity_lock import get_registry
+
+        for gallinero_id in ["gallinero_palacio"]:
+            tracker = get_tracker(gallinero_id)
+            registry = get_registry(gallinero_id)
+            # Limpiar tracks que tenían este ai_vision_id
+            for t in tracker.tracks.values():
+                if t.ai_vision_id == old_vid:
+                    registry.release(t.track_id)
+                    t.ai_vision_id = ""
+                    t.identity_lock = None
+                    logger.info(
+                        f"🔄 Reset: track#{t.track_id} liberado de {old_vid} "
+                        f"en {gallinero_id}"
+                    )
+    except ImportError:
+        pass
+
+    # No borrar el ai_vision_id del registro — solo forzar re-evaluación
+    logger.info(f"🔄 Reset ai_vision_id para {bird_id} (was: {old_vid})")
+
+    return {
+        "status": "ok",
+        "bird_id": bird_id,
+        "old_ai_vision_id": old_vid,
+        "message": "IdentityLock liberado. Re-sync en el próximo ciclo (≤60s).",
+    }

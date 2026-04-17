@@ -204,23 +204,43 @@ class MatingDetector:
 
     def _build_event(self, candidate: MatingCandidate,
                      mounter_track, mounted_track) -> dict:
-        """Construye el registro del evento de monta."""
+        """Construye el registro del evento de monta.
+
+        v4.2: incluye campo 'attribution' (full/partial/none)
+        y siempre incluye breed+sex aunque no haya bird_id.
+        """
+        # v4.2: attribution basada en identity_lock
+        mounter_locked = getattr(mounter_track, "identity_locked", False)
+        mounted_locked = getattr(mounted_track, "identity_locked", False)
+        mounter_id = mounter_track.ai_vision_id if mounter_locked else ""
+        mounted_id = mounted_track.ai_vision_id if mounted_locked else ""
+
+        if mounter_id and mounted_id:
+            attribution = "full"
+        elif mounter_id or mounted_id:
+            attribution = "partial"
+        else:
+            attribution = "none"
+
         return {
             "ts": datetime.now(timezone.utc).isoformat(),
             "ts_unix": round(time.time(), 2),
             "gallinero_id": self.gallinero_id,
             "type": "mating",
+            "attribution": attribution,
             "mounter": {
                 "track_id": candidate.mounter_tid,
-                "bird_id": mounter_track.ai_vision_id or "",
+                "bird_id": mounter_id,
                 "breed": mounter_track.breed or "",
                 "sex": mounter_track.sex or "male",
+                "color": getattr(mounter_track, "color", "") or "",
             },
             "mounted": {
                 "track_id": candidate.mounted_tid,
-                "bird_id": mounted_track.ai_vision_id or "",
+                "bird_id": mounted_id,
                 "breed": mounted_track.breed or "",
                 "sex": mounted_track.sex or "female",
+                "color": getattr(mounted_track, "color", "") or "",
             },
             "duration_sec": round(candidate.duration_sec, 1),
             "avg_iou": round(candidate.avg_iou, 3),

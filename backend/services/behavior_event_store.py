@@ -52,10 +52,15 @@ class BehaviorEventStore:
             if not t.active or not t.history:
                 continue
             last_pt = t.history[-1]
+            # v4.2: solo escribir bird_id si identity_locked
+            bird_id = ""
+            if getattr(t, "identity_locked", False) and t.ai_vision_id:
+                bird_id = t.ai_vision_id
             active_tracks.append({
                 "track_id": t.track_id,
-                "bird_id": t.ai_vision_id or "",
+                "bird_id": bird_id,
                 "breed": t.breed or "",
+                "sex": getattr(t, "sex", "") or "",
                 "center": list(last_pt.center),
                 "zone": last_pt.zone,
                 "confidence": round(last_pt.confidence, 3),

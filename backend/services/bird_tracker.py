@@ -1,12 +1,12 @@
 """
-Seedy Backend — Tracker de aves individuales
+Seedy Backend — Tracker de aves individuales v4.2
 
 Tracking por centroide + IoU entre frames consecutivos.
 Mantiene un perfil por ave: posiciones, zonas visitadas,
 tamaño corporal, actividad, y genera alertas de comportamiento.
 
-Funciona sin re-ID visual (eso vendrá con embeddings en Fase 3).
-Por ahora: matching por proximidad/overlap entre detecciones.
+v4.2: Identity robusta — IdentityLock, VotingBuffer, AssignmentRegistry,
+breed+sex+color matching en sync_registered_ids.
 """
 
 import logging
@@ -85,7 +85,17 @@ class BirdTrack:
     class_name: str = "bird"
     breed: str = ""
     sex: str = ""
+    color: str = ""  # v4.2: color normalizado ("plateado", "blanco", etc.)
+    breed_raw_class: str = ""  # v4.2: clase cruda YOLO ("sussex_silver_gallo")
     ai_vision_id: str = ""
+
+    # v4.2: Identity Lock
+    identity_lock: Optional[object] = None  # IdentityLock dataclass
+
+    @property
+    def identity_locked(self) -> bool:
+        """True si la identidad está confirmada y bloqueada."""
+        return self.identity_lock is not None
 
     def update(self, detection: dict, zones: dict):
         """Actualiza track con nueva detección."""
@@ -138,6 +148,14 @@ class BirdTrack:
         self.lost_frames += 1
         if self.lost_frames >= MAX_LOST_FRAMES:
             self.active = False
+            # v4.2: liberar del AssignmentRegistry
+            if self.ai_vision_id:
+                try:
+                    from services.identity.identity_lock import get_registry
+                    registry = get_registry(self.gallinero)
+                    registry.release(self.track_id)
+                except (ImportError, Exception):
+                    pass
 
     def get_profile(self) -> dict:
         """Devuelve perfil resumido del track."""
@@ -165,7 +183,13 @@ class BirdTrack:
             "class_name": self.class_name,
             "breed": self.breed,
             "sex": self.sex,
+            "color": self.color,
             "ai_vision_id": self.ai_vision_id,
+            "identity_locked": self.identity_locked,
+            "lock_confidence": (
+                round(self.identity_lock.confidence, 3)
+                if self.identity_lock else None
+            ),
             "active": self.active,
             "total_frames": self.total_frames,
             "elapsed_s": round(elapsed, 1),
@@ -432,8 +456,12 @@ class GallineroTracker:
         return alerts
 
     def assign_vision_id(self, track_id: int, ai_vision_id: str,
-                         breed: str = "", sex: str = "") -> bool:
-        """Asigna un ai_vision_id a un track específico (feedback de registro)."""
+                         breed: str = "", sex: str = "",
+                         color: str = "") -> bool:
+        """Asigna un ai_vision_id a un track específico (feedback de registro).
+
+        v4.2: También crea IdentityLock y registra en AssignmentRegistry.
+        """
         t = self.tracks.get(track_id)
         if t and t.active and not t.ai_vision_id:
             t.ai_vision_id = ai_vision_id
@@ -441,9 +469,32 @@ class GallineroTracker:
                 t.breed = breed
             if sex:
                 t.sex = sex
+            if color:
+                t.color = color
+
+            # v4.2: Registrar en AssignmentRegistry + crear lock
+            try:
+                from services.identity.identity_lock import get_registry, IdentityLock
+                registry = get_registry(self.gallinero_id)
+                registry.claim(track_id, ai_vision_id, 0.90)
+                now = time.time()
+                t.identity_lock = IdentityLock(
+                    ai_vision_id=ai_vision_id,
+                    breed=t.breed,
+                    color=t.color,
+                    sex=t.sex,
+                    confidence=0.90,
+                    locked_at=now,
+                    last_confirmed=now,
+                    vote_count=1,
+                    reason="direct_assign",
+                )
+            except ImportError:
+                pass
+
             logger.info(
                 f"✅ Track #{track_id} → {ai_vision_id} "
-                f"({breed or '?'} {sex or '?'}) en {self.gallinero_id}"
+                f"({breed or '?'} {sex or '?'} {color or '?'}) en {self.gallinero_id}"
             )
             return True
         return False
@@ -451,9 +502,9 @@ class GallineroTracker:
     def sync_registered_ids(self, registered_birds: list[dict]) -> int:
         """Sincroniza ai_vision_ids del registro con tracks activos sin ID.
 
-        Para cada track sin ai_vision_id, intenta encontrar un match único
-        por breed/color/sex contra las aves registradas. Solo asigna cuando
-        el match es inequívoco (1 candidato posible).
+        v4.2: Filtra por breed + sex + color. Usa AssignmentRegistry para
+        unicidad y IdentityLock para confirmación. Si el match es ambiguo,
+        escala a DoubtEscalator.
 
         Args:
             registered_birds: lista de dicts con al menos
@@ -465,16 +516,23 @@ class GallineroTracker:
         if not registered_birds:
             return 0
 
-        # IDs ya asignados a tracks activos
-        assigned_ids = {
-            t.ai_vision_id for t in self.tracks.values()
-            if t.active and t.ai_vision_id
-        }
+        try:
+            from services.identity.identity_lock import get_registry, IdentityLock
+            from services.identity.breed_parser import normalize_color, colors_match, normalize_sex, sexes_match
+            from services.identity.doubt_escalator import get_doubt_escalator
+            registry = get_registry(self.gallinero_id)
+            escalator = get_doubt_escalator(self.gallinero_id)
+        except ImportError:
+            logger.debug("Identity subsystem not available, using legacy sync")
+            return self._sync_registered_ids_legacy(registered_birds)
 
-        # Aves registradas aún no vinculadas a ningún track
+        # IDs ya asignados a tracks activos (via registry)
+        taken_ids = registry.get_taken_ids()
+
+        # Aves registradas aún no vinculadas
         available = [
             b for b in registered_birds
-            if b.get("ai_vision_id") and b["ai_vision_id"] not in assigned_ids
+            if b.get("ai_vision_id") and b["ai_vision_id"] not in taken_ids
         ]
         if not available:
             return 0
@@ -483,16 +541,114 @@ class GallineroTracker:
         for t in self.tracks.values():
             if not t.active or t.ai_vision_id:
                 continue
-            # Solo intentar match con tracks que tienen breed (del YOLO breed)
+            if t.identity_locked:
+                continue
             if not t.breed:
                 continue
-            # Buscar aves registradas con el mismo breed
+
+            breed_lower = t.breed.lower().replace("_", " ")
+            sex_lower = (t.sex or "").lower()
+            color_lower = (t.color or "").lower() if t.color else None
+
+            # Filtro 1: breed
+            cands = [
+                b for b in available
+                if b.get("breed", "").lower().replace("_", " ") == breed_lower
+                and b.get("ai_vision_id") not in taken_ids
+            ]
+
+            # Filtro 2: sex (si conocido, tolerante a alias macho/male/hembra/female)
+            if sex_lower and cands:
+                sex_filtered = [
+                    b for b in cands
+                    if sexes_match(sex_lower, b.get("sex", ""))
+                ]
+                if sex_filtered:
+                    cands = sex_filtered
+
+            # Filtro 3: color (si conocido, tolerante a alias)
+            if color_lower and cands:
+                color_filtered = [
+                    b for b in cands
+                    if colors_match(color_lower, b.get("color"))
+                ]
+                if color_filtered:
+                    cands = color_filtered
+
+            # Asignación: SOLO si candidato único
+            if len(cands) == 1:
+                bird = cands[0]
+                vid = bird["ai_vision_id"]
+                conf = 0.80  # sync match base confidence
+                if registry.claim(t.track_id, vid, conf):
+                    t.ai_vision_id = vid
+                    if bird.get("sex"):
+                        t.sex = bird["sex"]
+                    # Crear IdentityLock
+                    now = time.time()
+                    t.identity_lock = IdentityLock(
+                        ai_vision_id=vid,
+                        breed=t.breed,
+                        color=t.color or bird.get("color"),
+                        sex=t.sex,
+                        confidence=conf,
+                        locked_at=now,
+                        last_confirmed=now,
+                        vote_count=1,
+                        reason="breed+sex+color unique sync",
+                    )
+                    taken_ids.add(vid)
+                    if bird in available:
+                        available.remove(bird)
+                    synced += 1
+                    logger.info(
+                        f"🔗 Sync Track #{t.track_id} → {vid} "
+                        f"(breed={t.breed} sex={t.sex} color={t.color or '?'}) "
+                        f"en {self.gallinero_id}"
+                    )
+            elif len(cands) != 1:
+                # Duda: 0 o >1 candidatos
+                escalator.mark(
+                    track_id=t.track_id,
+                    breed=t.breed,
+                    sex=t.sex or "",
+                    color=t.color,
+                    candidates=[b["ai_vision_id"] for b in cands],
+                    reason=f"sync_ambiguous ({len(cands)} candidates)",
+                )
+
+        if synced:
+            logger.info(
+                f"[Tracker] Synced {synced} track(s) con IDs del registro "
+                f"en {self.gallinero_id}"
+            )
+        return synced
+
+    def _sync_registered_ids_legacy(self, registered_birds: list[dict]) -> int:
+        """Legacy sync: solo por breed (fallback si identity subsystem no disponible)."""
+        if not registered_birds:
+            return 0
+        assigned_ids = {
+            t.ai_vision_id for t in self.tracks.values()
+            if t.active and t.ai_vision_id
+        }
+        available = [
+            b for b in registered_birds
+            if b.get("ai_vision_id") and b["ai_vision_id"] not in assigned_ids
+        ]
+        if not available:
+            return 0
+        synced = 0
+        for t in self.tracks.values():
+            if not t.active or t.ai_vision_id:
+                continue
+            if not t.breed:
+                continue
             breed_lower = t.breed.lower().replace("_", " ")
             candidates = [
                 b for b in available
                 if b.get("breed", "").lower().replace("_", " ") == breed_lower
             ]
-            # Si hay exactamente 1 candidato, match inequívoco
             if len(candidates) == 1:
                 bird = candidates[0]
                 t.ai_vision_id = bird["ai_vision_id"]
@@ -501,16 +657,6 @@ class GallineroTracker:
                 assigned_ids.add(bird["ai_vision_id"])
                 available.remove(bird)
                 synced += 1
-                logger.info(
-                    f"🔗 Sync Track #{t.track_id} → {bird['ai_vision_id']} "
-                    f"(breed match: {t.breed}) en {self.gallinero_id}"
-                )
-
-        if synced:
-            logger.info(
-                f"[Tracker] Synced {synced} track(s) con IDs del registro "
-                f"en {self.gallinero_id}"
-            )
         return synced
 
     def reset(self):

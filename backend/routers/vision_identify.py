@@ -568,10 +568,8 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
         tracker.update(result["detections"])
 
         # 1b. Breed classification periódica (cada 30s) sobre tracks sin breed
-        _BREED_ALIASES = {
-            "Sussex Silver": "Sussex", "Sussex White": "Sussex",
-            "Ameraucana": "Araucana",
-        }
+        #     v4.2: usa parse_breed_class para extraer breed+color+sex
+        #           + VotingBuffer para tracks con breed pero sin lock
         try:
             _breed_last = getattr(_enrich_with_tracking, "_breed_last", {})
             now_bc = time.time()
@@ -579,14 +577,29 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
                 _breed_last[gallinero_id] = now_bc
                 _enrich_with_tracking._breed_last = _breed_last
                 from services.yolo_detector import classify_breed_crop
+                from services.identity.breed_parser import parse_breed_class, BREED_ALIASES
+                from services.identity.identity_voting import IdentityVotingBuffer
                 from PIL import Image
+
+                # VotingBuffer singleton
+                if not hasattr(_enrich_with_tracking, "_voting_buffers"):
+                    _enrich_with_tracking._voting_buffers = {}
+                voting_buffers = _enrich_with_tracking._voting_buffers
+                if gallinero_id not in voting_buffers:
+                    voting_buffers[gallinero_id] = IdentityVotingBuffer()
+                voting = voting_buffers[gallinero_id]
+
                 img = Image.open(io.BytesIO(frame_bytes))
                 w, h = img.size
-                no_breed = [t for t in tracker.tracks.values()
-                            if t.active and not t.breed and t.last_bbox_norm and len(t.last_bbox_norm) == 4]
+                # Classify tracks sin breed O tracks con breed pero sin lock
+                need_classify = [
+                    t for t in tracker.tracks.values()
+                    if t.active and t.last_bbox_norm and len(t.last_bbox_norm) == 4
+                    and (not t.breed or (t.breed and not t.identity_locked))
+                ]
                 classified = 0
                 skipped_small = 0
-                for t in no_breed:
+                for t in need_classify:
                     bn = t.last_bbox_norm
                     x1 = max(0, int(bn[0] * w))
                     y1 = max(0, int(bn[1] * h))
@@ -597,31 +610,58 @@ def _enrich_with_tracking(gallinero_id: str, frame_bytes: bytes):
                         skipped_small += 1
                         continue
                     crop = img.crop((x1, y1, x2, y2))
+
+                    # T2: upscale 2× para sub-streams pequeños (VIGI ≤800px)
+                    if w <= 800 and cw < 96:
+                        try:
+                            import cv2
+                            import numpy as np
+                            crop_np = np.array(crop)
+                            crop_np = cv2.resize(crop_np, None, fx=2, fy=2,
+                                                 interpolation=cv2.INTER_CUBIC)
+                            crop = Image.fromarray(crop_np)
+                        except Exception:
+                            pass
+
                     buf = io.BytesIO()
                     crop.save(buf, format="JPEG", quality=85)
                     res = classify_breed_crop(buf.getvalue(), confidence=0.25)
                     if res and res["confidence"] >= 0.30:
                         raw = res["breed_class"]
-                        # Parsear breed y sex (e.g., "pita_pinta_gallina" → breed="Pita Pinta", sex="hembra")
-                        if raw.endswith("_gallina"):
-                            breed_name = raw[:-8].replace("_", " ").title()
-                            t.sex = "hembra"
-                        elif raw.endswith("_gallo"):
-                            breed_name = raw[:-6].replace("_", " ").title()
-                            t.sex = "macho"
-                        else:
-                            breed_name = raw.replace("_", " ").title()
-                        t.breed = _BREED_ALIASES.get(breed_name, breed_name)
+                        parsed = parse_breed_class(raw)
+
+                        # Aplicar al track
+                        if parsed["breed"]:
+                            t.breed = parsed["breed"]
+                        if parsed["sex"]:
+                            t.sex = parsed["sex"]
+                        if parsed["color"]:
+                            t.color = parsed["color"]
+                        t.breed_raw_class = raw
+
+                        # Añadir voto al VotingBuffer
+                        vote_result = voting.add_vote(
+                            track_id=t.track_id,
+                            breed=parsed["breed"],
+                            color=parsed["color"],
+                            sex=parsed["sex"],
+                            confidence=res["confidence"],
+                        )
+
+                        # Si el voting confirma y el track no tiene lock, refrescar
+                        if vote_result.confirmed and t.identity_locked and t.identity_lock:
+                            t.identity_lock.refresh(vote_result.mean_confidence)
+
                         classified += 1
                     elif res:
                         logger.debug(
                             f"Breed low conf: {res['breed_class']} {res['confidence']:.2f} "
                             f"crop={cw}x{ch}"
                         )
-                if no_breed:
+                if need_classify:
                     logger.info(
-                        f"[{gallinero_id}] Breed classify: {len(no_breed)} sin raza, "
-                        f"{classified} clasificados, {skipped_small} pequeños, frame={w}x{h}"
+                        f"[{gallinero_id}] Breed classify: {len(need_classify)} need classify, "
+                        f"{classified} classified, {skipped_small} small, frame={w}x{h}"
                     )
         except Exception as e:
             logger.debug(f"Breed classification failed ({gallinero_id}): {e}")
@@ -1157,6 +1197,80 @@ async def identification_status():
         "last_results": _last_results,
         "cameras_configured": list(CAMERAS.keys()),
     }
+
+
+@router.get("/doubts")
+async def get_identity_doubts(
+    gallinero: str = "gallinero_palacio",
+    hours: int = 24,
+):
+    """v4.2: Devuelve tracks con identidad dudosa para revisión manual."""
+    try:
+        from services.identity.doubt_escalator import get_doubt_escalator
+        escalator = get_doubt_escalator(gallinero)
+        doubts = escalator.query_recent(hours=hours)
+        return {"gallinero": gallinero, "hours": hours, "doubts": doubts, "count": len(doubts)}
+    except ImportError:
+        return {"error": "Identity subsystem not available", "doubts": []}
+
+
+@router.get("/tracks/live")
+async def get_live_tracks(gallinero: str = "gallinero_palacio"):
+    """v4.2: Estado en tiempo real de tracks con su identidad."""
+    try:
+        from services.bird_tracker import get_tracker
+        tracker = get_tracker(gallinero)
+        tracks = []
+        for t in tracker.tracks.values():
+            if not t.active:
+                continue
+            lock_info = None
+            if t.identity_lock:
+                lock_info = {
+                    "confidence": round(t.identity_lock.confidence, 3),
+                    "reason": t.identity_lock.reason,
+                    "locked_at": t.identity_lock.locked_at,
+                }
+            tracks.append({
+                "track_id": t.track_id,
+                "breed": t.breed,
+                "sex": t.sex,
+                "color": t.color,
+                "ai_vision_id": t.ai_vision_id,
+                "identity_locked": t.identity_locked,
+                "lock_info": lock_info,
+                "total_frames": t.total_frames,
+                "last_seen": t.last_seen,
+            })
+
+        # También obtener dudas recientes
+        doubts = []
+        try:
+            from services.identity.doubt_escalator import get_doubt_escalator
+            escalator = get_doubt_escalator(gallinero)
+            doubts = escalator.query_recent(hours=1)
+        except ImportError:
+            pass
+
+        return {
+            "gallinero": gallinero,
+            "tracks": tracks,
+            "doubts": doubts,
+            "active_count": len(tracks),
+        }
+    except ImportError:
+        return {"error": "Tracker not available", "tracks": []}
+
+
+@router.get("/identity/registry")
+async def get_identity_registry(gallinero: str = "gallinero_palacio"):
+    """v4.2: Estado del AssignmentRegistry — qué ai_vision_ids están asignados."""
+    try:
+        from services.identity.identity_lock import get_registry
+        registry = get_registry(gallinero)
+        return {"gallinero": gallinero, **registry.get_summary()}
+    except ImportError:
+        return {"error": "Identity subsystem not available"}
 
 
 @router.post("/snapshot/{gallinero_id}")
