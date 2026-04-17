@@ -130,6 +130,7 @@ async def get_bird(bird_id: str):
                                 "fecha_nacimiento": ovo.get("fecha_nacimiento"),
                                 "estado": ovo.get("estado"),
                                 "notas": ovo.get("notas"),
+                                "foto": ovo.get("foto"),
                             }
                             gallinero = ovo.get("gallinero") or gallinero
             except Exception:

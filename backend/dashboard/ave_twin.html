@@ -166,6 +166,8 @@ function renderBird(bird, photos, tracking, gompertz) {
   let photoSrc = "";
   if (bird.photo_b64) {
     photoSrc = bird.photo_b64.startsWith("data:") ? bird.photo_b64 : "data:image/jpeg;base64," + bird.photo_b64;
+  } else if (bird._ovo && bird._ovo.foto) {
+    photoSrc = bird._ovo.foto.startsWith("data:") ? bird._ovo.foto : "data:image/jpeg;base64," + bird._ovo.foto;
   }
 
   app.innerHTML = `
