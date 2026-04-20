@@ -4344,6 +4344,18 @@
       }
 
       if (photoArea && aveId) {
+        // Resolver anilla del modal de forma robusta (sin depender de estado global stale).
+        var modalAnilla = null;
+        var modalTextForAnilla = modal.textContent || "";
+        var modalAnillaMatch = modalTextForAnilla.match(/PAL-\d{4}-\d{4}/);
+        if (modalAnillaMatch) {
+          modalAnilla = modalAnillaMatch[0];
+        }
+        if (!modalAnilla && window.__seedySelectedAnilla && /PAL-\d{4}-\d{4}/.test(window.__seedySelectedAnilla)) {
+          modalAnilla = window.__seedySelectedAnilla;
+        }
+        var twinAnilla = modalAnilla || ("PAL-2026-" + String(aveId).padStart(4, "0"));
+
         var captureBtn = document.createElement("button");
         captureBtn.className = "seedy-capture-btn";
         captureBtn.type = "button";
@@ -4597,7 +4609,7 @@
         twinBtn.className = "seedy-capture-btn";
         twinBtn.style.cssText = "background:linear-gradient(135deg,#8b5cf6,#6d28d9);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-top:6px;";
         twinBtn.innerHTML = "🐔 Digital Twin del Ave";
-        twinBtn.href = SEEDY_API + "/dashboard/ave_twin.html?id=" + (window.__seedySelectedAnilla || ave.anilla || "PAL-2026-" + String(aveId).padStart(4, "0"));
+        twinBtn.href = SEEDY_API + "/dashboard/ave_twin.html?id=" + encodeURIComponent(twinAnilla);
         twinBtn.target = "_blank";
         photoArea.appendChild(twinBtn);
 

@@ -229,7 +229,10 @@ async def get_bird(bird_id: str):
     for b in _registry:
         if b["bird_id"] == bird_id:
             result = {**b}
-            gallinero = b.get("gallinero", "")
+            # Importante: usar SIEMPRE el ID interno de Seedy para queries de eventos.
+            # OvoSfera puede traer nombres humanos (ej. "Gallinero Durrif") que no
+            # coinciden con los IDs internos (ej. "gallinero_palacio").
+            seedy_gallinero_id = b.get("gallinero", "")
 
             # Datos OvoSfera (fuente de verdad del ganadero)
             try:
@@ -256,7 +259,6 @@ async def get_bird(bird_id: str):
                                 "notas": ovo.get("notas"),
                                 "foto": ovo.get("foto"),
                             }
-                            gallinero = ovo.get("gallinero") or gallinero
             except Exception:
                 pass  # OvoSfera not available, use Seedy data only
 
@@ -265,7 +267,7 @@ async def get_bird(bird_id: str):
                 from services.behavior_inference import get_bird_behavior
                 from services.behavior_serializer import to_api_response
 
-                inference = get_bird_behavior(bird_id, gallinero, "24h")
+                inference = get_bird_behavior(bird_id, seedy_gallinero_id, "24h")
                 beh_resp = to_api_response(inference)
                 result["behavior"] = beh_resp
             except Exception:
@@ -280,7 +282,7 @@ async def get_bird(bird_id: str):
 
                 end_ts = datetime.now(timezone.utc)
                 start_ts = end_ts - timedelta(days=7)
-                events = query_mating_events(gallinero, start_ts, end_ts, bird_id=bird_id)
+                events = query_mating_events(seedy_gallinero_id, start_ts, end_ts, bird_id=bird_id)
                 as_mounter = sum(1 for e in events if e.get("mounter", {}).get("bird_id") == bird_id)
                 as_mounted = sum(1 for e in events if e.get("mounted", {}).get("bird_id") == bird_id)
                 partners = set()
