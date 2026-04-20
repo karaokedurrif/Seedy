@@ -26,6 +26,12 @@ logger = logging.getLogger(__name__)
 _settings = get_settings()
 _BASE_PATH = Path(_settings.behavior_event_store_path)
 
+# Aliases legacy: el identification loop usaba camera_id como gallinero_id.
+# Las 3 cámaras pertenecen a gallinero_palacio.
+_GALLINERO_ALIASES: dict[str, list[str]] = {
+    "gallinero_palacio": ["sauna_durrif_1", "gallinero_durrif_1", "gallinero_durrif_2"],
+}
+
 
 class BehaviorEventStore:
     """Almacena snapshots del tracker en JSONL append-only."""
@@ -97,38 +103,50 @@ class BehaviorEventStore:
         start: datetime,
         end: datetime,
     ) -> list[dict]:
-        """Lee snapshots JSONL en rango temporal. Lazy-load línea a línea."""
-        gall_dir = self._base / gallinero_id
-        if not gall_dir.exists():
-            return []
+        """Lee snapshots JSONL en rango temporal. Lazy-load línea a línea.
+
+        También busca en directorios de cámaras legacy que pertenecen al mismo
+        gallinero (el identification loop usaba camera_id como gallinero_id).
+        """
+        # Directorios a consultar: principal + aliases legacy
+        dirs_to_query = [self._base / gallinero_id]
+        for alias in _GALLINERO_ALIASES.get(gallinero_id, []):
+            alias_dir = self._base / alias
+            if alias_dir.exists():
+                dirs_to_query.append(alias_dir)
 
         results = []
         start_ts = start.timestamp()
         end_ts = end.timestamp()
 
-        # Iterar ficheros del rango de días
-        current = start.date()
-        end_date = end.date()
-        while current <= end_date:
-            filepath = gall_dir / f"{current.isoformat()}.jsonl"
-            if filepath.exists():
-                try:
-                    with open(filepath, "r", encoding="utf-8") as f:
-                        for line in f:
-                            line = line.strip()
-                            if not line:
-                                continue
-                            try:
-                                record = json.loads(line)
-                                ts = record.get("ts_unix", 0)
-                                if start_ts <= ts <= end_ts:
-                                    results.append(record)
-                            except json.JSONDecodeError:
-                                continue
-                except Exception as e:
-                    logger.warning(f"[BehaviorStore] Error reading {filepath}: {e}")
-            current += timedelta(days=1)
+        for gall_dir in dirs_to_query:
+            if not gall_dir.exists():
+                continue
+            # Iterar ficheros del rango de días
+            current = start.date()
+            end_date = end.date()
+            while current <= end_date:
+                filepath = gall_dir / f"{current.isoformat()}.jsonl"
+                if filepath.exists():
+                    try:
+                        with open(filepath, "r", encoding="utf-8") as f:
+                            for line in f:
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                try:
+                                    record = json.loads(line)
+                                    ts = record.get("ts_unix", 0)
+                                    if start_ts <= ts <= end_ts:
+                                        results.append(record)
+                                except json.JSONDecodeError:
+                                    continue
+                    except Exception as e:
+                        logger.warning(f"[BehaviorStore] Error reading {filepath}: {e}")
+                current += timedelta(days=1)
 
+        # Ordenar por timestamp para mantener orden cronológico
+        results.sort(key=lambda r: r.get("ts_unix", 0))
         return results
 
     def cleanup(self, max_age_days: int | None = None) -> int:

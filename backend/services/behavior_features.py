@@ -5,11 +5,13 @@ Consume datos de BehaviorEventStore.query() (ventanas > 2 min)
 o de BirdTrack.history directamente (ventanas < 2 min).
 """
 
+import json
 import logging
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 
 from config import get_settings
@@ -91,6 +93,34 @@ def _parse_window(window: str) -> timedelta:
     return timedelta(hours=24)
 
 
+_REGISTRY_PATH = Path("/app/data/birds_registry.json")
+_bird_id_to_vision: dict[str, str] = {}
+_registry_mtime: float = 0.0
+
+
+def _resolve_ai_vision_id(bird_id: str) -> str | None:
+    """Traduce PAL-2026-XXXX → ai_vision_id (bresseblan2, etc).
+
+    Cachea en memoria y refresca si el fichero cambia.
+    Devuelve None si no encuentra mapping (el caller usa bird_id tal cual).
+    """
+    global _bird_id_to_vision, _registry_mtime
+    try:
+        mtime = _REGISTRY_PATH.stat().st_mtime
+        if mtime != _registry_mtime:
+            data = json.loads(_REGISTRY_PATH.read_text(encoding="utf-8"))
+            _bird_id_to_vision = {
+                b["bird_id"]: b["ai_vision_id"]
+                for b in data.get("birds", [])
+                if b.get("bird_id") and b.get("ai_vision_id")
+            }
+            _registry_mtime = mtime
+            logger.debug("Bird registry cache refreshed: %d mappings", len(_bird_id_to_vision))
+    except Exception as e:
+        logger.warning("Cannot load bird registry for ID resolution: %s", e)
+    return _bird_id_to_vision.get(bird_id)
+
+
 def compute_bird_features(
     bird_id: str,
     gallinero_id: str,
@@ -100,11 +130,15 @@ def compute_bird_features(
     """Calcula features conductuales para un ave en una ventana temporal.
 
     Consume snapshots del BehaviorEventStore.
+    Acepta tanto bird_id (PAL-2026-0011) como ai_vision_id (bresseblan2).
     """
     store = get_event_store()
     end = end_time or datetime.now(timezone.utc)
     delta = _parse_window(window)
     start = end - delta
+
+    # Resolver ai_vision_id: los snapshots almacenan ai_vision_id en el campo bird_id
+    search_id = _resolve_ai_vision_id(bird_id) or bird_id
 
     snapshots = store.query(gallinero_id, start, end)
 
@@ -112,7 +146,7 @@ def compute_bird_features(
     bird_snapshots = []
     for snap in snapshots:
         for track in snap.get("tracks", []):
-            if track.get("bird_id") == bird_id:
+            if track.get("bird_id") == search_id:
                 bird_snapshots.append({
                     "ts_unix": snap["ts_unix"],
                     "center": track["center"],
