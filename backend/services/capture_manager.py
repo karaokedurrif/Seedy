@@ -181,7 +181,7 @@ class CaptureRequest:
 MIN_BRIGHTNESS = 25
 MIN_CAPTURE_INTERVAL = 10          # Mín 10s entre capturas 4K por cámara
 SCHEDULED_INTERVAL = 300           # Captura periódica cada 5 min
-SUB_FRAME_SKIP = 2                 # Procesar 1 de cada N frames del sub-stream (base)
+SUB_FRAME_SKIP = 4                 # Procesar 1 de cada N frames del sub-stream (base)
 RECONNECT_DELAY = 5                # Segundos antes de reconectar sub-stream
 MAX_PROCESS_TIME = 2.0             # Máx segundos por frame antes de skip automático
 

@@ -115,9 +115,9 @@ services:
     restart: unless-stopped
     runtime: nvidia
     shm_size: '2gb'
-    cpus: 4.0
-    mem_limit: 8g
-    memswap_limit: 10g
+    cpus: 2.0
+    mem_limit: 6g
+    memswap_limit: 8g
     ports:
       - "8000:8000"
     env_file:
