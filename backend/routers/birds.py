@@ -128,6 +128,101 @@ async def list_birds(
     return {"birds": birds, "total": len(birds)}
 
 
+@router.get("/twin/coverage")
+async def get_twin_coverage(
+    gallinero: str = Query("gallinero_palacio", description="Gallinero a evaluar"),
+    windows: str = Query("24h,168h,720h", description="Ventanas CSV a evaluar"),
+    min_ok: float = Query(0.4, ge=0.0, le=1.0, description="Umbral mínimo de cobertura OK"),
+):
+    """Estado de cobertura del Digital Twin por ave y resumen global.
+
+    Evalúa cobertura usando snapshots persistidos en ``behavior_twin``.
+    """
+    win_list = [w.strip() for w in windows.split(",") if w.strip()]
+    if not win_list:
+        raise HTTPException(status_code=400, detail="Ventanas vacías")
+
+    birds = [b for b in _registry if b.get("gallinero") == gallinero]
+    now = datetime.now(timezone.utc)
+
+    per_bird = []
+    ok_all = 0
+    partial = 0
+    missing = 0
+    stale = 0
+
+    for b in birds:
+        bid = b.get("bird_id", "")
+        bt = b.get("behavior_twin") or {}
+        updated_at = bt.get("updated_at")
+        updated_age_h = None
+        stale_flag = True
+        if updated_at:
+            try:
+                dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                updated_age_h = round((now - dt).total_seconds() / 3600.0, 2)
+                stale_flag = updated_age_h > 12
+            except Exception:
+                stale_flag = True
+
+        window_data = {}
+        ok_windows = 0
+        has_any = False
+        for w in win_list:
+            cov = (((bt.get("windows") or {}).get(w) or {}).get("data_completeness"))
+            if cov is None:
+                window_data[w] = {"data_completeness": None, "status": "missing"}
+                continue
+            has_any = True
+            status = "ok" if cov >= min_ok else "low"
+            if status == "ok":
+                ok_windows += 1
+            window_data[w] = {"data_completeness": cov, "status": status}
+
+        if not has_any:
+            bird_status = "missing"
+            missing += 1
+        elif ok_windows == len(win_list):
+            bird_status = "ok"
+            ok_all += 1
+        else:
+            bird_status = "partial"
+            partial += 1
+
+        if stale_flag:
+            stale += 1
+
+        per_bird.append({
+            "bird_id": bid,
+            "ai_vision_id": b.get("ai_vision_id", ""),
+            "breed": b.get("breed", ""),
+            "sex": b.get("sex", ""),
+            "status": bird_status,
+            "stale": stale_flag,
+            "updated_at": updated_at,
+            "updated_age_h": updated_age_h,
+            "windows": window_data,
+        })
+
+    per_bird.sort(key=lambda x: (x["status"], x["bird_id"]))
+
+    total = len(birds)
+    return {
+        "gallinero_id": gallinero,
+        "windows": win_list,
+        "min_ok": min_ok,
+        "summary": {
+            "total_birds": total,
+            "ok_all_windows": ok_all,
+            "partial": partial,
+            "missing": missing,
+            "stale": stale,
+            "coverage_ratio": round((ok_all / total), 3) if total else 0.0,
+        },
+        "birds": per_bird,
+    }
+
+
 @router.get("/{bird_id}")
 async def get_bird(bird_id: str):
     """Obtiene un ave por su ID, incluyendo comportamiento, montas y datos OvoSfera."""
