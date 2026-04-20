@@ -266,6 +266,11 @@ class MatingDetector:
         for k in stale:
             del self._candidates[k]
 
+    def is_active(self) -> bool:
+        """True si hay candidatos de monta activos (para triggers 4K)."""
+        self._cleanup_stale()
+        return len(self._candidates) > 0
+
     def get_stats(self) -> dict:
         return {
             "gallinero_id": self.gallinero_id,

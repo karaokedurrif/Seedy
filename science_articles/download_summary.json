@@ -1,6 +1,6 @@
 {
-  "total_articles": 974,
-  "total_abstracts_chars": 1430621,
+  "total_articles": 975,
+  "total_abstracts_chars": 1431983,
   "by_topic": {
     "avicultura_capones": 25,
     "avicultura_engorde": 22,
@@ -22,7 +22,7 @@
     "vacuno_genetica": 17,
     "vacuno_calidad": 18,
     "vacuno_lechero": 16,
-    "vacuno_iot": 14,
+    "vacuno_iot": 15,
     "vacuno_cria": 16,
     "vacuno_medioambiente": 16,
     "nutricion_formulacion": 12,
@@ -34,7 +34,7 @@
     "genetica_cruzamiento": 23,
     "genetica_consanguinidad": 21,
     "iot_digital_twin": 18,
-    "iot_sensores": 19,
+    "iot_sensores": 18,
     "iot_vision": 13,
     "iot_analytics": 10,
     "iot_rfid": 6,
@@ -48,7 +48,7 @@
     "avi_intensiva_procesado": 14,
     "avi_intensiva_genetica": 23,
     "avi_intensiva_cama": 13,
-    "avi_intensiva_precision": 8,
+    "avi_intensiva_precision": 9,
     "avi_intensiva_salud": 16,
     "vino_enologia": 18,
     "vino_viticultura_precision": 21,
@@ -63,7 +63,7 @@
     "vino_espumoso": 15,
     "vino_enoturismo": 24
   },
-  "avg_citations": 282.3141683778234,
+  "avg_citations": 284.00820512820513,
   "top_journals": [
     [
       "PLoS ONE",
@@ -71,7 +71,7 @@
     ],
     [
       "Scientific Reports",
-      36
+      34
     ],
     [
       "Sustainability",
@@ -83,7 +83,7 @@
     ],
     [
       "IEEE Access",
-      26
+      25
     ],
     [
       "Frontiers in Microbiology",
@@ -111,14 +111,14 @@
     ],
     [
       "Microbiome",
+      13
+    ],
+    [
+      "Sensors",
       12
     ],
     [
       "Animals",
-      11
-    ],
-    [
-      "Sensors",
       11
     ],
     [

@@ -8,8 +8,8 @@ LOG="/tmp/seedy_watchdog.log"
 BACKEND="seedy-backend"
 
 # Umbrales
-MAX_BACKEND_CPU=150      # % CPU del contenedor para restart
-MAX_BACKEND_RAM_GB=3     # GB RAM del contenedor para restart (limit=4GB)
+MAX_BACKEND_CPU=250      # % CPU del contenedor para restart (4 CPUs = 400% max)
+MAX_BACKEND_RAM_GB=6     # GB RAM del contenedor para restart (limit=8GB, uso normal ~3.5GB con YOLO)
 MAX_SPAWN_CPU=80         # % CPU de un solo spawn para matarlo
 MAX_SPAWN_RAM_GB=2       # GB RAM de un solo spawn para matarlo
 MAX_SPAWN_AGE_MIN=15     # Minutos: spawn > esto + > 50% CPU = leaked
