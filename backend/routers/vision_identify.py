@@ -1396,12 +1396,11 @@ async def stop_identification():
 
 @router.get("/status")
 async def identification_status():
-    """Estado actual del identificador."""
-    return {
-        "running": _running,
-        "last_results": _last_results,
-        "cameras_configured": list(CAMERAS.keys()),
-    }
+    """Estado actual del identificador + salud de cámaras."""
+    from services.capture_manager import get_capture_manager
+    
+    capture_mgr = get_capture_manager()
+    return capture_mgr.get_status_with_health()
 
 
 @router.get("/doubts")

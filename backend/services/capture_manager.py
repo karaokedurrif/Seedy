@@ -201,6 +201,10 @@ class CaptureManager:
         self._stats: dict[str, dict] = {}
         self._http_client: httpx.AsyncClient | None = None
         self._frame_skip: int = SUB_FRAME_SKIP  # Dinámico vía watchdog
+        self._camera_failures: dict[str, int] = {}  # Conteo de fallos consecutivos
+        self._camera_paused: dict[str, float] = {}  # Timestamp de pausa per cámara
+        self._FAILURE_THRESHOLD = 5  # Fallos consecutivos antes de pausar
+        self._PAUSE_DURATION = 30  # Segundos de pausa antes de reintentar
 
     async def start(self):
         """Arranca sub-stream readers + main-capture worker."""
@@ -270,25 +274,66 @@ class CaptureManager:
         """Lee sub-stream vía go2rtc MJPEG, ejecuta YOLO + tracking + behavior.
 
         v4.2: YOLO se ejecuta en thread pool para no bloquear el event loop.
-        Las detecciones se pasan directamente a _enrich_tracking (eliminando
-        la doble inferencia YOLO que causaba saturación de CPU).
+        v4.3: Timeouts robustos + detección de cámaras caídas para evitar bloqueos.
         """
         go2rtc = os.environ.get("GO2RTC_URL", "http://host.docker.internal:1984")
         mjpeg_url = f"{go2rtc}/api/frame.jpeg?src={config.stream_sub}"
         frame_interval = 1.0 / config.sub_stream_fps
         frame_count = 0
+        SUB_STREAM_TIMEOUT = 5.0  # Timeout explícito para evitar bloqueos
+
+        # Inicializar contadores de fallos
+        self._camera_failures[config.camera_id] = 0
+        self._camera_paused[config.camera_id] = 0
 
         while self._running:
             try:
+                # Checar si la cámara está pausada por fallos consecutivos
+                now = time.time()
+                if config.camera_id in self._camera_paused:
+                    pause_until = self._camera_paused[config.camera_id]
+                    if now < pause_until:
+                        # Aún en pausa, esperar
+                        await asyncio.sleep(2.0)
+                        continue
+                    else:
+                        # Salir de pausa, reintentar
+                        self._camera_failures[config.camera_id] = 0
+                        logger.info(f"🔄 Retrying camera {config.camera_id} after pause")
+                        del self._camera_paused[config.camera_id]
+
                 client = self._http_client
                 if not client:
                     await asyncio.sleep(RECONNECT_DELAY)
                     continue
 
-                resp = await client.get(mjpeg_url)
-                if resp.status_code != 200 or len(resp.content) < 1000:
+                # GET con timeout EXPLÍCITO (evita bloqueos indefinidos)
+                try:
+                    resp = await asyncio.wait_for(
+                        client.get(mjpeg_url, timeout=SUB_STREAM_TIMEOUT),
+                        timeout=SUB_STREAM_TIMEOUT + 1.0  # Timeout adicional en asyncio
+                    )
+                except asyncio.TimeoutError:
+                    self._camera_failures[config.camera_id] = \
+                        self._camera_failures.get(config.camera_id, 0) + 1
+                    fail_count = self._camera_failures[config.camera_id]
+                    if fail_count >= self._FAILURE_THRESHOLD:
+                        logger.warning(
+                            f"⚠️ Camera {config.camera_id} not responding after {fail_count} "
+                            f"attempts — pausing for {self._PAUSE_DURATION}s"
+                        )
+                        self._camera_paused[config.camera_id] = now + self._PAUSE_DURATION
                     await asyncio.sleep(RECONNECT_DELAY)
                     continue
+
+                if resp.status_code != 200 or len(resp.content) < 1000:
+                    self._camera_failures[config.camera_id] = \
+                        self._camera_failures.get(config.camera_id, 0) + 1
+                    await asyncio.sleep(RECONNECT_DELAY)
+                    continue
+
+                # Frame OK — reset failure counter
+                self._camera_failures[config.camera_id] = 0
                 frame_bytes = resp.content
 
                 frame_count += 1
@@ -338,7 +383,9 @@ class CaptureManager:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.debug(f"Sub-stream {config.camera_id} error: {e}")
+                self._camera_failures[config.camera_id] = \
+                    self._camera_failures.get(config.camera_id, 0) + 1
+                logger.debug(f"Sub-stream {config.camera_id} error: {e} (fail_count={self._camera_failures.get(config.camera_id, 0)})")
                 await asyncio.sleep(RECONNECT_DELAY)
                 continue
 
@@ -633,6 +680,47 @@ class CaptureManager:
 
         # 3. Sync general por breed matching
         tracker.sync_registered_ids(registered)
+
+    def get_status_with_health(self) -> dict:
+        """Devuelve estado del CaptureManager + salud de c\u00e1maras."""
+        now = time.time()
+        camera_health = {}
+        
+        for cam_id, config in CAMERAS.items():
+            failure_count = self._camera_failures.get(cam_id, 0)
+            is_paused = cam_id in self._camera_paused
+            pause_until = self._camera_paused.get(cam_id, 0)
+            
+            stats = self._stats.get(cam_id, {})
+            
+            if is_paused and now < pause_until:
+                status = "paused"
+                resume_in = pause_until - now
+            elif failure_count >= self._FAILURE_THRESHOLD:
+                status = "failing"
+                resume_in = None
+            elif failure_count > 0:
+                status = "degraded"
+                resume_in = None
+            else:
+                status = "healthy"
+                resume_in = None
+            
+            camera_health[cam_id] = {
+                "status": status,
+                "failures": failure_count,
+                "threshold": self._FAILURE_THRESHOLD,
+                "paused": is_paused,
+                "resume_in_seconds": round(resume_in, 1) if resume_in else None,
+                "stats": stats,
+            }
+        
+        return {
+            "running": self._running,
+            "cameras_configured": list(CAMERAS.keys()),
+            "last_results": {},
+            "camera_health": camera_health,
+        }
 
 
 # ─── Singleton ───
