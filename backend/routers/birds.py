@@ -8,9 +8,12 @@ Los datos persisten en un fichero JSON en /app/data/.
 
 import json
 import logging
+import os
+from base64 import b64decode
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
@@ -109,6 +112,241 @@ def _build_behavior_twin_snapshot(
     }
 
 
+def _sex_local_to_ovosfera(value: str) -> str:
+    value = (value or "").lower()
+    return "M" if value in {"male", "macho", "gallo", "m"} else "H"
+
+
+def _sex_ovosfera_to_local(value: str) -> str:
+    value = (value or "").lower()
+    return "male" if value in {"m", "male", "macho", "gallo"} else "female"
+
+
+def _gallinero_local_to_ovosfera(value: str) -> str:
+    return {
+        "gallinero_palacio": "Gallinero Durrif",
+        "gallinero_durrif_1": "Gallinero Durrif",
+        "gallinero_durrif_2": "Gallinero Durrif II",
+    }.get(value, value or "Gallinero Durrif")
+
+
+def _gallinero_ovosfera_to_local(value: str) -> str:
+    value = (value or "").strip().lower()
+    if value in {"gallinero durrif", "gallinero palacio"}:
+        return "gallinero_palacio"
+    if value == "gallinero durrif ii":
+        return "gallinero_palacio"
+    return "gallinero_palacio"
+
+
+def _photo_data_uri_from_local(bird: dict) -> str | None:
+    photo_b64 = bird.get("photo_b64")
+    if not photo_b64:
+        return None
+    return photo_b64 if photo_b64.startswith("data:image") else f"data:image/jpeg;base64,{photo_b64}"
+
+
+def _strip_photo_data_uri(photo: str | None) -> str | None:
+    if not photo:
+        return None
+    if "," in photo and photo.startswith("data:image"):
+        return photo.split(",", 1)[1]
+    return photo
+
+
+def _write_photo_to_local_store(bird_id: str, photo_b64: str | None) -> str | None:
+    if not photo_b64:
+        return None
+    photo_dir = Path("/app/data/bird_photos")
+    photo_dir.mkdir(parents=True, exist_ok=True)
+    photo_path = photo_dir / f"{bird_id}.jpg"
+    photo_path.write_bytes(b64decode(photo_b64))
+    return str(photo_path)
+
+
+def _local_bird_to_ovosfera_payload(bird: dict) -> dict:
+    sex_ovo = _sex_local_to_ovosfera(bird.get("sex", ""))
+    payload = {
+        "anilla": bird.get("bird_id"),
+        "tipo": "Gallo" if sex_ovo == "M" else "Gallina",
+        "raza": bird.get("breed", ""),
+        "color": bird.get("color", ""),
+        "sexo": sex_ovo,
+        "peso": bird.get("weight_kg"),
+        "estado": "Reproductor",
+        "gallinero": _gallinero_local_to_ovosfera(bird.get("gallinero", "")),
+        "notas": bird.get("notes", ""),
+        "ai_vision_id": bird.get("ai_vision_id", ""),
+    }
+    photo = _photo_data_uri_from_local(bird)
+    if photo:
+        payload["foto"] = photo
+    return {k: v for k, v in payload.items() if v is not None}
+
+
+def _ovosfera_bird_to_local_record(ave: dict) -> dict:
+    bird_id = ave.get("anilla", "")
+    breed = ave.get("raza", "")
+    color = ave.get("color", "")
+    photo_b64 = _strip_photo_data_uri(ave.get("foto"))
+    photo_path = _write_photo_to_local_store(bird_id, photo_b64)
+    return {
+        "bird_id": bird_id,
+        "breed": breed,
+        "color": color,
+        "sex": _sex_ovosfera_to_local(ave.get("sexo", "")),
+        "ai_vision_id": ave.get("ai_vision_id", ""),
+        "confidence": 1.0 if ave.get("ai_vision_id") else 0.8,
+        "first_seen": datetime.now(timezone.utc).isoformat(),
+        "last_seen": datetime.now(timezone.utc).isoformat(),
+        "gallinero": _gallinero_ovosfera_to_local(ave.get("gallinero", "")),
+        "ia_vision_number": _get_ia_vision_number(breed, color),
+        "notes": ave.get("notas", ""),
+        "photo_b64": photo_b64,
+        "photo_path": photo_path,
+        "weight_kg": ave.get("peso", None),
+        "behavior_twin": None,
+    }
+
+
+def _find_alias_renames(local_only_ids: list[str], ovo_only_ids: list[str], ovo_idx: dict[str, dict]) -> list[dict]:
+    aliases: list[dict] = []
+    for local_id in local_only_ids:
+        local_bird = next((b for b in _registry if b.get("bird_id") == local_id), None)
+        if not local_bird:
+            continue
+        notes = (local_bird.get("notes") or "").upper()
+        for ovo_id in ovo_only_ids:
+            ovo_bird = ovo_idx.get(ovo_id)
+            if not ovo_bird:
+                continue
+            same_breed = (local_bird.get("breed", "").lower() == (ovo_bird.get("raza", "") or "").lower())
+            same_sex = (_sex_local_to_ovosfera(local_bird.get("sex", "")) == (ovo_bird.get("sexo", "") or ""))
+            short_ovo_id = ovo_id.split("-")[-1]
+            note_mentions_alias = (ovo_id.upper() in notes) or (f"PAL-{short_ovo_id}" in notes)
+            if note_mentions_alias and same_breed and same_sex:
+                aliases.append({
+                    "from": local_id,
+                    "to": ovo_id,
+                    "reason": "note_alias_match",
+                })
+                break
+    return aliases
+
+
+async def _reconcile_ovosfera_census(apply_changes: bool = False) -> dict:
+    ovo_api = os.environ.get("OVOSFERA_API_URL", "https://hub.ovosfera.com/api/ovosfera")
+    ovo_farm = os.environ.get("OVOSFERA_FARM_SLUG", "palacio")
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(f"{ovo_api}/farms/{ovo_farm}/aves")
+        resp.raise_for_status()
+        ovo_aves = resp.json()
+
+        local_idx = {b.get("bird_id"): b for b in _registry if b.get("bird_id")}
+        ovo_idx = {a.get("anilla"): a for a in ovo_aves if a.get("anilla")}
+
+        local_only_ids = sorted(set(local_idx) - set(ovo_idx))
+        ovo_only_ids = sorted(set(ovo_idx) - set(local_idx))
+        alias_renames = _find_alias_renames(local_only_ids, ovo_only_ids, ovo_idx)
+
+        rename_from = {a["from"] for a in alias_renames}
+        rename_to = {a["to"] for a in alias_renames}
+        create_in_ovo_ids = [bid for bid in local_only_ids if bid not in rename_from]
+        import_to_local_ids = [bid for bid in ovo_only_ids if bid not in rename_to]
+
+        summary = {
+            "dry_run": not apply_changes,
+            "before": {
+                "local_total": len(local_idx),
+                "ovosfera_total": len(ovo_idx),
+                "only_local": local_only_ids,
+                "only_ovosfera": ovo_only_ids,
+            },
+            "plan": {
+                "alias_renames": alias_renames,
+                "create_in_ovosfera": create_in_ovo_ids,
+                "import_to_local": import_to_local_ids,
+            },
+            "applied": {
+                "renamed_local": [],
+                "created_in_ovosfera": [],
+                "imported_to_local": [],
+                "errors": [],
+            },
+        }
+
+        if not apply_changes:
+            return summary
+
+        backup_path = _DATA_PATH.with_name(
+            f"birds_registry_backup_reconcile_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        backup_path.write_text(_DATA_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+
+        for alias in alias_renames:
+            bird = local_idx.get(alias["from"])
+            target = ovo_idx.get(alias["to"])
+            if not bird or not target:
+                summary["applied"]["errors"].append({"action": "rename_local", "alias": alias, "error": "missing_source_or_target"})
+                continue
+            bird["bird_id"] = alias["to"]
+            if target.get("notas") and not bird.get("notes"):
+                bird["notes"] = target.get("notas")
+            if target.get("foto") and not bird.get("photo_b64"):
+                bird["photo_b64"] = _strip_photo_data_uri(target.get("foto"))
+                bird["photo_path"] = _write_photo_to_local_store(alias["to"], bird["photo_b64"])
+            summary["applied"]["renamed_local"].append(alias)
+
+        # Reindex after renames
+        local_idx = {b.get("bird_id"): b for b in _registry if b.get("bird_id")}
+
+        for bird_id in create_in_ovo_ids:
+            bird = local_idx.get(bird_id)
+            if not bird:
+                continue
+            try:
+                payload = _local_bird_to_ovosfera_payload(bird)
+                create_resp = await client.post(f"{ovo_api}/farms/{ovo_farm}/aves", json=payload)
+                if create_resp.status_code >= 300:
+                    raise RuntimeError(f"HTTP {create_resp.status_code}: {create_resp.text[:200]}")
+                summary["applied"]["created_in_ovosfera"].append({"bird_id": bird_id})
+            except Exception as e:
+                summary["applied"]["errors"].append({"action": "create_in_ovosfera", "bird_id": bird_id, "error": str(e)})
+
+        # Refresh Ovo index after creates
+        resp = await client.get(f"{ovo_api}/farms/{ovo_farm}/aves")
+        resp.raise_for_status()
+        ovo_idx = {a.get("anilla"): a for a in resp.json() if a.get("anilla")}
+
+        for bird_id in import_to_local_ids:
+            if bird_id in local_idx:
+                continue
+            ave = ovo_idx.get(bird_id)
+            if not ave:
+                continue
+            try:
+                _registry.append(_ovosfera_bird_to_local_record(ave))
+                summary["applied"]["imported_to_local"].append({"bird_id": bird_id})
+            except Exception as e:
+                summary["applied"]["errors"].append({"action": "import_to_local", "bird_id": bird_id, "error": str(e)})
+
+        _save_registry()
+
+        local_idx = {b.get("bird_id"): b for b in _registry if b.get("bird_id")}
+        resp = await client.get(f"{ovo_api}/farms/{ovo_farm}/aves")
+        resp.raise_for_status()
+        ovo_idx = {a.get("anilla"): a for a in resp.json() if a.get("anilla")}
+        summary["after"] = {
+            "local_total": len(local_idx),
+            "ovosfera_total": len(ovo_idx),
+            "only_local": sorted(set(local_idx) - set(ovo_idx)),
+            "only_ovosfera": sorted(set(ovo_idx) - set(local_idx)),
+            "backup_path": str(backup_path),
+        }
+        return summary
+
+
 # ─── Endpoints ───────────────────────────────────────
 
 @router.get("/")
@@ -126,6 +364,32 @@ async def list_birds(
     if color:
         birds = [b for b in birds if b.get("color", "").lower() == color.lower()]
     return {"birds": birds, "total": len(birds)}
+
+
+@router.get("/ovosfera/reconcile")
+async def audit_ovosfera_reconcile():
+    """Audita deriva de censo entre Seedy local y OvoSfera sin aplicar cambios."""
+    try:
+        return await _reconcile_ovosfera_census(apply_changes=False)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Audit failed: {e}")
+
+
+@router.post("/ovosfera/reconcile")
+async def apply_ovosfera_reconcile(
+    apply: bool = Query(True, description="Aplicar reconciliación. Si false, actúa como dry-run."),
+):
+    """Reconciliación completa Seedy↔OvoSfera para dejar el censo 1:1.
+
+    Reglas actuales:
+    - Detecta alias locales cuando las notas mencionan una anilla existente solo en OvoSfera.
+    - Crea en OvoSfera las aves válidas que existen solo en Seedy.
+    - Importa a Seedy las aves que existen solo en OvoSfera.
+    """
+    try:
+        return await _reconcile_ovosfera_census(apply_changes=apply)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Reconcile failed: {e}")
 
 
 @router.get("/twin/coverage")
