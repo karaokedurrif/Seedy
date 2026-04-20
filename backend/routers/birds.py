@@ -80,6 +80,35 @@ def _get_ia_vision_number(breed: str, color: str) -> int:
     return max(b["ia_vision_number"] for b in same_group) + 1
 
 
+def _build_behavior_twin_snapshot(
+    bird_id: str,
+    gallinero_id: str,
+    windows: list[str],
+) -> dict:
+    """Construye snapshot persistible de comportamiento para el Digital Twin."""
+    from services.behavior_inference import get_bird_behavior
+    from services.behavior_serializer import to_api_response
+
+    data: dict[str, dict] = {}
+    for w in windows:
+        inference = get_bird_behavior(bird_id, gallinero_id, w)
+        resp = to_api_response(inference)
+        data[w] = {
+            "data_completeness": resp.get("data_completeness", 0.0),
+            "observations": resp.get("observations", []),
+            "inferences": resp.get("inferences", {}),
+            "anomalies": resp.get("anomalies", []),
+            "insufficient_data_flags": resp.get("insufficient_data_flags", []),
+            "metadata": resp.get("metadata", {}),
+        }
+
+    return {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "gallinero_id": gallinero_id,
+        "windows": data,
+    }
+
+
 # ─── Endpoints ───────────────────────────────────────
 
 @router.get("/")
@@ -147,6 +176,9 @@ async def get_bird(bird_id: str):
             except Exception:
                 result["behavior"] = None
 
+            # Snapshot persistido del Digital Twin (24h/7d/30d) si existe
+            result["behavior_twin"] = b.get("behavior_twin", None)
+
             # Montas (últimos 7 días)
             try:
                 from services.mating_detector import query_mating_events
@@ -176,6 +208,75 @@ async def get_bird(bird_id: str):
 
             return result
     raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+
+@router.post("/{bird_id}/sync_behavior_twin")
+async def sync_behavior_twin(
+    bird_id: str,
+    windows: str = Query("24h,168h,720h", description="Ventanas CSV: 24h,168h,720h"),
+):
+    """Sincroniza y persiste comportamiento histórico para un ave concreta."""
+    bird = None
+    for b in _registry:
+        if b["bird_id"] == bird_id:
+            bird = b
+            break
+    if not bird:
+        raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
+
+    gallinero_id = bird.get("gallinero", "gallinero_palacio")
+    win_list = [w.strip() for w in windows.split(",") if w.strip()]
+    if not win_list:
+        raise HTTPException(status_code=400, detail="Ventanas vacías")
+
+    try:
+        bird["behavior_twin"] = _build_behavior_twin_snapshot(bird_id, gallinero_id, win_list)
+        _save_registry()
+    except Exception as e:
+        logger.warning(f"Behavior twin sync failed for {bird_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Sync behavior twin failed: {e}")
+
+    return {
+        "status": "ok",
+        "bird_id": bird_id,
+        "gallinero_id": gallinero_id,
+        "behavior_twin": bird.get("behavior_twin"),
+    }
+
+
+@router.post("/sync_behavior_twins")
+async def sync_behavior_twins(
+    gallinero_id: str = Query("gallinero_palacio", description="Gallinero a sincronizar"),
+    windows: str = Query("24h,168h,720h", description="Ventanas CSV: 24h,168h,720h"),
+):
+    """Backfill masivo: persiste comportamiento histórico en el Digital Twin de cada ave."""
+    win_list = [w.strip() for w in windows.split(",") if w.strip()]
+    if not win_list:
+        raise HTTPException(status_code=400, detail="Ventanas vacías")
+
+    birds = [b for b in _registry if b.get("gallinero") == gallinero_id]
+    ok = 0
+    failed: list[dict] = []
+
+    for bird in birds:
+        bid = bird.get("bird_id", "")
+        if not bid:
+            continue
+        try:
+            bird["behavior_twin"] = _build_behavior_twin_snapshot(bid, gallinero_id, win_list)
+            ok += 1
+        except Exception as e:
+            failed.append({"bird_id": bid, "error": str(e)})
+
+    _save_registry()
+    return {
+        "status": "ok",
+        "gallinero_id": gallinero_id,
+        "windows": win_list,
+        "total": len(birds),
+        "synced": ok,
+        "failed": failed,
+    }
 
 
 @router.post("/register", response_model=BirdRecord)
