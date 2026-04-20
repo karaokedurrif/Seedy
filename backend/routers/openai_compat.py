@@ -6,6 +6,7 @@ Flujo automático: Classify → Qdrant RAG → SearXNG (si RAG insuficiente) →
 Modelo seedy-vision: detecta imágenes → Gemini 2.0 Flash (análisis visual).
 """
 
+import asyncio
 import base64
 import json
 import logging
@@ -379,13 +380,15 @@ async def _rag_pipeline(query: str, history: list[dict] | None = None):
     if search_query != query:
         logger.info(f"[OpenAI] Query reescrita: {search_query[:80]}")
 
-    # 1. Clasificar categoría + temporalidad (multi-label para mejor recall)
+    # 1. Clasificar categoría + temporalidad EN PARALELO
     #    + hint de categoría previa para coherencia conversacional
     prev_cat = _last_category if (history and len(history) >= 2) else None
     classify_input = search_query if search_query != query else query
-    multi_cats = await classify_query_multi(classify_input, prev_category=prev_cat)
+    multi_cats, temporality = await asyncio.gather(
+        classify_query_multi(classify_input, prev_category=prev_cat),
+        classify_temporality(query),
+    )
     category = multi_cats[0][0] if multi_cats else "GENERAL"
-    temporality = await classify_temporality(query)
     _last_category = category
     logger.info(f"[OpenAI] Categorías: {multi_cats} (prev={prev_cat}) | "
                 f"Temporalidad: {temporality} | Query: {query[:80]}...")
@@ -1051,10 +1054,11 @@ async def _non_stream_response(query: str, history: list[dict], req: OAIChatRequ
         final_answer = answer
         logger.info(f"[Critic] Brain/think → auto-PASS (cat={category}, {len(answer)} chars)")
     else:
-        # A) Critic estructural (confusión especie, incoherencia)
-        structural_verdict = await evaluate_response(query, filtered_chunks, answer)
-        # B) Critic técnico (fidelidad factual)
-        technical_verdict = await evaluate_technical(query, evidence_text, answer, species_hint)
+        # A) Critic estructural + B) Critic técnico — EN PARALELO
+        structural_verdict, technical_verdict = await asyncio.gather(
+            evaluate_response(query, filtered_chunks, answer),
+            evaluate_technical(query, evidence_text, answer, species_hint),
+        )
 
         was_blocked = (
             structural_verdict["verdict"] == "BLOCK"

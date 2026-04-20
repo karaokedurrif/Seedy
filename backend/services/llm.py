@@ -179,11 +179,10 @@ def _build_user_message_with_evidence(query: str, evidence: str) -> str:
 async def _call_together(
     messages: list[dict], max_tokens: int, temperature: float
 ) -> str | None:
-    """Llamada a Together.ai (Kimi-K2.5 — modelo principal).
+    """Llamada a Together.ai (modelo principal).
 
-    Kimi-K2.5 es un modelo de razonamiento que usa tokens para "reasoning" interno.
-    Necesita un mínimo de 4096 max_tokens para que quede espacio tras el reasoning.
-    Si devuelve vacío por finish_reason=length, reintenta con más tokens.
+    Usa max_tokens directamente sin padding extra de reasoning.
+    Si devuelve vacío, reintenta una vez con más tokens.
     """
     settings = get_settings()
 
@@ -191,8 +190,7 @@ async def _call_together(
         logger.warning("TOGETHER_API_KEY no configurada")
         return None
 
-    # Kimi-K2.5 necesita headroom extra para reasoning (~1500-3000 tokens)
-    effective_max = max(max_tokens, 4096)
+    effective_max = max(max_tokens, 2048)
 
     for attempt in range(2):  # Máx 1 retry
         try:
@@ -318,8 +316,7 @@ async def _stream_together(
 ) -> AsyncGenerator[str, None]:
     """Streaming desde Together.ai (formato SSE OpenAI-compatible)."""
     settings = get_settings()
-    # Kimi-K2.5 necesita headroom extra para reasoning interno
-    effective_max = max(max_tokens, 4096)
+    effective_max = max(max_tokens, 2048)
     async with httpx.AsyncClient(timeout=90.0) as client:
         async with client.stream(
             "POST",

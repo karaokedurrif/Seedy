@@ -49,14 +49,16 @@ def warmup():
 
 
 def _get_model() -> CrossEncoder:
-    """Carga el modelo de reranking (lazy, singleton). Forzado a CPU para liberar VRAM."""
+    """Carga el modelo de reranking (lazy, singleton). GPU si disponible, CPU fallback."""
     global _model
     if _model is None:
-        logger.info("Cargando reranker bge-reranker-v2-m3 (CPU)...")
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"Cargando reranker bge-reranker-v2-m3 ({device})...")
         _model = CrossEncoder(
-            "BAAI/bge-reranker-v2-m3", max_length=512, device="cpu"
+            "BAAI/bge-reranker-v2-m3", max_length=512, device=device
         )
-        logger.info("Reranker cargado en CPU")
+        logger.info(f"Reranker cargado en {device}")
     return _model
 
 

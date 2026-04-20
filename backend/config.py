@@ -7,7 +7,7 @@ from functools import lru_cache
 class Settings(BaseSettings):
     # Together.ai
     together_api_key: str = ""
-    together_model_id: str = "moonshotai/Kimi-K2.5"          # Principal: MoE 262k ctx, imaginación alta
+    together_model_id: str = "Qwen/Qwen3-235B-A22B-Instruct-2507-tput"  # Principal: rápido + capaz
     together_classifier_model: str = "Qwen/Qwen2.5-7B-Instruct-Turbo"  # Barato para clasificar
     together_critic_model: str = "Qwen/Qwen3-235B-A22B-Instruct-2507-tput"  # Critic inteligente
     together_report_model: str = "deepseek-ai/DeepSeek-R1-0528"  # Brain: máximo razonamiento
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # RAG
     rag_chunk_size: int = 800
     rag_chunk_overlap: int = 150
-    rag_top_k: int = 30
+    rag_top_k: int = 15
     rag_bm25_weight: float = 1.0
     rag_relevance_threshold: float = 0.25
     rag_rerank_top_n: int = 8

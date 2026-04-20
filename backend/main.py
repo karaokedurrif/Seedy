@@ -99,8 +99,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[Behavior] Init degradado: {e}")
 
-    # Auto-start bird identification loop (quality-first: solo 1 ave aislada por frame)
-    asyncio.create_task(_auto_start_identification())
+    # NOTE: Bird identification loop desactivado auto-start (Gemini 429 rate-limit).
+    # Iniciar manualmente con POST /vision/identify/start cuando la cuota se recupere.
+    # asyncio.create_task(_auto_start_identification())
 
     # CPU Watchdog — monitorea CPU y throttlea CaptureManager dinámicamente
     try:
