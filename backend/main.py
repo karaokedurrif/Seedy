@@ -193,7 +193,7 @@ BEHAVIOR_ML_TRAIN_INTERVAL = 6 * 3600  # 6 horas
 
 
 async def _autolearn_behavior_ml():
-    """Entrena modelos ML conductuales cada 6 horas."""
+    """Entrena modelos ML conductuales cada 6 horas + scan retrospectivo de montas."""
     await asyncio.sleep(600)  # 10 min tras arranque
     while True:
         try:
@@ -203,6 +203,16 @@ async def _autolearn_behavior_ml():
             logger.info(f"[BehaviorML] Train gallinero_palacio: {result}")
         except Exception as e:
             logger.error(f"[BehaviorML] Train failed: {e}")
+
+        # Scan retrospectivo de montas (cubre gaps por reinicios del CaptureManager)
+        try:
+            from services.mating_detector import scan_mating_retrospective
+            events = scan_mating_retrospective("gallinero_palacio", hours=8, persist=True)
+            if events:
+                logger.info(f"[MatingRetro] Found {len(events)} mating events retrospectively")
+        except Exception as e:
+            logger.error(f"[MatingRetro] Scan failed: {e}")
+
         await asyncio.sleep(BEHAVIOR_ML_TRAIN_INTERVAL)
 
 

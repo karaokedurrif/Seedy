@@ -12,7 +12,7 @@ from services.behavior_inference import get_bird_behavior, get_group_behavior_su
 from services.behavior_features import compute_bird_features, compute_group_features, compute_group_statistics
 from services.behavior_serializer import to_api_response, to_dashboard_summary
 from services.behavior_event_store import get_event_store
-from services.mating_detector import query_mating_events, get_mating_summary
+from services.mating_detector import query_mating_events, get_mating_summary, scan_mating_retrospective
 
 logger = logging.getLogger(__name__)
 
@@ -167,5 +167,27 @@ async def get_bird_mating_history(
         "total_events": len(events),
         "as_mounter": len(as_mounter),
         "as_mounted": len(as_mounted),
+        "events": events,
+    }
+
+
+@router.post("/mating/scan")
+async def scan_mating_retrospective_endpoint(
+    gallinero_id: str = Query(..., description="ID del gallinero"),
+    hours: int = Query(24, description="Horas hacia atrás a escanear"),
+    persist: bool = Query(True, description="Persistir eventos encontrados"),
+):
+    """Escanea behavior snapshots buscando montas retrospectivamente.
+
+    Útil cuando el detector real-time perdió estado por reinicios.
+    Usa IoU de bboxes (si disponible) o distancia de centros como proxy.
+    Solo genera eventos nuevos que no solapen con ya registrados.
+    """
+    events = scan_mating_retrospective(gallinero_id, hours, persist)
+    return {
+        "gallinero_id": gallinero_id,
+        "hours_scanned": hours,
+        "events_found": len(events),
+        "persisted": persist,
         "events": events,
     }

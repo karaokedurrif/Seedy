@@ -432,3 +432,202 @@ def cleanup_old_events(max_age_days: int = 30) -> int:
                 except Exception as e:
                     logger.warning(f"[MatingDetector] Error deleting {filepath}: {e}")
     return deleted
+
+
+# ── Detección retrospectiva de montas desde behavior snapshots ──
+
+# Umbrales para detección retrospectiva (sin bbox usa distancia centros)
+_RETRO_DIST_THRESHOLD = 0.06     # dist normalizada entre centros para considerar monta
+_RETRO_DIST_BBOX_THRESHOLD = 0.04  # más estricto si no hay bbox
+_RETRO_MIN_CONSECUTIVE = 2       # snapshots consecutivos (a 60s) con proximidad
+_RETRO_Y_OFFSET_MIN = 0.02      # mounter debe estar al menos esto más arriba
+_RETRO_COOLDOWN_SEC = 300        # 5 min entre eventos del mismo par (retrospectivo)
+
+
+def scan_mating_retrospective(
+    gallinero_id: str,
+    hours: int = 24,
+    persist: bool = True,
+) -> list[dict]:
+    """Escanea behavior snapshots buscando patrones de monta retrospectivamente.
+
+    Detecta secuencias donde dos tracks están superpuestos (IoU si hay bbox,
+    distancia de centros si no) durante ≥2 snapshots consecutivos (~120s).
+
+    Los eventos se persisten en el JSONL de mating con source='retrospective'.
+    Solo genera eventos nuevos que no solapen con eventos ya registrados.
+
+    Returns: lista de eventos de monta encontrados.
+    """
+    from services.behavior_event_store import get_event_store
+
+    store = get_event_store()
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(hours=hours)
+    snapshots = store.query(gallinero_id, start, end)
+
+    if len(snapshots) < 2:
+        return []
+
+    # Cargar eventos ya registrados para evitar duplicados
+    existing_events = query_mating_events(gallinero_id, start, end)
+    existing_times = set()
+    for ev in existing_events:
+        # Ventana de 5 min alrededor de cada evento ya registrado
+        ts = ev.get("ts_unix", 0)
+        existing_times.add(int(ts // _RETRO_COOLDOWN_SEC))
+
+    # Estado: pares activos con su cuenta de snapshots consecutivos
+    active_pairs: dict[tuple, dict] = {}  # (tid_a, tid_b) → {count, first_ts, last_snap, ...}
+    events: list[dict] = []
+    detector = get_mating_detector(gallinero_id)
+
+    for snap_idx, snap in enumerate(snapshots):
+        ts_unix = snap.get("ts_unix", 0)
+        tracks = snap.get("tracks", [])
+        if len(tracks) < 2:
+            # Limpiar pares activos que no se ven
+            active_pairs.clear()
+            continue
+
+        seen_pairs: set[tuple] = set()
+
+        for i in range(len(tracks)):
+            t1 = tracks[i]
+            for j in range(i + 1, len(tracks)):
+                t2 = tracks[j]
+
+                # Calcular proximidad
+                c1 = t1.get("center", [0, 0])
+                c2 = t2.get("center", [0, 0])
+
+                bbox1 = t1.get("bbox", [])
+                bbox2 = t2.get("bbox", [])
+                has_bbox = len(bbox1) == 4 and len(bbox2) == 4
+
+                is_close = False
+                overlap_iou = 0.0
+
+                if has_bbox:
+                    overlap_iou = _iou(bbox1, bbox2)
+                    is_close = overlap_iou >= MATING_IOU_THRESHOLD
+                else:
+                    # Fallback: distancia entre centros
+                    import math
+                    dist = math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2)
+                    is_close = dist < _RETRO_DIST_THRESHOLD
+
+                if not is_close:
+                    continue
+
+                # Y-offset: el mounter está más arriba (cy menor)
+                cy1, cy2 = c1[1], c2[1]
+                y_diff = abs(cy1 - cy2)
+                if y_diff < _RETRO_Y_OFFSET_MIN:
+                    continue  # Sin solapamiento vertical claro
+
+                # Determinar mounter/mounted
+                if cy1 < cy2:
+                    mounter_t, mounted_t = t1, t2
+                else:
+                    mounter_t, mounted_t = t2, t1
+
+                tid_a = mounter_t.get("track_id", 0)
+                tid_b = mounted_t.get("track_id", 0)
+                # Pair key: usar track_id si disponible, sino breed+posición como proxy
+                if tid_a and tid_b and tid_a != tid_b:
+                    pair_key = (tid_a, tid_b)
+                else:
+                    # Sin track_ids válidos, usar hash de breed+posición (menos fiable)
+                    pk_a = f"{mounter_t.get('breed','')}{mounter_t.get('bird_id','')}{i}"
+                    pk_b = f"{mounted_t.get('breed','')}{mounted_t.get('bird_id','')}{j}"
+                    pair_key = (pk_a, pk_b)
+                seen_pairs.add(pair_key)
+
+                if pair_key in active_pairs:
+                    active_pairs[pair_key]["count"] += 1
+                    active_pairs[pair_key]["last_ts"] = ts_unix
+                    active_pairs[pair_key]["last_iou"] = overlap_iou
+                else:
+                    active_pairs[pair_key] = {
+                        "count": 1,
+                        "first_ts": ts_unix,
+                        "last_ts": ts_unix,
+                        "mounter": mounter_t,
+                        "mounted": mounted_t,
+                        "last_iou": overlap_iou,
+                    }
+
+                # ¿Confirmar monta?
+                info = active_pairs[pair_key]
+                if info["count"] >= _RETRO_MIN_CONSECUTIVE:
+                    # Cooldown check
+                    time_bucket = int(ts_unix // _RETRO_COOLDOWN_SEC)
+                    if time_bucket in existing_times:
+                        continue
+
+                    event = _build_retro_event(
+                        gallinero_id, info, has_bbox
+                    )
+                    events.append(event)
+                    existing_times.add(time_bucket)
+
+                    if persist:
+                        detector._persist_event(event)
+
+                    # Reset pair counter para no duplicar
+                    active_pairs[pair_key]["count"] = 0
+
+        # Limpiar pares no vistos en este snapshot
+        stale = [k for k in active_pairs if k not in seen_pairs]
+        for k in stale:
+            del active_pairs[k]
+
+    logger.info(
+        f"[MatingRetro] Scan {gallinero_id} {hours}h: "
+        f"{len(snapshots)} snapshots, {len(events)} montas detectadas"
+    )
+    return events
+
+
+def _build_retro_event(gallinero_id: str, info: dict, has_bbox: bool) -> dict:
+    """Construye evento de monta retrospectivo."""
+    mounter = info["mounter"]
+    mounted = info["mounted"]
+    duration = info["last_ts"] - info["first_ts"]
+
+    return {
+        "ts": datetime.fromtimestamp(info["first_ts"], tz=timezone.utc).isoformat(),
+        "ts_unix": round(info["first_ts"], 2),
+        "gallinero_id": gallinero_id,
+        "type": "mating",
+        "source": "retrospective",
+        "attribution": _retro_attribution(mounter, mounted),
+        "mounter": {
+            "track_id": mounter.get("track_id", 0),
+            "bird_id": mounter.get("bird_id", ""),
+            "breed": mounter.get("breed", ""),
+            "sex": mounter.get("sex", "male"),
+            "color": mounter.get("color", ""),
+        },
+        "mounted": {
+            "track_id": mounted.get("track_id", 0),
+            "bird_id": mounted.get("bird_id", ""),
+            "breed": mounted.get("breed", ""),
+            "sex": mounted.get("sex", "female"),
+            "color": mounted.get("color", ""),
+        },
+        "duration_sec": round(max(duration, 60), 1),  # mín 60s (1 snapshot interval)
+        "avg_iou": round(info["last_iou"], 3),
+        "frames": info["count"],
+        "confidence": min(0.8, 0.3 + 0.15 * info["count"]) if has_bbox else min(0.6, 0.2 + 0.1 * info["count"]),
+        "detection_method": "retrospective_iou" if has_bbox else "retrospective_proximity",
+    }
+
+
+def _retro_attribution(mounter: dict, mounted: dict) -> str:
+    if mounter.get("bird_id") and mounted.get("bird_id"):
+        return "full"
+    if mounter.get("bird_id") or mounted.get("bird_id"):
+        return "partial"
+    return "none"

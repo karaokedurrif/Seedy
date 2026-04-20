@@ -68,6 +68,7 @@ class BehaviorEventStore:
                 "breed": t.breed or "",
                 "sex": getattr(t, "sex", "") or "",
                 "center": list(last_pt.center),
+                "bbox": [round(v, 5) for v in last_pt.bbox_norm] if last_pt.bbox_norm else [],
                 "zone": last_pt.zone,
                 "confidence": round(last_pt.confidence, 3),
                 "area": round(last_pt.area_norm, 6),
