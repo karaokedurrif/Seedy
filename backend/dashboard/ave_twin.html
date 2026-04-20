@@ -237,7 +237,7 @@ function renderBird(bird, photos, tracking, gompertz) {
     <!-- Montas / Reproducción -->
     <div class="section">
       <h2>💕 Reproducción y montas (7 días)</h2>
-      ${renderMatingSection(mating, isMale)}
+      ${renderMatingSection(mating, isMale, bird.mating_7d_flock_total || 0)}
     </div>
 
     <!-- Radar conformación + Gompertz — side by side -->
@@ -747,8 +747,14 @@ function renderBehaviorSection(inferences, beh) {
   return html;
 }
 
-function renderMatingSection(mating, isMale) {
+function renderMatingSection(mating, isMale, flockTotal) {
   if (!mating || (mating.total_events === 0 && !mating.as_mounter && !mating.as_mounted)) {
+    if (flockTotal > 0) {
+      return `<div style="color:#d1d5db;font-size:.9em;padding:16px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px">
+        Se detectaron <strong>${flockTotal}</strong> montas en el gallinero en los últimos 7 días,
+        pero todavía no se pudieron atribuir con confianza a este ID individual.
+      </div>`;
+    }
     return '<div style="color:#6b7280;font-size:.9em;padding:16px">Sin eventos de monta registrados en los últimos 7 días.</div>';
   }
 

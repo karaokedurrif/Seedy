@@ -283,6 +283,7 @@ async def get_bird(bird_id: str):
                 end_ts = datetime.now(timezone.utc)
                 start_ts = end_ts - timedelta(days=7)
                 events = query_mating_events(seedy_gallinero_id, start_ts, end_ts, bird_id=bird_id)
+                flock_events = query_mating_events(seedy_gallinero_id, start_ts, end_ts)
                 as_mounter = sum(1 for e in events if e.get("mounter", {}).get("bird_id") == bird_id)
                 as_mounted = sum(1 for e in events if e.get("mounted", {}).get("bird_id") == bird_id)
                 partners = set()
@@ -300,8 +301,12 @@ async def get_bird(bird_id: str):
                     "partners": sorted(partners),
                     "recent_events": events[-5:],  # Últimos 5 eventos
                 }
+                # Fallback útil para UI/LLM: montas detectadas en el gallinero,
+                # aunque aún no estén atribuidas al bird_id concreto.
+                result["mating_7d_flock_total"] = len(flock_events)
             except Exception:
                 result["mating_7d"] = None
+                result["mating_7d_flock_total"] = 0
 
             return result
     raise HTTPException(status_code=404, detail=f"Ave {bird_id} no encontrada")
