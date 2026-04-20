@@ -115,7 +115,7 @@ services:
     restart: unless-stopped
     runtime: nvidia
     shm_size: '2gb'
-    cpus: 2.0
+    cpus: 1.0
     mem_limit: 6g
     memswap_limit: 8g
     ports:
