@@ -19,7 +19,7 @@ async def generate(
     user_message: str,
     context_chunks: list[dict] | None = None,
     history: list[dict] | None = None,
-    max_tokens: int = 1024,
+    max_tokens: int = 4096,
     temperature: float = 0.3,
     evidence_override: str | None = None,
 ) -> tuple[str, str]:
@@ -276,7 +276,7 @@ async def generate_stream(
     user_message: str,
     context_chunks: list[dict] | None = None,
     history: list[dict] | None = None,
-    max_tokens: int = 1024,
+    max_tokens: int = 4096,
     temperature: float = 0.3,
 ) -> AsyncGenerator[tuple[str, str], None]:
     """

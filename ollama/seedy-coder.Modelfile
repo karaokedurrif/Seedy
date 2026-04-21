@@ -3,14 +3,13 @@ FROM qwen2.5-coder:14b
 PARAMETER temperature 0.2
 PARAMETER top_p 0.9
 PARAMETER repeat_penalty 1.05
-PARAMETER num_ctx 32768
+PARAMETER num_ctx 8192
 PARAMETER stop "<|file_separator|>"
 PARAMETER stop "<|im_end|>"
 PARAMETER stop "<|endoftext|>"
 
-# Mantener el modelo cargado en VRAM para latencia <100ms en autocomplete
-PARAMETER num_keep 24
-# La RTX 5080 carga el modelo entero
+# RTX 5080: 16GB VRAM. Pesos 9GB + KV cache 8K (~1GB) = ~10GB. Deja margen para YOLO (5GB seedy-backend)
+PARAMETER num_keep 4
 PARAMETER num_gpu 99
 
 SYSTEM """
