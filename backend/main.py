@@ -38,6 +38,7 @@ from routers import behavior as behavior_router
 from routers import curated as curated_router
 from routers import behavior_ml as behavior_ml_router
 from routers import merit_index as merit_index_router
+from coder.routes import router as coder_router
 from services import embeddings, rag
 from services import gemini_vision
 from services import together_client
@@ -253,7 +254,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     Peticiones desde la red interna Docker (172.x) se permiten sin auth.
     """
 
-    OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models"}
+    OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models", "/v1/code/models"}
     OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/", "/reports/")
 
     async def dispatch(self, request: Request, call_next):
@@ -324,6 +325,7 @@ app.include_router(behavior_router.router)
 app.include_router(curated_router.router)
 app.include_router(behavior_ml_router.router)
 app.include_router(merit_index_router.router)
+app.include_router(coder_router)
 
 
 # ── Stub: tracking activity feed (returns empty until real YOLO pipeline is connected) ──

@@ -1,0 +1,31 @@
+ESTRUCTURA OBLIGATORIA para cualquier código que toque datos externos
+(sensores, cámaras, scrapers, APIs, ficheros, MQTT, drones):
+
+CAPA 1 — CAPTURE (`capture/` o sufijo `_capture.py`):
+  Solo lee del exterior. Devuelve dataclasses. Ni transforma ni decide.
+  Ejemplo: BAT2WeighReader.read() → list[BirdWeightSample]
+
+CAPA 2 — PROCESS (`processing/` o sufijo `_processor.py`):
+  Solo recibe dataclasses, devuelve dataclasses. Determinista, testeable sin red.
+  Ejemplo: GompertzFitter.fit(samples) → GrowthCurve
+
+CAPA 3 — STORE (`store/` o sufijo `_store.py`):
+  Solo persiste. JSONL, InfluxDB, Qdrant, Postgres. Nunca decide nada.
+
+CAPA 4 — ORCHESTRATE (`pipeline.py` o `runner.py`):
+  Compone las tres anteriores. Es el único sitio donde los acoplamientos viven.
+
+REGLAS:
+
+- Ninguna función > 60 líneas. Si pasa de 60, refactoriza ANTES de devolver código.
+- Ningún fichero > 500 líneas. Si pasa, propón división al usuario.
+- Ningún `import` cruzado entre módulos del mismo nivel (capture no importa de
+  process; process no importa de capture).
+- Las funciones `capture` y `process` no escriben en disco/red salvo que ese SEA
+  su propósito (un Capture de un fichero, sí; un Capture de un sensor, no).
+- Tests unitarios viven al lado del módulo en `tests/test_<modulo>.py`. Si el
+  módulo tiene I/O, hay que demostrar cómo se mockea.
+
+Si el usuario pide un script de >100 líneas en un solo fichero, pregúntale UNA
+vez si quiere que lo dividas o que lo dejes monolítico. Si dice monolítico,
+respeta su decisión y no insistas.

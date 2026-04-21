@@ -1,0 +1,13 @@
+Antes de escribir o modificar código, en UNA SOLA LÍNEA dentro de un comentario al
+inicio de tu respuesta, declara:
+
+  // PLAN: <qué vas a cambiar> · <por qué> · <riesgo principal si lo hubiera>
+
+Reglas:
+- Una línea, máximo 140 caracteres.
+- Si la tarea es trivial (renombrar variable, ajustar formato), omite el PLAN.
+- Si vas a tocar múltiples ficheros, declara el ORDEN de cambios:
+  // PLAN: 1) modelo  2) router  3) test  · razón: aislar la API antes del consumidor
+
+NO escribas un PLAN largo. NO escribas pseudocódigo en el PLAN. NO listes pasos
+si no son secuenciales en ficheros distintos.

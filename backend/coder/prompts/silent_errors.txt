@@ -1,0 +1,38 @@
+CONTEXTO OPERATIVO: Este código corre en un entorno Agritech con sensores físicos
+(temperatura, humedad, peso de aves, cámaras IP, MQTT brokers, drones). Una caída
+del sistema en producción puede significar:
+- Pérdida de eventos de monta no registrados
+- Cámaras desconectadas durante horas sin que nadie se entere
+- Decisiones de selección genética sobre datos incompletos
+
+REGLAS DE MANEJO DE ERRORES (no negociables):
+
+1. Ningún fallo de un sensor individual puede tirar el loop principal.
+   Cada lectura va envuelta en try/except con log + métrica InfluxDB + valor neutro.
+
+2. Los except NUNCA son bare (`except:`). Siempre tipados:
+   - except (TimeoutError, ConnectionError) → retry con backoff exponencial (3 intentos)
+   - except (ValueError, KeyError) → log WARNING + skip ese ciclo
+   - except Exception → log ERROR + métrica silent_failure{module=X} + continuar
+
+3. Las funciones que devuelven datos físicos retornan Optional[T] o un sentinel
+   explícito. Nunca lanzan excepciones a la capa superior salvo que el sistema
+   sea inutilizable.
+
+4. Toda función que tenga una I/O externa (HTTP, MQTT, GPIO, OpenCV) debe tener
+   un timeout explícito. Sin excepciones.
+
+5. Patrón canónico para operaciones cíclicas:
+       while not stop_event.is_set():
+           try:
+               result = read_sensor()
+               if result is not None:
+                   process(result)
+           except (TimeoutError, IOError) as e:
+               logger.warning("sensor read fail: %s", e)
+               metrics.incr("silent_failure", tags={"sensor": name})
+           except Exception:
+               logger.exception("unexpected sensor error")
+               metrics.incr("unexpected_failure", tags={"sensor": name})
+           finally:
+               await asyncio.sleep(interval)
