@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup Seedy → disco 2T + NAS OMV
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/davidia/Documentos/Seedy/scripts/backup-seedy.sh
+User=root
+StandardOutput=journal
+StandardError=journal

@@ -1,0 +1,10 @@
+[Unit]
+Description=Watchdog disco 2T (nvme1n1p1)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/davidia/Documentos/Seedy/scripts/watchdog-disco2t.sh
+User=root
+StandardOutput=journal
+StandardError=journal

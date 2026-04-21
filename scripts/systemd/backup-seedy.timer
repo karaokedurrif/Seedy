@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup Seedy — timer cada 6 horas
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=6h
+AccuracySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
