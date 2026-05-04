@@ -280,7 +280,7 @@ class CaptureManager:
         mjpeg_url = f"{go2rtc}/api/frame.jpeg?src={config.stream_sub}"
         frame_interval = 1.0 / config.sub_stream_fps
         frame_count = 0
-        SUB_STREAM_TIMEOUT = 5.0  # Timeout explícito para evitar bloqueos
+        SUB_STREAM_TIMEOUT = 15.0  # Timeout aumentado para VIGI (reconexión RTSP cada 10s)
 
         # Inicializar contadores de fallos
         self._camera_failures[config.camera_id] = 0
