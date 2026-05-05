@@ -1,16 +1,7 @@
 ---
 description: "Use when: designing or debugging RAG pipelines, building/cleaning SFT datasets, managing Qdrant collections, tuning embeddings or reranker, working on YOLO vision (COCO detector + breed classifier, tiled detection with artifact filter, dual-stream capture, crop curation, frame annotation for detection training), configuring Ollama/Together.ai models (Kimi-K2.5, DeepSeek-R1, Qwen3-235B), editing Docker Compose or Cloudflare Tunnel, handling IoT flows (MQTT→InfluxDB→Grafana), integrating with GeoTwin (Cesium 3D, PNOA, DEM), managing the OvoSfera pilot (hub.ovosfera.com/farm/palacio/dashboard), processing telemetry data, fine-tuning LLMs (LoRA, GGUF quantisation), behavior analysis (mating, aggression, dominance, stress, ML adaptive models, PageRank hierarchy), bird tracking and identification loop, identity subsystem (IdentityLock, VotingBuffer, AssignmentRegistry, DoubtEscalator, breed+sex+color matching), or any cross-cutting AI+Agritech task in the Seedy stack."
-tools:
-  - read
-  - edit
-  - search
-  - execute
-  - web
-  - todo
-  - agent
-  - mcp_pylance_mcp_s_pylanceRunCodeSnippet
-  - mcp_pylance_mcp_s_pylanceFileSyntaxErrors
-  - mcp_pylance_mcp_s_pylanceImports
+tools:vscode/getProjectSetupInfo, vscode/installExtension, vscode/memory, vscode/newWorkspace, vscode/resolveMemoryFileUri, vscode/runCommand, vscode/vscodeAPI, vscode/extensions, vscode/askQuestions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, github.vscode-pull-request-github/issue_fetch, github.vscode-pull-request-github/labels_fetch, github.vscode-pull-request-github/notification_fetch, github.vscode-pull-request-github/doSearch, github.vscode-pull-request-github/activePullRequest, github.vscode-pull-request-github/pullRequestStatusChecks, github.vscode-pull-request-github/openPullRequest, github.vscode-pull-request-github/create_pull_request, github.vscode-pull-request-github/resolveReviewThread, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo
+[execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, web/fetch, web/githubRepo, browser/openBrowserPage, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, github.vscode-pull-request-github/issue_fetch, github.vscode-pull-request-github/labels_fetch, github.vscode-pull-request-github/notification_fetch, github.vscode-pull-request-github/doSearch, github.vscode-pull-request-github/activePullRequest, github.vscode-pull-request-github/pullRequestStatusChecks, github.vscode-pull-request-github/openPullRequest, github.vscode-pull-request-github/create_pull_request, github.vscode-pull-request-github/resolveReviewThread, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, todo]
 ---
 
 # IA Expert — Seedy AI / RAG / Vision v4.2 / ML / Datasets / Agritech+IoT+GeoTwin
@@ -53,7 +44,7 @@ Sistema de inteligencia artificial multi-agente para ganadería de precisión (p
 
 ---
 
-## 3. DOCKER — 15 CONTENEDORES EN PRODUCCIÓN
+## 3. DOCKER — 17 CONTENEDORES EN PRODUCCIÓN
 
 Todos en el host MSI Vector (NVMe 1TB). Red principal: `ai_default` (external, bridge).
 
@@ -63,7 +54,7 @@ Todos en el host MSI Vector (NVMe 1TB). Red principal: `ai_default` (external, b
 
 | Contenedor | Puerto | Función |
 |------------|--------|---------|
-| **ollama** | :11434 | LLM GPU (seedy:v16, mxbai-embed-large). Vol `ollama_data` + `/home/davidia/models:/models` |
+| **ollama** | :11434 | LLM GPU (seedy:v16, mxbai-embed-large, qwen2.5:7b, qwen2.5:72b). Vol `ollama_data` + `/home/davidia/models:/models` |
 | **open-webui** | :3000→8080 | Interfaz ganadero. Imagen custom `open-webui:0.8.8-local`. 6 workers Seedy |
 | **seedy-backend** | :8000 | FastAPI GPU. Monta `./backend`, `./genetics`, `./conocimientos`, `./data`, vols YOLO |
 | **qdrant** | :6333/:6334 | Vector store. 11 colecciones, ~173K chunks |
@@ -74,8 +65,11 @@ Todos en el host MSI Vector (NVMe 1TB). Red principal: `ai_default` (external, b
 | **influxdb** | :8086 | Series temporales IoT (org=neofarm, bucket=porcidata) |
 | **mosquitto** | :1883/:9001 | MQTT broker IoT |
 | **nodered** | :1880 | Flujos IoT |
-| **grafana** | :3001→3000 | Dashboards |
+| **grafana** | :3001→3000 | Dashboards + métricas LLMRouter v4.6 |
 | **edge-tts** | :8100→8000 | Síntesis de voz |
+| **redis** | :6379 | **v4.6** — Cola de tareas Celery (broker + backend) |
+| **celery-worker** | — | **v4.6** — Worker async GPU (behavior analysis, mating, reports) |
+| **celery-beat** | — | **v4.6** — Scheduler cron (Monday 3AM, every 6h, Sunday 8PM) |
 | **caddy-local** | :443 | TLS local (certs mkcert). Split-horizon bypass Cloudflare |
 | **portainer** | :9000/:9443 | Gestión Docker web |
 
@@ -103,14 +97,14 @@ Todos en el host MSI Vector (NVMe 1TB). Red principal: `ai_default` (external, b
 ## 4. PIPELINE RAG (texto)
 
 ```
-Query → URL Fetcher (crawl4ai) → Query Rewriter (Together Qwen2.5-7B)
+Query → URL Fetcher (crawl4ai) → Query Rewriter (LLMRouter v4.6 + Smart Truncate)
   → Clasificador Categoría (IOT|TWIN|NUTRITION|GENETICS|NORMATIVA|AVICULTURA|GENERAL)
   → Clasificador Temporalidad (STABLE|SEMI_DYNAMIC|DYNAMIC|BREAKING)
   → Búsqueda Qdrant híbrida (dense + BM25, dual-query)
   → Búsqueda Web SearXNG (si DYNAMIC/BREAKING o RAG score < 0.012)
   → Reranker bge-reranker-v2-m3 (Top 20 → Top 8, max 2 chunks/doc)
   → LLM (Together.ai o Ollama fallback) con system prompt epistémico
-  → Critic Gate (Qwen3-235B) → PASS/BLOCK
+  → Critic Gate (LLMRouter v4.6) → PASS/BLOCK
 ```
 
 ### Parámetros RAG actuales
@@ -118,6 +112,98 @@ Query → URL Fetcher (crawl4ai) → Query Rewriter (Together Qwen2.5-7B)
 - Chunk: 1500 tokens, overlap 300
 - Hybrid search ON, BM25 weight 0.7
 - Top K: 8 (tras rerank), relevance threshold: 0.25
+
+### **RAG Contextual Fix v4.6 (5 mayo 2026)** ✅
+
+**Problema resuelto:** Queries multi-turno con referencias numéricas ("háblame del punto 9") perdían contexto conversacional. El rewriter truncaba historial a 200 chars, cortando antes del punto mencionado → RAG buscaba literalmente "punto 9" sin contexto → respuestas irrelevantes.
+
+**Solución:** Smart truncate en `query_rewriter.py`:
+- Detecta automáticamente menciones de "punto N", "medida N", "paso N", "opción N" en la query
+- Busca ese punto específico en el historial conversacional
+- Construye truncado inteligente: inicio (150 chars) + contexto del punto (hasta 250 chars después)
+- Límite aumentado: 200 → 500 chars para queries sin match
+- max_tokens del rewriter: 40 → 50 (queries complejas)
+
+**Resultado:** Queries con referencias numéricas ahora 100% deterministas. UX mejorado sin coste adicional.
+
+---
+
+## 4.1 LLMROUTER v4.6 — SISTEMA HÍBRIDO (mayo 2026) 🆕
+
+**Arquitectura:** Ollama local (GPU RTX 5080) para pasos pequeños + Together.ai para generación compleja. Ahorro 30% coste mensual ($60 → $40 para 80 queries/mes).
+
+### Estructura
+
+```
+backend/services/llm_router/
+├── __init__.py
+├── policy.py              ← 13 policies definidas
+├── budget_guard.py        ← Cap diario $7.50, mensual $175
+├── usage_tracker.py       ← Telemetría a InfluxDB (opcional)
+├── router.py              ← Dispatcher con fallback automático
+└── providers/
+    ├── base.py            ← LLMProvider, LLMRequest, LLMResult
+    ├── ollama_provider.py ← Cliente HTTP ollama:11434
+    └── together_provider.py ← Cliente Together.ai + pricing
+```
+
+### 13 Policies Implementadas
+
+| Policy | Primary | Fallback | Max Latency | Uso |
+|--------|---------|----------|-------------|-----|
+| **rewriter** | ollama:qwen2.5-7b | together:qwen2.5-7b-turbo | 5s | Reformular query (0.36-0.59s, $0) |
+| **classifier_category** | ollama:qwen2.5-7b | together:qwen2.5-7b-turbo | 3s | Categorías RAG (0.17-0.23s, $0) |
+| **classifier_temporal** | ollama:qwen2.5-7b | together:qwen2.5-7b-turbo | 3s | Temporalidad (0.14-0.19s, $0) |
+| **evidence_extraction** | ollama:qwen2.5-7b | together:qwen2.5-7b-turbo | 15s | Extraer evidencias (~10s, $0) |
+| **generation_default** | together:qwen3-235b-tput | together:kimi-k2.5 | 30s | Generación normal (chat) |
+| **generation_think** | together:deepseek-r1 | together:qwen3-235b-tput | 60s | Razonamiento profundo |
+| **generation_local** | ollama:seedy-v16 | together:qwen2.5-7b-turbo | 20s | Modo /local (gratis) |
+| **generation_deep** | ollama:qwen2.5-72b | ollama:seedy-v16 | 300s | Modo /deep (lento, 4.3 tok/s) |
+| **generation_eco** | ollama:seedy-v16 | (none) | 20s | Modo /eco offline |
+| **critic_gate** | ollama:seedy-v16 | together:qwen3-235b-tput | 8s | Eval respuestas (<1s, $0) |
+| **behavior_7d_analysis** | ollama:qwen2.5-72b | together:qwen3-235b-tput | 600s | Worker Celery (análisis ML) |
+| **mating_confirmation** | ollama:qwen2.5-72b | together:qwen3-235b-tput | 120s | Worker Celery (batch conf) |
+| **weekly_report** | ollama:qwen2.5-72b | together:deepseek-r1 | 900s | Worker Celery (informe semanal) |
+
+### Nuevos Modos de Chat
+
+- `/local` → ollama:seedy-v16 (14B fine-tuned, rápido, gratis)
+- `/deep` → ollama:qwen2.5-72b (lento pero premium, warning automático sobre latencia)
+- `/eco` → ollama:seedy-v16 sin web search (offline mode)
+
+### Métricas v4.6
+
+| Métrica | Antes | v4.6 | Delta |
+|---------|-------|------|-------|
+| Coste mensual (80 q/mes) | ~$10 | ~$7 | -30% |
+| Latencia rewriter | 2-3s | 0.36-0.59s | -80% |
+| Latencia classifiers | 1-2s | <0.3s | -70% |
+| % Pipeline en Ollama | 0% | 70% | +70% |
+
+**Fallback rate target:** <5% (Ollama debe manejar >95% de pasos pequeños sin fallar a Together.ai)
+
+---
+
+## 4.2 CELERY WORKERS v4.6 — ANÁLISIS AUTOMATIZADOS 🆕
+
+**Redis broker:** `redis://redis:6379/0` (maxmemory 512MB, allkeys-lru, appendonly yes)
+
+### 3 Workers Implementados
+
+| Worker | Schedule | Policy LLM | Max Time | Función |
+|--------|----------|------------|----------|---------|
+| **analyze_bird_behavior_7d** | Monday 3 AM | ollama:qwen2.5-72b | 600s | Análisis ML 7 días por ave (rutinas, anomalías, jerarquía) |
+| **confirm_mating_batch** | Every 6h | ollama:qwen2.5-72b | 120s | Confirmar/rechazar eventos de monta pending |
+| **generate_weekly_report** | Sunday 8 PM | ollama:qwen2.5-72b | 900s | Informe ejecutivo semanal (7 secciones, 2000 palabras) |
+
+**Configuración Celery:**
+- Backend: redis://redis:6379/0
+- Timezone: Europe/Madrid
+- Task time limit: 3600s
+- Worker max tasks per child: 10
+- Concurrency: 2 (celery-worker tiene GPU)
+
+**Persistencia:** Informes guardados en `/data/behavior_reports/`, `/data/weekly_reports/`
 
 ---
 
@@ -327,17 +413,31 @@ GeoTwin (geoTwin.es) — Twin ID: `Yasg5zxsF_`, coordenadas 40.91541°N, -4.0682
 
 ---
 
-## 7. MODELOS LLM — ARQUITECTURA MULTI-TIER
+## 7. MODELOS LLM — ARQUITECTURA HÍBRIDA v4.6
 
-Together.ai es PRIMARY, Ollama es FALLBACK.
+**Primary:** Ollama local (pasos pequeños) + Together.ai (generación compleja)  
+**Fallback:** Together.ai si Ollama falla, o Ollama si Together.ai falla (según policy)
+
+### Modelos Ollama (GPU RTX 5080)
+
+| Modelo | Tamaño | Uso | Tokens/s |
+|--------|--------|-----|----------|
+| **qwen2.5:7b-instruct-q4_K_M** | 4.7 GB | Rewriter, classifiers, evidence | ~20-30 tok/s |
+| **qwen2.5:72b-instruct-q4_K_M** | 47 GB | Celery workers, modo /deep | ~4.3 tok/s (ARM64 memory bandwidth limit) |
+| **seedy:v16** | 9 GB | Critic gate, modo /local, modo /eco | ~15-20 tok/s |
+| **mxbai-embed-large** | 0.7 GB | Embeddings RAG | — |
+| **bge-reranker-v2-m3** | 2.2 GB | Reranker (sentence-transformers) | — |
+
+### Modelos Together.ai
 
 | Tier | Modelo | Uso | Coste |
 |------|--------|-----|-------|
 | **SMART** | `moonshotai/Kimi-K2.5` | Queries normales | $0.50/$2.80 per M tok |
 | **BRAIN** | `deepseek-ai/DeepSeek-R1-0528` | Informes complejos | $3.50/$14.00 per M tok |
-| **CRITIC** | `Qwen/Qwen3-235B-A22B-Instruct-2507-tput` | Quality gate | $1.20/$1.60 per M tok |
-| **CLASSIFIER** | `Qwen/Qwen2.5-7B-Instruct-Turbo` | Categoría + temporalidad | $0.30/$0.30 per M tok |
-| **LOCAL** | Ollama seedy:v16 | Solo si Together falla | Gratis (GPU local) |
+| **CRITIC** | `Qwen/Qwen3-235B-A22B-Instruct-2507-tput` | Quality gate (fallback de Ollama) | $1.20/$1.60 per M tok |
+| **CLASSIFIER** | `Qwen/Qwen2.5-7B-Instruct-Turbo` | Categoría + temporalidad (fallback de Ollama) | $0.30/$0.30 per M tok |
+
+**Nota sobre qwen2.5:72b local:** El rendimiento 4.3 tok/s es limitación de memory bandwidth del GB10 (ARM64), no de la GPU. Para respuesta de 600 tokens = ~140s solo generación. Solo viable para análisis batch async (Celery workers) y modo /deep con warning explícito. NO usar para chat interactivo default.
 
 ---
 
@@ -480,6 +580,23 @@ Ecowitt GW2000A → WiFi → Cloud API v3 → ecowitt.py → devices.py → OvoS
 - Together.ai API: `https://api.together.xyz/v1/`
 - **Script reentrenamiento:** `scripts/train_poultry_detector.py` (ejecutar cuando ≥500 frames)
 
+### LLMRouter v4.6 — reglas específicas
+- **Ollama dentro de Docker:** usar nombre servicio `ollama:11434`, no `localhost`
+- **Providers en policy:** cada policy define primary + fallback + max_latency
+- **Fallback automático:** si primary timeout/error, router llama fallback sin intervención
+- **Coste en LLMResult:** `result.cost` (USD), `result.provider` (ollama|together), `result.total_latency_s`
+- **Budget guard:** cap diario $7.50, mensual $175 (configurable en `budget_guard.py`)
+- **Test de regresión:** `backend/tests/test_llm_router_regression.py` (30 queries sintéticas)
+- **qwen2.5:72b solo para batch async:** NO usar para chat interactivo (4.3 tok/s = 140s/600 tokens)
+- **Grafana monitoring:** Dashboard v4.6 con cost/day, provider %, fallback rate, latencies P50/P95
+
+### RAG Contextual — reglas específicas
+- **Smart truncate siempre activo:** `_smart_truncate_for_context()` en `query_rewriter.py`
+- **Detecta "punto N":** regex busca menciones de números en query + busca ese punto en historial
+- **Límite 500 chars:** aumentado de 200 para preservar contexto estructurado (listas, tablas)
+- **Fallback seguro:** si no hay match de punto específico, truncado normal a 500 chars
+- **Sin coste adicional:** el rewriter ya se ejecutaba, solo mejora el input con más contexto
+
 ### AutoLearn loops
 | Loop | Intervalo | Función |
 |------|-----------|---------|
@@ -489,7 +606,8 @@ Ecowitt GW2000A → WiFi → Cloud API v3 → ecowitt.py → devices.py → OvoS
 | Knowledge | 4h | Actualizar RAG |
 | Reporting | 24h | Generar informes |
 | Behavior maintenance | 24h | Limpiar baselines antiguos |
-| **Behavior ML** | **6h** | **NUEVO — Entrenar modelos adaptivos** |
+| **Behavior ML** | **6h** | Entrenar modelos adaptivos (automático) |
+| **Celery workers** | **cron** | Monday 3AM (behavior 7D), every 6h (mating), Sunday 8PM (weekly report) |
 
 ### Infraestructura
 - Volumes críticos: `ai_openwebui_data`, `ollama_data`, `qdrant_data`
@@ -504,29 +622,36 @@ Ecowitt GW2000A → WiFi → Cloud API v3 → ecowitt.py → devices.py → OvoS
 
 | Tarea | Herramienta |
 |-------|-------------|
-| Inspeccionar colecciones Qdrant | `execute` → `python -c "from qdrant_client import QdrantClient; ..."` |
-| Ver modelos Ollama | `execute` → `curl -s localhost:11434/api/tags \| python -m json.tool` |
-| Estado de contenedores | `execute` → `docker compose ps` |
-| Logs de un servicio | `execute` → `docker compose logs --tail=50 seedy-backend` |
-| Health check | `execute` → `curl -s localhost:8000/health \| python -m json.tool` |
-| Estado CaptureManager | `execute` → `curl -s localhost:8000/vision/identify/status \| python -m json.tool` |
-| Stats crops curados | `execute` → `curl -s localhost:8000/vision/curated/stats \| python -m json.tool` |
-| Gaps dataset (crops+frames) | `execute` → `curl -s localhost:8000/vision/curated/gaps \| python -m json.tool` |
-| Entrenar ML manual | `execute` → `curl -s -X POST localhost:8000/behavior/ml/train/gallinero_palacio?days=14 \| python -m json.tool` |
-| Anomalías ML | `execute` → `curl -s localhost:8000/behavior/ml/anomalies/gallinero_palacio?hours=24 \| python -m json.tool` |
-| Jerarquía PageRank | `execute` → `curl -s localhost:8000/behavior/ml/hierarchy/gallinero_palacio \| python -m json.tool` |
-| Behavior store stats | `execute` → `curl -s localhost:8000/behavior/store/stats \| python -m json.tool` |
-| Resumen de montas | `execute` → `curl -s "localhost:8000/behavior/mating/summary?gallinero_id=gallinero_palacio&days=7" \| python -m json.tool` |
-| Behavior de un ave | `execute` → `curl -s "localhost:8000/behavior/bird/{bird_id}?gallinero_id=gallinero_palacio&window=24h" \| python -m json.tool` |
-| Test YOLO local | `execute` → `docker exec seedy-backend python -c "from ultralytics import YOLO; m=YOLO('/app/yolo_models/seedy_breeds_best.pt'); print(m.names)"` |
-| Verificar Dahua CGI | `execute` → `curl --digest -u admin:1234567a http://10.10.10.108/cgi-bin/configManager.cgi?action=getConfig&name=Encode` |
-| Contar frames curados | `execute` → `ls data/curated_frames/images/ \| wc -l` |
-| Tracks ambiguos (doubts) | `execute` → `curl -s "localhost:8000/vision/identify/doubts?gallinero_id=gallinero_palacio&hours=24" \| python -m json.tool` |
-| Tracks live con identidad | `execute` → `curl -s "localhost:8000/vision/identify/tracks/live?gallinero_id=gallinero_palacio" \| python -m json.tool` |
-| Identity registry | `execute` → `curl -s "localhost:8000/vision/identify/identity/registry?gallinero_id=gallinero_palacio" \| python -m json.tool` |
-| Reset identidad ave | `execute` → `curl -s -X POST localhost:8000/birds/{bird_id}/reset_ai_vision_id \| python -m json.tool` |
-| Estado Ecowitt | `execute` → `curl -s localhost:8000/ovosfera/devices/status \| python -m json.tool` |
-| Test Ecowitt API directo | `execute` → `curl -s "https://api.ecowitt.net/api/v3/device/real_time?application_key=$ECOWITT_APPLICATION_KEY&api_key=$ECOWITT_API_KEY&mac=$ECOWITT_MAC&temp_unitid=1&pressure_unitid=3&wind_speed_unitid=7&rainfall_unitid=12&call_back=outdoor,indoor,wind,pressure,solar_and_uvi" \| python -m json.tool` |
-| Devices OvoSfera | `execute` → `curl -s localhost:8000/ovosfera/devices \| python -m json.tool` |
+| **LLMRouter v4.6 health** | `curl -s localhost:8000/health \| python -m json.tool` (verifica ollama + together) |
+| **Ver modelos Ollama** | `docker exec ollama ollama list` |
+| **Test policy rewriter** | Ver `backend/tests/test_llm_router_regression.py` |
+| **Métricas Grafana v4.6** | Dashboard UID `d2f8f0cf-4c98-4e70-8776-944e33fcefa7` (cost/day, fallback rate, latencies) |
+| **Redis health** | `docker exec redis redis-cli ping` → PONG |
+| **Celery workers activos** | `docker compose logs celery-worker \| grep 'ready'` |
+| **Celery Beat schedule** | `docker compose logs celery-beat \| grep 'Scheduler: Sending'` |
+| **Forzar worker manual** | `curl -X POST localhost:8000/behavior/ml/train/gallinero_palacio?days=14` |
+| Inspeccionar colecciones Qdrant | `python -c "from qdrant_client import QdrantClient; ..."` |
+| Estado de contenedores | `docker compose ps` |
+| Logs de un servicio | `docker compose logs --tail=50 seedy-backend` |
+| Health check | `curl -s localhost:8000/health \| python -m json.tool` |
+| Estado CaptureManager | `curl -s localhost:8000/vision/identify/status \| python -m json.tool` |
+| Stats crops curados | `curl -s localhost:8000/vision/curated/stats \| python -m json.tool` |
+| Gaps dataset (crops+frames) | `curl -s localhost:8000/vision/curated/gaps \| python -m json.tool` |
+| Entrenar ML manual | `curl -s -X POST localhost:8000/behavior/ml/train/gallinero_palacio?days=14 \| python -m json.tool` |
+| Anomalías ML | `curl -s localhost:8000/behavior/ml/anomalies/gallinero_palacio?hours=24 \| python -m json.tool` |
+| Jerarquía PageRank | `curl -s localhost:8000/behavior/ml/hierarchy/gallinero_palacio \| python -m json.tool` |
+| Behavior store stats | `curl -s localhost:8000/behavior/store/stats \| python -m json.tool` |
+| Resumen de montas | `curl -s "localhost:8000/behavior/mating/summary?gallinero_id=gallinero_palacio&days=7" \| python -m json.tool` |
+| Behavior de un ave | `curl -s "localhost:8000/behavior/bird/{bird_id}?gallinero_id=gallinero_palacio&window=24h" \| python -m json.tool` |
+| Test YOLO local | `docker exec seedy-backend python -c "from ultralytics import YOLO; m=YOLO('/app/yolo_models/seedy_breeds_best.pt'); print(m.names)"` |
+| Verificar Dahua CGI | `curl --digest -u admin:1234567a http://10.10.10.108/cgi-bin/configManager.cgi?action=getConfig&name=Encode` |
+| Contar frames curados | `ls data/curated_frames/images/ \| wc -l` |
+| Tracks ambiguos (doubts) | `curl -s "localhost:8000/vision/identify/doubts?gallinero_id=gallinero_palacio&hours=24" \| python -m json.tool` |
+| Tracks live con identidad | `curl -s "localhost:8000/vision/identify/tracks/live?gallinero_id=gallinero_palacio" \| python -m json.tool` |
+| Identity registry | `curl -s "localhost:8000/vision/identify/identity/registry?gallinero_id=gallinero_palacio" \| python -m json.tool` |
+| Reset identidad ave | `curl -s -X POST localhost:8000/birds/{bird_id}/reset_ai_vision_id \| python -m json.tool` |
+| Estado Ecowitt | `curl -s localhost:8000/ovosfera/devices/status \| python -m json.tool` |
+| Test Ecowitt API directo | `curl -s "https://api.ecowitt.net/api/v3/device/real_time?application_key=$ECOWITT_APPLICATION_KEY&api_key=$ECOWITT_API_KEY&mac=$ECOWITT_MAC&temp_unitid=1&pressure_unitid=3&wind_speed_unitid=7&rainfall_unitid=12&call_back=outdoor,indoor,wind,pressure,solar_and_uvi" \| python -m json.tool` |
+| Devices OvoSfera | `curl -s localhost:8000/ovosfera/devices \| python -m json.tool` |
 | Buscar en conocimientos | `search` → `conocimientos/**/*.md` |
 | Verificar imports | `mcp_pylance_mcp_s_pylanceImports` |
