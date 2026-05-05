@@ -1,0 +1,419 @@
+{
+  "dashboard": {
+    "title": "vLLM Coder Router v4.7 Optimized",
+    "tags": ["vllm", "coder", "performance", "optimization"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "vLLM Response Time (P50/P95/P99)",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "latency_p50",
+            "alias": "P50"
+          },
+          {
+            "measurement": "vllm_metrics",
+            "field": "latency_p95",
+            "alias": "P95"
+          },
+          {
+            "measurement": "vllm_metrics",
+            "field": "latency_p99",
+            "alias": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "color": {"mode": "palette-classic"},
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5000, "color": "yellow"},
+                {"value": 10000, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "GPU Memory Usage (vLLM + Ollama)",
+        "type": "timeseries",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "gpu_memory_used_mb",
+            "alias": "vLLM Memory"
+          },
+          {
+            "measurement": "ollama_metrics",
+            "field": "gpu_memory_used_mb",
+            "alias": "Ollama Memory"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decmbytes",
+            "color": {"mode": "palette-classic"},
+            "max": 128000,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 90000, "color": "yellow"},
+                {"value": 115000, "color": "red"}
+              ]
+            }
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Ollama Memory"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "blue"}}]
+            }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "Request Rate (vLLM)",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 8, "w": 8, "h": 6},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "requests_per_second",
+            "alias": "req/s"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Cache Hit Rate",
+        "type": "gauge",
+        "gridPos": {"x": 8, "y": 8, "w": 4, "h": 6},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "cache_hit_rate",
+            "alias": "Cache Hit %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 40, "color": "yellow"},
+                {"value": 60, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Concurrent Requests (Running/Waiting)",
+        "type": "timeseries",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 6},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "running_requests",
+            "alias": "Running"
+          },
+          {
+            "measurement": "vllm_metrics",
+            "field": "waiting_requests",
+            "alias": "Waiting"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "palette-classic"}
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Waiting"},
+              "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]
+            }
+          ]
+        }
+      },
+      {
+        "id": 6,
+        "title": "Throughput (tokens/s)",
+        "type": "timeseries",
+        "gridPos": {"x": 18, "y": 8, "w": 6, "h": 6},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "prompt_throughput",
+            "alias": "Prompt tok/s"
+          },
+          {
+            "measurement": "vllm_metrics",
+            "field": "generation_throughput",
+            "alias": "Generation tok/s"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Cost per Day (Continue.dev + Openclaw)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 14, "w": 8, "h": 4},
+        "targets": [
+          {
+            "measurement": "coder_router_metrics",
+            "field": "daily_cost_usd",
+            "alias": "Cost/day"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 2, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Provider Distribution (vLLM vs Together.ai)",
+        "type": "piechart",
+        "gridPos": {"x": 8, "y": 14, "w": 8, "h": 6},
+        "targets": [
+          {
+            "measurement": "coder_router_metrics",
+            "field": "vllm_requests",
+            "alias": "vLLM Local"
+          },
+          {
+            "measurement": "coder_router_metrics",
+            "field": "together_requests",
+            "alias": "Together.ai"
+          }
+        ],
+        "options": {
+          "legend": {"displayMode": "list", "placement": "bottom"}
+        }
+      },
+      {
+        "id": 9,
+        "title": "Error Rate (5xx responses)",
+        "type": "timeseries",
+        "gridPos": {"x": 16, "y": 14, "w": 8, "h": 6},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "error_rate_5xx",
+            "alias": "Errors/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "fixed", "fixedColor": "red"},
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Container Health (vLLM + Ollama)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 4},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "container_healthy",
+            "alias": "vLLM"
+          },
+          {
+            "measurement": "ollama_metrics",
+            "field": "container_healthy",
+            "alias": "Ollama"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"value": 1, "text": "✅ Healthy", "color": "green"},
+              {"value": 0, "text": "❌ Unhealthy", "color": "red"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Optimization Level & Params",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 4},
+        "targets": [
+          {
+            "measurement": "vllm_config",
+            "fields": [
+              "optimization_level",
+              "gpu_memory_utilization",
+              "max_model_len",
+              "max_num_seqs"
+            ]
+          }
+        ],
+        "options": {
+          "showHeader": true
+        }
+      },
+      {
+        "id": 12,
+        "title": "Performance vs Baseline",
+        "type": "bargauge",
+        "gridPos": {"x": 0, "y": 24, "w": 12, "h": 6},
+        "targets": [
+          {
+            "measurement": "benchmark_results",
+            "field": "simple_query_improvement_pct",
+            "alias": "Simple Query"
+          },
+          {
+            "measurement": "benchmark_results",
+            "field": "codegen_improvement_pct",
+            "alias": "Code Generation"
+          },
+          {
+            "measurement": "benchmark_results",
+            "field": "throughput_improvement_pct",
+            "alias": "Throughput"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": -50,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {"value": -50, "color": "red"},
+                {"value": 0, "color": "yellow"},
+                {"value": 20, "color": "green"},
+                {"value": 50, "color": "dark-green"}
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "id": 13,
+        "title": "GPU Temperature & Power",
+        "type": "timeseries",
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 6},
+        "targets": [
+          {
+            "measurement": "vllm_metrics",
+            "field": "gpu_temperature_c",
+            "alias": "Temperature (°C)"
+          },
+          {
+            "measurement": "vllm_metrics",
+            "field": "gpu_power_draw_w",
+            "alias": "Power (W)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"}
+          },
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Temperature (°C)"},
+              "properties": [
+                {"id": "unit", "value": "celsius"},
+                {"id": "max", "value": 100},
+                {"id": "thresholds", "value": {
+                  "steps": [
+                    {"value": 0, "color": "green"},
+                    {"value": 70, "color": "yellow"},
+                    {"value": 85, "color": "red"}
+                  ]
+                }}
+              ]
+            },
+            {
+              "matcher": {"id": "byName", "options": "Power (W)"},
+              "properties": [
+                {"id": "unit", "value": "watt"},
+                {"id": "max", "value": 150}
+              ]
+            }
+          ]
+        }
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "timeRange",
+          "type": "interval",
+          "options": ["5m", "15m", "30m", "1h", "6h", "12h", "24h", "7d"],
+          "current": {"value": "1h"}
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Optimizations Applied",
+          "datasource": "InfluxDB",
+          "enable": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "query": "SELECT * FROM optimization_events WHERE $timeFilter"
+        }
+      ]
+    }
+  }
+}
