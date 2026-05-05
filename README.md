@@ -2,9 +2,36 @@
 
 **Seedy** es el sistema de inteligencia artificial multi-agente para ganadería de precisión (porcino, vacuno, avicultura extensiva) que asiste a la plataforma [NeoFarm](https://hub.ovosfera.com). Arquitectura híbrida Ollama + Together.ai con RAG, visión por computadora, ML adaptativo y gemelo digital.
 
+> **v4.7** (mayo 2026) — **Dual-Engine Architecture**: vLLM (Qwen2.5-Coder-32B-AWQ) para coding agéntico + Ollama para pipeline RAG. Ahorro coste: -30-40% en Together.ai  
 > **v4.6** (mayo 2026) — LLMRouter híbrido (13 policies, -30% coste), Celery workers automatizados, RAG contextual fix, visión dual-stream v4.2, identity subsystem, behavior ML 7D
 
 🔗 **Producción:** [seedy.neofarm.io](https://seedy.neofarm.io) | **API:** [seedy-api.neofarm.io](https://seedy-api.neofarm.io) | **Grafana:** [seedy-grafana.neofarm.io](https://seedy-grafana.neofarm.io)
+
+---
+
+## 🆕 Novedades v4.7 (Dual-Engine)
+
+### Arquitectura vLLM para Coding
+- **vLLM server** en DGX (puerto 8001): **Qwen2.5-Coder-32B-AWQ** (22GB modelo, 37GB total)
+- **PagedAttention**: 8 sesiones concurrentes, max 32K context
+- **Clientes**: Openclaw (SOC monitoring), Continue.dev (VS Code), Coder Router (backend)
+- **Coexistencia**: vLLM + Ollama comparten GPU RTX 5080 GB10 (128GB unified RAM)
+- **Uso memoria worst-case**: 106/128 GB (82%)
+
+### Coder Router v4.3
+- **VLLMLocalProvider**: Cliente OpenAI-compatible para vLLM local
+- **Policies actualizadas**: vLLM primary para REFACTOR_MULTI, DEBUG, CHAT_LONG
+- **Degradation chain**: vLLM local → Together.ai cloud (fallback automático)
+- **Ahorro esperado**: -30-40% en costes Together.ai (especialmente tareas ARCHITECT)
+
+### Scripts v4.7
+- `scripts/monitor-vllm-deployment.sh` — Monitor deployment progress (4 stages, 30 min timeout)
+- `scripts/validate-vllm-quick.sh` — Validación rápida (4 tests: health, models, inference, Ollama survival)
+
+### Documentación v4.7
+- `docs/vllm-coder-v4.7.md` (847 líneas) — Guía completa instalación + validación
+- `docs/V4.7_FINALIZACION.md` (653 líneas) — Instrucciones post-deployment (9 pasos, troubleshooting)
+- `docs/OPENCLAW_MINIPC_VLLM_CONFIG.md` — Config Openclaw para usar vLLM 32B (upgrade desde 7B)
 
 ---
 
