@@ -16,6 +16,7 @@ from .providers.base import CoderChunk, CoderRequest
 from .providers.together_provider import TogetherProvider
 from .providers.ollama_provider import OllamaProvider
 from .providers.anthropic_provider import AnthropicProvider
+from .providers.vllm_local_provider import VLLMLocalProvider
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,9 @@ logger = logging.getLogger(__name__)
 _together = TogetherProvider()
 _ollama = OllamaProvider()
 _anthropic = AnthropicProvider()
+_vllm_local = VLLMLocalProvider()
 
-_PROVIDERS = [_together, _ollama, _anthropic]
+_PROVIDERS = [_vllm_local, _together, _ollama, _anthropic]
 
 
 def _get_chain(task_type: TaskType, tier: CoderTier) -> list[str]:

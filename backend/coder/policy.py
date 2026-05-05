@@ -23,14 +23,15 @@ class CoderTier(str, Enum):
 
 # Cadena de degradación por task_type
 # Primer elemento = modelo preferido; siguientes = fallbacks en orden
+# v4.7: vLLM local (32B-Coder-AWQ) como primary para coding agéntico
 DEGRADATION_CHAIN: dict[str, list[str]] = {
     TaskType.AUTOCOMPLETE:   ["ollama:agritech", "together:qwen3-coder-next"],
     TaskType.INLINE_EDIT:    ["together:qwen3-coder-next", "together:glm-5.1", "ollama:agritech"],
     TaskType.CHAT_QUICK:     ["together:qwen3-coder-next", "together:glm-5.1", "ollama:agritech"],
-    TaskType.CHAT_LONG:      ["together:glm-5.1", "together:qwen3-coder-480b", "together:qwen3-coder-next"],
-    TaskType.REFACTOR_MULTI: ["together:qwen3-coder-480b", "together:glm-5.1", "ollama:agritech"],
+    TaskType.CHAT_LONG:      ["vllm:qwen2.5-coder-32b", "together:glm-5.1", "together:qwen3-coder-480b"],
+    TaskType.REFACTOR_MULTI: ["vllm:qwen2.5-coder-32b", "together:qwen3-coder-480b", "together:glm-5.1"],
     TaskType.ARCHITECT:      ["together:glm-5.1", "together:minimax-m2.7", "anthropic:claude-opus-4-7"],
-    TaskType.DEBUG:          ["together:glm-5.1", "together:qwen3-coder-480b", "ollama:agritech"],
+    TaskType.DEBUG:          ["vllm:qwen2.5-coder-32b", "together:glm-5.1", "together:qwen3-coder-480b"],
     TaskType.AGENT_TOOL_USE: ["together:glm-5.1", "together:minimax-m2.7", "together:qwen3-coder-480b"],
 }
 
@@ -62,6 +63,8 @@ CONTEXT_LIMITS: dict[str, int] = {
     "together:qwen3-coder-480b": 262_144,
     "together:minimax-m2.7":     128_000,
     "ollama:agritech":            32_768,
+    "vllm:qwen2.5-coder-32b":    131_072,  # v4.7 - Qwen2.5-Coder-32B-AWQ
+    "vllm:coder-32b":            131_072,  # alias
     "anthropic:claude-opus-4-7": 200_000,
     "anthropic:claude-sonnet-4-6": 200_000,
 }
