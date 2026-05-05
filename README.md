@@ -24,6 +24,8 @@
 - **Degradation chain**: vLLM local → Together.ai cloud (fallback automático)
 - **Ahorro esperado**: -30-40% en costes Together.ai (especialmente tareas ARCHITECT)
 
+**Hardware:** Todo corre en **DGX Spark (Lenovo)** con GPU **GB10** (128GB RAM unificada ARM64), NO en el portátil MSI.
+
 ### Scripts v4.7
 - `scripts/monitor-vllm-deployment.sh` — Monitor deployment progress (4 stages, 30 min timeout)
 - `scripts/validate-vllm-quick.sh` — Validación rápida (4 tests: health, models, inference, Ollama survival)

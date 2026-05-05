@@ -18,7 +18,7 @@ import hashlib
 from difflib import SequenceMatcher
 
 from config import get_settings
-from services.together_client import get_together_client
+from services.llm_router import llm_router, POLICIES
 
 logger = logging.getLogger(__name__)
 
@@ -249,31 +249,16 @@ async def extract_evidence(
         f"CONTEXTO:\n{context_str}"
     )
 
-    # 4. Llamar al extractor (Together.ai Qwen 7B — rápido)
-    settings = get_settings()
-    if not settings.together_api_key:
-        logger.warning("[Evidence] Sin TOGETHER_API_KEY — usando chunks crudos")
-        return _fallback_evidence(unique_chunks), unique_chunks, False
-
+    # 4. Llamar al extractor via LLMRouter (policy: evidence_extraction)
     try:
-        client = await get_together_client()
-        resp = await client.post(
-            f"{settings.together_base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {settings.together_api_key}"},
-            json={
-                "model": settings.together_classifier_model,  # Qwen 7B Turbo (rápido y barato)
-                "messages": [
-                    {"role": "system", "content": _EXTRACTOR_SYSTEM},
-                    {"role": "user", "content": user_msg},
-                ],
-                "max_tokens": 2000,
-                "temperature": 0.0,
-                "top_p": 0.9,
-            },
+        result = await llm_router.call_with_policy(
+            policy_name="evidence_extraction",
+            system_prompt=_EXTRACTOR_SYSTEM,
+            user_message=user_msg,
+            max_tokens=2000,
+            temperature=0.0,
         )
-        resp.raise_for_status()
-        data = resp.json()
-        evidence = data["choices"][0]["message"]["content"].strip()
+        evidence = result.content.strip()
 
         # Si no hay hechos relevantes, usar chunks crudos como fallback
         if "SIN_HECHOS_RELEVANTES" in evidence.upper():

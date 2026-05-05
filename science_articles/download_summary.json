@@ -1,13 +1,13 @@
 {
-  "total_articles": 975,
-  "total_abstracts_chars": 1431983,
+  "total_articles": 969,
+  "total_abstracts_chars": 1448556,
   "by_topic": {
     "avicultura_capones": 25,
-    "avicultura_engorde": 22,
-    "avicultura_razas": 23,
+    "avicultura_engorde": 21,
+    "avicultura_razas": 22,
     "avicultura_capones_calidad": 17,
     "avicultura_ponedoras": 22,
-    "avicultura_bienestar": 18,
+    "avicultura_bienestar": 19,
     "avicultura_nutricion": 18,
     "porcino_iberico": 19,
     "porcino_nutricion": 15,
@@ -16,17 +16,17 @@
     "porcino_calidad": 21,
     "porcino_reproduccion": 20,
     "porcino_iot": 22,
-    "porcino_sanidad": 20,
+    "porcino_sanidad": 19,
     "porcino_microbioma": 17,
-    "vacuno_extensivo": 16,
+    "vacuno_extensivo": 15,
     "vacuno_genetica": 17,
     "vacuno_calidad": 18,
     "vacuno_lechero": 16,
     "vacuno_iot": 15,
     "vacuno_cria": 16,
-    "vacuno_medioambiente": 16,
+    "vacuno_medioambiente": 17,
     "nutricion_formulacion": 12,
-    "nutricion_eficiencia": 6,
+    "nutricion_eficiencia": 5,
     "nutricion_micotoxinas": 15,
     "nutricion_aminoacidos": 7,
     "nutricion_suplementacion": 8,
@@ -36,7 +36,7 @@
     "iot_digital_twin": 18,
     "iot_sensores": 18,
     "iot_vision": 13,
-    "iot_analytics": 10,
+    "iot_analytics": 11,
     "iot_rfid": 6,
     "normativa_bienestar": 13,
     "normativa_sostenibilidad": 8,
@@ -47,23 +47,23 @@
     "avi_intensiva_incubacion": 21,
     "avi_intensiva_procesado": 14,
     "avi_intensiva_genetica": 23,
-    "avi_intensiva_cama": 13,
+    "avi_intensiva_cama": 12,
     "avi_intensiva_precision": 9,
-    "avi_intensiva_salud": 16,
+    "avi_intensiva_salud": 17,
     "vino_enologia": 18,
     "vino_viticultura_precision": 21,
-    "vino_tempranillo": 19,
+    "vino_tempranillo": 17,
     "vino_crianza": 14,
     "vino_sanidad_vid": 21,
-    "vino_cambio_climatico": 15,
+    "vino_cambio_climatico": 14,
     "vino_ecologico": 19,
-    "vino_tecnologia": 13,
+    "vino_tecnologia": 11,
     "vino_variedades_esp": 10,
     "vino_terroir": 15,
-    "vino_espumoso": 15,
+    "vino_espumoso": 16,
     "vino_enoturismo": 24
   },
-  "avg_citations": 284.00820512820513,
+  "avg_citations": 285.7420020639835,
   "top_journals": [
     [
       "PLoS ONE",
@@ -71,7 +71,7 @@
     ],
     [
       "Scientific Reports",
-      34
+      35
     ],
     [
       "Sustainability",
@@ -79,7 +79,7 @@
     ],
     [
       "Nature Communications",
-      28
+      27
     ],
     [
       "IEEE Access",
@@ -87,7 +87,7 @@
     ],
     [
       "Frontiers in Microbiology",
-      18
+      17
     ],
     [
       "Agriculture",
@@ -106,15 +106,15 @@
       14
     ],
     [
-      "Frontiers in Sustainable Food Systems",
-      13
-    ],
-    [
       "Microbiome",
       13
     ],
     [
-      "Sensors",
+      "Frontiers in Sustainable Food Systems",
+      12
+    ],
+    [
+      "Fermentation",
       12
     ],
     [
@@ -122,7 +122,7 @@
       11
     ],
     [
-      "Fermentation",
+      "Sensors",
       11
     ],
     [
@@ -134,16 +134,16 @@
       10
     ],
     [
-      "Frontiers in Veterinary Science",
-      9
-    ],
-    [
       "Annals of Animal Science",
       9
     ],
     [
       "Poultry Science",
       9
+    ],
+    [
+      "Frontiers in Veterinary Science",
+      8
     ]
   ]
 }

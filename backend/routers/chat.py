@@ -1,6 +1,7 @@
 """Seedy Backend — Router /chat (endpoint principal).
 
 v15+: Multi-label classification + query rewriter + dual-query RAG.
+v4.6: Soporte prefijos /local /deep /eco /think para seleccionar policy LLM.
 """
 
 import json
@@ -18,6 +19,8 @@ from services.rag import search as rag_search
 from services.reranker import rerank
 from services.llm import generate, generate_stream
 from services.query_rewriter import rewrite_query
+from services.llm_router import llm_router, POLICIES
+from services.evidence import extract_evidence
 
 try:
     from runtime.logger import log_agent_run, RunTimer
@@ -30,6 +33,45 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
 
 _LIVE_KEYWORDS = {"gallinero", "palacio", "montas", "monta", "comportamiento", "aves", "comportamientos", "jerarquía", "jerarquia", "anomalía", "anomalia", "conducta"}
+
+
+def _parse_mode_prefix(query: str) -> tuple[str, str | None, dict]:
+    """
+    Detecta y procesa prefijos de modo en la query.
+    
+    Prefijos soportados:
+    - /local  → generation_local (seedy:v16, rápido, gratis)
+    - /deep   → generation_deep (qwen2.5:72b, lento, warning al usuario)
+    - /eco    → generation_eco (seedy:v16 sin web search, offline mode)
+    - /think  → generation_think (qwen3-235b, razonamiento paso a paso)
+    
+    Returns:
+        (query_sin_prefijo, policy_name | None, metadata)
+        metadata incluye warnings para modos lentos
+    """
+    query_stripped = query.strip()
+    
+    mode_map = {
+        "/local": ("generation_local", {}),
+        "/deep": ("generation_deep", {
+            "warning": "⚠️ Modo /deep activado: análisis profundo con Qwen 72B local. "
+                      "Puede tardar 2-5 minutos debido a la complejidad del modelo."
+        }),
+        "/eco": ("generation_eco", {
+            "info": "🌱 Modo /eco activado: sin búsqueda web, solo conocimiento local."
+        }),
+        "/think": ("generation_think", {
+            "info": "🧠 Modo /think activado: razonamiento paso a paso con Qwen3-235B."
+        }),
+    }
+    
+    for prefix, (policy, meta) in mode_map.items():
+        if query_stripped.lower().startswith(prefix):
+            clean_query = query_stripped[len(prefix):].strip()
+            logger.info(f"[ChatMode] Detectado prefijo {prefix} → policy {policy}")
+            return clean_query, policy, meta
+    
+    return query, None, {}
 
 
 async def _get_live_behavior_chunk(gallinero_id: str = "gallinero_palacio") -> dict | None:
@@ -122,17 +164,22 @@ async def chat(req: ChatRequest):
     Endpoint principal de Seedy.
     
     Flujo v15+:
+    0. Detectar prefijo de modo (/local /deep /eco /think) y extraer policy
     1. Clasificar query → multi-label (hasta 3 categorías con peso)
     2. Fusionar colecciones de todas las categorías
     3. Reescribir query con contexto conversacional (si hay historial)
     4. Buscar en Qdrant con dual-query (reescrita + original)
     5. Rerank → Top N diversificado
     6. Construir prompt con contexto según categoría principal
-    7. Generar respuesta (Together.ai / Ollama fallback)
+    7. Generar respuesta (LLMRouter policy o Together.ai / Ollama fallback)
     """
     t0 = time.time()
 
     try:
+        # 0. Detectar modo y limpiar query
+        clean_query, policy_name, mode_meta = _parse_mode_prefix(req.query)
+        req.query = clean_query  # Actualizar query sin prefijo
+        
         # 1. Clasificar (multi-label)
         history_dicts = [{"role": m.role, "content": m.content} for m in req.history] if req.history else None
         prev_cat = None
@@ -151,6 +198,8 @@ async def chat(req: ChatRequest):
         use_dual = rewritten_query != req.query
 
         # 3. Buscar en Qdrant (dual-query si se reescribió)
+        # SKIP búsqueda web para modo /eco
+        skip_web_search = (policy_name == "generation_eco")
         rag_results = await rag_search(
             query=rewritten_query,
             collections=collections,
@@ -174,13 +223,47 @@ async def chat(req: ChatRequest):
         # 5. System prompt según categoría principal
         system_prompt = get_system_prompt(primary_cat)
 
-        # 6. Generar respuesta
-        answer, model_used = await generate(
-            system_prompt=system_prompt,
-            user_message=req.query,
-            context_chunks=top_chunks,
-            max_tokens=4096,
-        )
+        # 6. Generar respuesta — usar LLMRouter si hay policy específica
+        if policy_name:
+            # Modo especial: usar llm_router con policy específica
+            logger.info(f"[ChatMode] Usando LLMRouter con policy {policy_name}")
+            
+            # Extraer evidencia estructurada
+            evidence, _, _ = await extract_evidence(req.query, top_chunks, species_hint=None)
+            
+            # Construir mensaje con evidencia
+            if evidence:
+                user_message = f"{evidence}\n\nPREGUNTA:\n{req.query}"
+            else:
+                # Fallback: chunks crudos
+                ctx_parts = [f"[Fuente {i+1}: {c.get('file','')}]\n{c.get('text','')}" 
+                            for i, c in enumerate(top_chunks)]
+                context_str = "\n\n".join(ctx_parts)
+                user_message = f"{context_str}\n\nPREGUNTA:\n{req.query}"
+            
+            result = await llm_router.call_with_policy(
+                policy_name=policy_name,
+                system_prompt=system_prompt,
+                user_message=user_message,
+                max_tokens=4096,
+                temperature=0.3,
+            )
+            answer = result.content
+            model_used = f"{result.provider}:{policy_name}"
+            
+            # Agregar warning si existe
+            if "warning" in mode_meta:
+                answer = f"{mode_meta['warning']}\n\n{answer}"
+            elif "info" in mode_meta:
+                answer = f"{mode_meta['info']}\n\n{answer}"
+        else:
+            # Flujo normal: Together.ai / Ollama
+            answer, model_used = await generate(
+                system_prompt=system_prompt,
+                user_message=req.query,
+                context_chunks=top_chunks,
+                max_tokens=4096,
+            )
 
         # Construir sources
         sources = [

@@ -5,16 +5,15 @@ Fase 2 v14: Doble critic:
   A) Critic estructural: detecta confusión de especie, items no-animal, incoherencia
   B) Critic técnico: verifica fidelidad factual contra la evidencia
 
-Usa Together.ai (Llama 70B) como juez independiente del modelo principal (Ollama 14B).
+Ahora usa LLMRouter con policy critic_gate (seedy:v16 primary, Qwen3-235B fallback).
 Veredicto binario: PASS o BLOCK (sin REVISE — no hay loop de re-generación).
 Si BLOCK, el pipeline sustituye la respuesta por un fallback seguro.
 """
 
 import json
 import logging
-import httpx
 
-from config import get_settings
+from services.llm_router import llm_router, POLICIES
 
 logger = logging.getLogger(__name__)
 
@@ -83,15 +82,8 @@ async def evaluate_response(
     Returns:
         {"verdict": "PASS"} o {"verdict": "BLOCK", "reasons": [...], "tags": [...]}
     """
-    settings = get_settings()
-
-    if not settings.together_api_key:
-        logger.warning("[Critic] Sin TOGETHER_API_KEY — skip critic")
-        return {"verdict": "PASS"}
-
     # Pre-filtro: si el modelo admite honestamente que no tiene contexto
     # Y el contexto realmente es vacío/pobre, PASS directo.
-    # PERO si hay chunks relevantes, NO auto-PASS — el modelo debería haber usado la evidencia.
     answer_lower = draft_answer.lower()
     has_honest_phrase = any(phrase in answer_lower for phrase in _honest_phrases)
     
@@ -128,32 +120,22 @@ async def evaluate_response(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_critic_model,
-                    "messages": [
-                        {"role": "system", "content": CRITIC_SYSTEM},
-                        {"role": "user", "content": user_msg},
-                    ],
-                    "max_tokens": 200,
-                    "temperature": 0.0,
-                    "top_p": 0.9,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = data["choices"][0]["message"]["content"].strip()
+        result = await llm_router.call_with_policy(
+            policy_name="critic_gate",
+            system_prompt=CRITIC_SYSTEM,
+            user_message=user_msg,
+            max_tokens=200,
+            temperature=0.0,
+        )
+        raw = result.content.strip()
 
         # Parsear JSON — el modelo puede meter texto antes/después
-        result = _parse_verdict(raw)
+        parsed = _parse_verdict(raw)
         logger.info(
-            f"[Critic] Veredicto: {result['verdict']}"
-            + (f" — {result.get('reasons', [])}" if result["verdict"] == "BLOCK" else "")
+            f"[Critic] Veredicto: {parsed['verdict']} (provider: {result.provider}, cost: ${result.cost:.6f})"
+            + (f" — {parsed.get('reasons', [])}" if parsed["verdict"] == "BLOCK" else "")
         )
-        return result
+        return parsed
 
     except Exception as e:
         logger.error(f"[Critic] Error evaluando respuesta: {e}")
@@ -235,11 +217,6 @@ async def evaluate_technical(
     Returns:
         {"verdict": "PASS"} o {"verdict": "BLOCK", "reasons": [...], "tags": [...]}
     """
-    settings = get_settings()
-
-    if not settings.together_api_key:
-        return {"verdict": "PASS"}
-
     # Skip si no hay evidencia o respuesta es muy corta (saludo, etc.)
     if not evidence or len(draft_answer) < 50:
         return {"verdict": "PASS"}
@@ -262,31 +239,21 @@ async def evaluate_technical(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=25.0) as client:
-            resp = await client.post(
-                f"{settings.together_base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {settings.together_api_key}"},
-                json={
-                    "model": settings.together_critic_model,  # Qwen3-235B
-                    "messages": [
-                        {"role": "system", "content": TECHNICAL_CRITIC_SYSTEM},
-                        {"role": "user", "content": user_msg},
-                    ],
-                    "max_tokens": 200,
-                    "temperature": 0.0,
-                    "top_p": 0.9,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            raw = data["choices"][0]["message"]["content"].strip()
-
-        result = _parse_verdict(raw)
-        logger.info(
-            f"[CriticTech] Veredicto: {result['verdict']}"
-            + (f" — {result.get('reasons', [])}" if result["verdict"] == "BLOCK" else "")
+        result = await llm_router.call_with_policy(
+            policy_name="critic_gate",
+            system_prompt=TECHNICAL_CRITIC_SYSTEM,
+            user_message=user_msg,
+            max_tokens=200,
+            temperature=0.0,
         )
-        return result
+        raw = result.content.strip()
+
+        parsed = _parse_verdict(raw)
+        logger.info(
+            f"[CriticTech] Veredicto: {parsed['verdict']} (provider: {result.provider}, cost: ${result.cost:.6f})"
+            + (f" — {parsed.get('reasons', [])}" if parsed["verdict"] == "BLOCK" else "")
+        )
+        return parsed
 
     except Exception as e:
         logger.error(f"[CriticTech] Error: {e}")
