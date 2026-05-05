@@ -1,0 +1,247 @@
+{
+  "dashboard": {
+    "title": "vLLM Coder v4.7 — Qwen2.5-Coder-32B Monitoring",
+    "tags": ["vllm", "coder", "v4.7"],
+    "timezone": "Europe/Madrid",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "🚀 vLLM Request Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "measurement": "vllm_requests",
+            "database": "neofarm",
+            "field": "count",
+            "alias": "Requests/min"
+          }
+        ],
+        "yaxes": [
+          {"label": "Requests", "format": "short"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "⏱️ Inference Latency (P50/P95/P99)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "measurement": "vllm_latency",
+            "database": "neofarm",
+            "field": "p50",
+            "alias": "P50"
+          },
+          {
+            "measurement": "vllm_latency",
+            "field": "p95",
+            "alias": "P95"
+          },
+          {
+            "measurement": "vllm_latency",
+            "field": "p99",
+            "alias": "P99"
+          }
+        ],
+        "yaxes": [
+          {"label": "Latency (ms)", "format": "ms"},
+          {"show": false}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "💾 GPU Memory Usage (Ollama + vLLM)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "measurement": "gpu_memory",
+            "database": "neofarm",
+            "field": "ollama_gb",
+            "alias": "Ollama"
+          },
+          {
+            "measurement": "gpu_memory",
+            "field": "vllm_gb",
+            "alias": "vLLM"
+          },
+          {
+            "measurement": "gpu_memory",
+            "field": "total_gb",
+            "alias": "Total Used"
+          }
+        ],
+        "yaxes": [
+          {"label": "Memory (GB)", "format": "decgbytes", "max": 128},
+          {"show": false}
+        ],
+        "thresholds": [
+          {"value": 100, "color": "orange"},
+          {"value": 115, "color": "red"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "💰 Cost Comparison (vLLM vs Together.ai)",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "measurement": "coder_cost",
+            "database": "neofarm",
+            "field": "vllm_cost",
+            "alias": "vLLM Cost (USD)"
+          },
+          {
+            "measurement": "coder_cost",
+            "field": "together_cost_if_used",
+            "alias": "Together.ai (if used)"
+          },
+          {
+            "measurement": "coder_cost",
+            "field": "savings",
+            "alias": "💰 Savings"
+          }
+        ],
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          },
+          "orientation": "horizontal",
+          "textMode": "value_and_name",
+          "colorMode": "value",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 4,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "🎯 Provider Distribution (Coder Router)",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 16},
+        "targets": [
+          {
+            "measurement": "coder_router",
+            "database": "neofarm",
+            "field": "count",
+            "groupBy": ["provider"]
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          },
+          "pieType": "donut"
+        }
+      },
+      {
+        "id": 6,
+        "title": "📊 Task Type Breakdown",
+        "type": "bargauge",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 16},
+        "targets": [
+          {
+            "measurement": "coder_router",
+            "database": "neofarm",
+            "field": "count",
+            "groupBy": ["task_type"]
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "id": 7,
+        "title": "❌ Error Rate",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 16},
+        "targets": [
+          {
+            "measurement": "vllm_errors",
+            "database": "neofarm",
+            "field": "count",
+            "alias": "Errors/hour"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 5, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "🔥 Container Health",
+        "type": "table",
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 24},
+        "targets": [
+          {
+            "measurement": "docker_container_health",
+            "database": "neofarm",
+            "fields": ["container_name", "status", "uptime", "memory_mb", "cpu_percent"]
+          }
+        ],
+        "options": {
+          "showHeader": true
+        },
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "status"},
+              "properties": [
+                {
+                  "id": "custom.cellOptions",
+                  "value": {
+                    "type": "color-background",
+                    "mode": "basic"
+                  }
+                },
+                {
+                  "id": "mappings",
+                  "value": [
+                    {"type": "value", "value": "running", "color": "green"},
+                    {"type": "value", "value": "exited", "color": "red"}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
