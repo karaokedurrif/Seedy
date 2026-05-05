@@ -1,0 +1,247 @@
+{
+  "dashboard": {
+    "title": "Seedy LLM Pipeline v4.6",
+    "description": "Monitorización del sistema de enrutamiento LLM híbrido (Together.ai + Ollama local)",
+    "tags": ["seedy", "llm", "rag", "pipeline", "v4.6"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Cost per Day (USD)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT sum(\"cost\") FROM \"llm_usage\" WHERE $timeFilter GROUP BY time(1h) fill(0)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 6, "color": "yellow"},
+                {"value": 7.5, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+      },
+      {
+        "id": 2,
+        "title": "Provider Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT count(\"provider\") FROM \"llm_usage\" WHERE $timeFilter GROUP BY \"provider\""
+          }
+        ],
+        "options": {
+          "legend": {
+            "displayMode": "table",
+            "placement": "right",
+            "values": ["value", "percent"]
+          }
+        },
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8}
+      },
+      {
+        "id": 3,
+        "title": "Budget Remaining (Daily)",
+        "type": "gauge",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT (7.50 - sum(\"cost\")) FROM \"llm_usage\" WHERE time > now() - 1d"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "min": 0,
+            "max": 7.5,
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1.5, "color": "yellow"},
+                {"value": 3, "color": "green"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8}
+      },
+      {
+        "id": 4,
+        "title": "Latency by Policy (P50/P95/P99)",
+        "type": "heatmap",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT percentile(\"latency_ms\", 50) as p50, percentile(\"latency_ms\", 95) as p95, percentile(\"latency_ms\", 99) as p99 FROM \"llm_usage\" WHERE $timeFilter GROUP BY \"policy_name\", time(10m)"
+          }
+        ],
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "id": 5,
+        "title": "Fallback Events Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT count(\"fallback\") FROM \"llm_usage\" WHERE \"fallback\" = true AND $timeFilter GROUP BY \"policy_name\", time(30m)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8}
+      },
+      {
+        "id": 6,
+        "title": "Policy Distribution (Requests)",
+        "type": "bargauge",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT count(*) FROM \"llm_usage\" WHERE $timeFilter GROUP BY \"policy_name\""
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        },
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8}
+      },
+      {
+        "id": 7,
+        "title": "Monthly Cost Projection",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT sum(\"cost\") * 30 FROM \"llm_usage\" WHERE time > now() - 1d"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 150, "color": "yellow"},
+                {"value": 175, "color": "red"}
+              ]
+            }
+          }
+        },
+        "gridPos": {"x": 8, "y": 16, "w": 4, "h": 4}
+      },
+      {
+        "id": 8,
+        "title": "Ollama Local Savings",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT count(*) * 0.0005 FROM \"llm_usage\" WHERE \"provider\" = 'ollama' AND $timeFilter"
+          }
+        ],
+        "options": {
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "color": {
+              "mode": "fixed",
+              "fixedColor": "green"
+            }
+          }
+        },
+        "gridPos": {"x": 12, "y": 16, "w": 4, "h": 4}
+      },
+      {
+        "id": 9,
+        "title": "Worker Tasks Status",
+        "type": "table",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT last(\"status\"), last(\"duration_ms\"), last(\"cost\") FROM \"celery_tasks\" WHERE $timeFilter GROUP BY \"task_name\""
+          }
+        ],
+        "options": {
+          "sortBy": [{"displayName": "Timestamp", "desc": true}]
+        },
+        "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8}
+      },
+      {
+        "id": 10,
+        "title": "Behavior 7D Coverage",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": "InfluxDB",
+            "query": "SELECT count(distinct(\"bird_id\")) FROM \"behavior_analysis_7d\" WHERE time > now() - 7d"
+          }
+        ],
+        "options": {
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "mappings": [
+              {
+                "type": "range",
+                "options": {
+                  "from": 0,
+                  "to": 12,
+                  "result": {"text": "Bajo", "color": "red"}
+                }
+              },
+              {
+                "type": "range",
+                "options": {
+                  "from": 13,
+                  "to": 20,
+                  "result": {"text": "Medio", "color": "yellow"}
+                }
+              },
+              {
+                "type": "range",
+                "options": {
+                  "from": 21,
+                  "to": 100,
+                  "result": {"text": "Alto", "color": "green"}
+                }
+              }
+            ]
+          }
+        },
+        "gridPos": {"x": 0, "y": 24, "w": 6, "h": 4}
+      }
+    ],
+    "time": {
+      "from": "now-7d",
+      "to": "now"
+    },
+    "refresh": "1m"
+  }
+}
