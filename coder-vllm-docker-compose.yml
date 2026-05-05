@@ -25,7 +25,7 @@ services:
       - --max-model-len
       - "32768"
       - --gpu-memory-utilization
-      - "0.85"
+      - "0.60"
       - --max-num-seqs
       - "8"
       - --disable-log-requests
