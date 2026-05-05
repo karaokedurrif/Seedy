@@ -1,0 +1,46 @@
+services:
+  vllm-coder:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-coder
+    restart: unless-stopped
+    runtime: nvidia
+    shm_size: 4g
+    ports:
+      - "8001:8000"
+    volumes:
+      - /home/daviddgx/models:/models:ro
+      - vllm-cache:/root/.cache
+    environment:
+      - HF_HOME=/root/.cache/huggingface
+      - VLLM_API_KEY=${VLLM_API_KEY}
+    command:
+      - --model
+      - /models/qwen2.5-coder-32b-awq
+      - --served-model-name
+      - qwen2.5-coder-32b
+      - --quantization
+      - awq
+      - --dtype
+      - half
+      - --max-model-len
+      - "32768"
+      - --gpu-memory-utilization
+      - "0.85"
+      - --max-num-seqs
+      - "8"
+      - --disable-log-requests
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+volumes:
+  vllm-cache:
+    driver: local
+
+networks:
+  default:
+    name: seedy_default
+    external: true
