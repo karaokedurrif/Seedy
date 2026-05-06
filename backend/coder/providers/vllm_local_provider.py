@@ -20,9 +20,9 @@ class VLLMLocalProvider(CoderProvider):
     name = "vllm_local"
 
     MODEL_MAP: dict[str, str] = {
-        "vllm:qwen2.5-coder-32b": "qwen2.5-coder-32b",
-        "vllm:coder-32b": "qwen2.5-coder-32b",
-        "vllm:default": "qwen2.5-coder-32b",
+        "vllm:qwen2.5-coder-32b": "/models/qwen2.5-coder-32b-awq",
+        "vllm:coder-32b": "/models/qwen2.5-coder-32b-awq",
+        "vllm:default": "/models/qwen2.5-coder-32b-awq",
     }
 
     def __init__(self) -> None:
@@ -38,7 +38,7 @@ class VLLMLocalProvider(CoderProvider):
         return 0.0  # Local, sin coste cloud
 
     async def stream(self, req: CoderRequest) -> AsyncIterator[CoderChunk]:
-        vllm_model = self.MODEL_MAP.get(req.model_id, "qwen2.5-coder-32b")
+        vllm_model = self.MODEL_MAP.get(req.model_id, "/models/qwen2.5-coder-32b-awq")
 
         # vLLM no soporta FIM directamente como Ollama, pero puede usar
         # el formato de Qwen2.5-Coder con chat completion

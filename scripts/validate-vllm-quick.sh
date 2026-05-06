@@ -25,7 +25,7 @@ echo ""
 # Test 2: Models endpoint
 echo "📋 Test 2: Models Endpoint"
 models_response=$(curl -s -H "Authorization: Bearer $API_KEY" "$VLLM_URL/v1/models")
-if echo "$models_response" | grep -q "qwen2.5-coder-32b"; then
+if echo "$models_response" | grep -q "qwen2.5-coder-32b-awq"; then
     echo "✅ PASS - Model listed"
     echo "$models_response" | jq -C '.' 2>/dev/null || echo "$models_response"
 else
@@ -42,7 +42,7 @@ inference_response=$(curl -s -X POST "$VLLM_URL/v1/chat/completions" \
     -H "Authorization: Bearer $API_KEY" \
     -H "Content-Type: application/json" \
     -d '{
-        "model": "qwen2.5-coder-32b",
+        "model": "/models/qwen2.5-coder-32b-awq",
         "messages": [{"role": "user", "content": "Say hello in Python"}],
         "max_tokens": 50,
         "temperature": 0.7
