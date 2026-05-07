@@ -155,7 +155,7 @@ class YOLOEngine:
                     cls_name = self.class_names.get(cls_id, f"class_{cls_id}")
                     
                     detection = Detection(
-                        bbox=tuple(bbox),
+                        bbox=tuple(float(x) for x in bbox),  # Convertir float32 → float
                         confidence=conf,
                         class_id=cls_id,
                         class_name=cls_name

@@ -69,7 +69,7 @@ class SimpleTracker:
             for i, det in enumerate(detections):
                 if i in assigned:
                     continue
-                dist = np.linalg.norm(det_centroid - track_centroid)
+                dist = np.linalg.norm(det.centroid - track_centroid)
                 dists.append((i, dist))
             
             if len(dists) == 0:
