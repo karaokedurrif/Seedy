@@ -27,6 +27,9 @@ from models.schemas import (
     VisionStats,
 )
 
+# Behavior event store para guardar snapshots
+from services.behavior_event_store import behavior_event_store
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -298,6 +301,64 @@ async def list_cameras():
         cameras[cam_id]["total_events"] += 1
 
     return {"cameras": list(cameras.values())}
+
+
+@router.post("/edge_event")
+async def receive_edge_event(event_data: dict):
+    """
+    Recibe eventos desde Jetson Edge v4.5 (Seedy Edge).
+    
+    Schema v4.5:
+        schema_version: "4.5"
+        timestamp: ISO8601
+        edge_node_id: str (ej: "jetson_orin_nano_01")
+        camera_id: str
+        gallinero_id: str
+        event_type: "detection" | "snapshot" | "heartbeat"
+        tracks: [ {track_id, bbox[4], confidence, class_name, class_id} ]
+    
+    Almacena en buffer y publica a MQTT (seedy/vision/edge_events).
+    """
+    event_id = str(uuid.uuid4())[:8]
+    event_data["event_id"] = event_id
+    event_data["backend_received_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # Validar schema_version
+    if event_data.get("schema_version") != "4.5":
+        logger.warning(f"Edge event schema version mismatch: {event_data.get('schema_version')}")
+    
+    # Almacenar en buffer
+    _recent_events.append(event_data)
+    _trim(_recent_events)
+    
+    # Publicar a MQTT
+    _try_publish_mqtt("seedy/vision/edge_events", event_data)
+    
+    # Log stats
+    n_tracks = len(event_data.get("tracks", []))
+    logger.info(
+        f"Edge event {event_id} from {event_data.get('edge_node_id')}/{event_data.get('camera_id')}: "
+        f"{n_tracks} tracks, type={event_data.get('event_type')}"
+    )
+    
+    # Guardar snapshot en behavior_event_store si hay tracks
+    if n_tracks > 0 and event_data.get("gallinero_id"):
+        try:
+            behavior_event_store.store_edge_snapshot(
+                gallinero_id=event_data["gallinero_id"],
+                camera_id=event_data.get("camera_id", "unknown"),
+                tracks=event_data.get("tracks", []),
+                timestamp=event_data.get("timestamp")
+            )
+        except Exception as e:
+            logger.error(f"Error guardando edge snapshot: {e}")
+    
+    return {
+        "status": "ok",
+        "event_id": event_id,
+        "tracks_received": n_tracks,
+        "backend_timestamp": event_data["backend_received_at"],
+    }
 
 
 # ─── Helpers ──────────────────────────────────────────

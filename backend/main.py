@@ -255,7 +255,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     """
 
     OPEN_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/health", "/v1/models", "/v1/code/models"}
-    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/", "/reports/")
+    OPEN_PREFIXES = ("/ovosfera/", "/dashboard/", "/survey/", "/api/bim/", "/api/renders/", "/birds/", "/api/birds/", "/api/tracking/", "/api/dron/", "/reports/", "/vision/")
 
     async def dispatch(self, request: Request, call_next):
         if not _valid_keys:

@@ -58,13 +58,20 @@ class BehaviorEventStore:
             if not t.active or not t.history:
                 continue
             last_pt = t.history[-1]
-            # v4.2: solo escribir bird_id si identity_locked
+            # v4.2: escribir ai_vision_id si existe (no solo cuando identity_locked)
+            # El digital twin necesita datos históricos incluso con identity no locked
             bird_id = ""
-            if getattr(t, "identity_locked", False) and t.ai_vision_id:
+            if t.ai_vision_id:
                 bird_id = t.ai_vision_id
+            
+            # Solo persiste tracks con identidad (para reducir ruido en el twin)
+            if not bird_id:
+                continue
+                
             active_tracks.append({
                 "track_id": t.track_id,
                 "bird_id": bird_id,
+                "identity_locked": getattr(t, "identity_locked", False),
                 "breed": t.breed or "",
                 "sex": getattr(t, "sex", "") or "",
                 "center": list(last_pt.center),
@@ -97,6 +104,60 @@ class BehaviorEventStore:
             self._last_snapshot[gallinero_id] = now
         except Exception as e:
             logger.warning(f"[BehaviorStore] Error writing snapshot: {e}")
+
+    def store_edge_snapshot(self, gallinero_id: str, camera_id: str, tracks: list[dict], timestamp: str | None = None) -> None:
+        """Guarda snapshot desde edge node (Jetson) directamente en JSONL.
+        
+        Args:
+            gallinero_id: ID del gallinero
+            camera_id: ID de la cámara (para contexto)
+            tracks: Lista de tracks en formato edge [{track_id, bbox, centroid, class_name, confidence, age}]
+            timestamp: ISO8601 timestamp del edge, o ahora si None
+        """
+        now = time.time()
+        
+        # Convertir tracks edge a formato interno (simplificado)
+        active_tracks = []
+        for t in tracks:
+            active_tracks.append({
+                "track_id": t.get("track_id"),
+                "bird_id": "",  # Edge no tiene bird_id (sin Re-ID aún)
+                "identity_locked": False,
+                "breed": "",
+                "sex": "",
+                "center": t.get("centroid", [0, 0]),
+                "bbox": t.get("bbox", []),
+                "zone": "",  # Edge no calcula zonas
+                "confidence": t.get("confidence", 0.0),
+                "area": 0.0,  # Calcular si necesario: (bbox[2]-bbox[0]) * (bbox[3]-bbox[1])
+                "class_name": t.get("class_name", "unknown"),
+                "edge_camera_id": camera_id,  # Contexto adicional
+            })
+        
+        if not active_tracks:
+            return
+
+        record = {
+            "ts": timestamp or datetime.now(timezone.utc).isoformat(),
+            "ts_unix": round(now, 2),
+            "gallinero_id": gallinero_id,
+            "active_count": len(active_tracks),
+            "tracks": active_tracks,
+            "source": "edge",  # Distinguir de snapshots del backend tracker
+        }
+
+        # Escribir a subdirectorio snapshots/
+        day_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        gall_dir = self._base / gallinero_id / "snapshots"
+        gall_dir.mkdir(parents=True, exist_ok=True)
+        filepath = gall_dir / f"{day_str}.jsonl"
+
+        try:
+            with open(filepath, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            logger.debug(f"[BehaviorStore] Edge snapshot stored: {len(active_tracks)} tracks from {camera_id}")
+        except Exception as e:
+            logger.warning(f"[BehaviorStore] Error writing edge snapshot: {e}")
 
     def query(
         self,
