@@ -1,0 +1,70 @@
+# Seedy Edge v4.5 — Config Jetson Orin Nano
+# Cameras, YOLO params, DGX backend URL
+
+cameras:
+  - id: "dahua_sauna"
+    name: "Dahua WizSense Sauna"
+    ip: "10.10.10.108"
+    rtsp_main: "rtsp://admin:1234567a@10.10.10.108:554/cam/realmonitor?channel=1&subtype=0"
+    rtsp_sub: "rtsp://admin:1234567a@10.10.10.108:554/cam/realmonitor?channel=1&subtype=1"
+    auth_type: "digest"
+    tile_size: 800
+    enabled: true
+    
+  - id: "vigi_nueva"
+    name: "TP-Link VIGI Nueva"
+    ip: "10.10.10.11"
+    rtsp_main: "rtsp://admin:123456@10.10.10.11:554/stream1"
+    rtsp_sub: "rtsp://admin:123456@10.10.10.11:554/stream2"
+    auth_type: "basic"
+    tile_size: 960
+    enabled: true
+    
+  - id: "vigi_gallinero"
+    name: "TP-Link VIGI Gallinero"
+    ip: "10.10.10.10"
+    rtsp_main: "rtsp://admin:123456@10.10.10.10:554/stream1"
+    rtsp_sub: "rtsp://admin:123456@10.10.10.10:554/stream2"
+    auth_type: "basic"
+    tile_size: 1280
+    enabled: true
+
+yolo:
+  model_path: "models/yolov8s.pt"  # PyTorch model (Ultralytics auto-export a TensorRT)
+  device: 0  # GPU 0 (Jetson Orin Nano)
+  conf_threshold: 0.20
+  iou_threshold: 0.45
+  classes: [14, 15, 16]  # bird, cat, dog (COCO classes)
+  max_det: 50
+  half: true  # FP16
+  imgsz: 640
+
+tracking:
+  max_age: 120  # frames (8s @ 15fps)
+  min_hits: 5   # min detections before assignment
+  iou_threshold: 0.30
+
+dgx_backend:
+  url: "http://192.168.20.57:8000"  # DGX Spark (backend real)
+  endpoint: "/vision/edge_event"
+  timeout: 5.0
+  retry_attempts: 3
+  retry_delay: 2.0
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  queue_key: "seedy:edge:events"
+  max_queue_size: 1000
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/seedy_edge.log"
+  max_bytes: 10485760  # 10 MB
+  backup_count: 5
+
+gallinero_id: "gallinero_palacio"
+edge_node_id: "jetson_orin_nano_01"
+schema_version: "4.5"
