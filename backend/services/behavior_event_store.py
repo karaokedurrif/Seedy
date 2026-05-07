@@ -279,3 +279,8 @@ def get_event_store() -> BehaviorEventStore:
         if cleaned:
             logger.info(f"[BehaviorStore] Startup cleanup: {cleaned} ficheros eliminados")
     return _store
+
+
+# Instancia global para import directo
+behavior_event_store = get_event_store()
+
