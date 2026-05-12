@@ -186,7 +186,20 @@ ssh daviddgx@192.168.20.57 "cd ~/seedy && docker compose restart seedy-backend"
 
 **Servidor:** daviddgx@192.168.20.57 (password: 4431)  
 **Path:** ~/seedy/ (aka /home/davidia/Documentos/Seedy/)  
-**Stack:** 17 contenedores Docker, ai_default network
+**Stack:** 17 contenedores Docker, ai_default network  
+**Hardware:** Lenovo ThinkStation PGX (hostname: thinkstationpgx-caca) - **DGX Spark**
+
+---
+
+## FRONTEND OVOSFERA
+
+El backend sincroniza con OvoSfera (host docker-edge-apps):
+- **Gallineros:** https://hub.ovosfera.com/farm/palacio/gallineros
+- **Aves:** https://hub.ovosfera.com/farm/palacio/aves
+- **Gemelo digital individual:** https://seedy-api.neofarm.io/dashboard/ave_twin.html?id={ai_vision_id}
+  - Ejemplo: https://seedy-api.neofarm.io/dashboard/ave_twin.html?id=PAL-2026-0001
+
+**Nota:** MSI Vector 16 HX (192.168.20.131) es el portátil de desarrollo en WiFi, NO el servidor de producción.
 
 ---
 
@@ -199,4 +212,4 @@ El identity subsystem v4.2 **ya estaba implementado** desde abril 2026 pero nunc
 - 7-8 aves con identidad determinística (4 gallos + razas únicas)
 - DoubtEscalator registrando casos ambiguos para revisión manual
 
-**Status:** ✅ DEPLOYED y ACTIVO en producción (DGX MSI Vector 16 HX)
+**Status:** ✅ DEPLOYED y ACTIVO en producción (**DGX Spark** = Lenovo ThinkStation PGX @ 192.168.20.57)
