@@ -27,10 +27,10 @@ logger = logging.getLogger("drone-bridge")
 BEBOP_IP = "192.168.42.1"
 LISTEN_PORT = 9090
 
-# Plan de vuelo
-FORWARD_M = 20.0
-ALTITUDE_M = 2.5
-HOVER_S = 5
+# Plan de vuelo — Solo ascenso vertical (sin avance horizontal)
+FORWARD_M = 0.0
+ALTITUDE_M = 2.0
+HOVER_S = 10  # 10 segundos como solicitó el usuario
 
 drone = None
 is_flying = False
@@ -70,17 +70,16 @@ def execute_flight() -> dict:
         drone(moveBy(0, 0, -ALTITUDE_M, 0)).wait()
         time.sleep(2)
 
-        logger.info(f"Avanzando {FORWARD_M}m al comedero...")
-        drone(moveBy(FORWARD_M, 0, 0, 0)).wait()
-        time.sleep(1)
-
-        logger.info(f"Hovering {HOVER_S}s...")
+        logger.info(f"Hovering {HOVER_S}s a {ALTITUDE_M}m altura...")
         time.sleep(HOVER_S)
 
-        logger.info(f"Regresando {FORWARD_M}m...")
-        drone(moveBy(-FORWARD_M, 0, 0, 0)).wait()
-        time.sleep(2)
-
+        logger.info("Descendiendo lentamente...")
+        # Descenso gradual en 2 pasos para aterrizaje suave
+        drone(moveBy(0, 0, ALTITUDE_M / 2, 0)).wait()  # Bajar a mitad de altura
+        time.sleep(1)
+        drone(moveBy(0, 0, ALTITUDE_M / 2, 0)).wait()  # Bajar el resto
+        time.sleep(1)
+        
         logger.info("Aterrizando...")
         drone(Landing()).wait()
 
