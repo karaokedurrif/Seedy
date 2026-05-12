@@ -14,6 +14,7 @@ Topics MQTT publicados:
 import uuid
 import json
 import logging
+import asyncio
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
 
@@ -68,6 +69,98 @@ def _try_publish_mqtt(topic: str, payload: dict):
         )
     except Exception as e:
         logger.debug(f"MQTT publish failed ({topic}): {e}")
+
+
+async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: list[dict], timestamp: str):
+    """Procesa tracks edge con análisis completo.
+    
+    Pipeline v4.2 con Jetson Edge v4.5:
+    1. Convertir tracks Jetson → formato tracker backend
+    2. Actualizar tracker backend (para mantener sincronía con Jetson)
+    3. Sync identities con registered birds (usa breed+sex+color del tracker)
+    4. Detectar mating entre tracks
+    
+    El breed classification lo hace capture_manager cuando captura frames 4K.
+    Esta función sincroniza el tracker backend con los tracks del Jetson.
+    
+    Se ejecuta en background (fire & forget) para no bloquear edge_event.
+    """
+    try:
+        from services.bird_tracker import get_tracker, get_zones
+        from services.mating_detector import mating_detector
+        
+        # 1. Obtener tracker y zones
+        tracker = get_tracker(gallinero_id)
+        zones = get_zones(gallinero_id)
+        
+        # 2. Convertir tracks Jetson → detecciones formato backend
+        # Los tracks del Jetson vienen con {track_id, bbox[4], confidence, class_name}
+        # El tracker backend espera {bbox_norm[4], confidence, category, ...}
+        detections = []
+        for t in tracks:
+            # Asumir bbox ya normalizado (0-1) - Jetson debería normalizarlo
+            bbox = t.get("bbox", [])
+            if len(bbox) != 4:
+                continue
+                
+            det = {
+                "bbox_norm": bbox,  # [x1, y1, x2, y2] normalizado
+                "confidence": t.get("confidence", 0.5),
+                "category": "poultry",  # bird/dog/cat del COCO → poultry
+                "class_name": t.get("class_name", "bird"),
+                "jetson_track_id": t.get("track_id"),  # Preservar track_id original
+            }
+            detections.append(det)
+        
+        # 3. Actualizar tracker backend
+        # Esto sincroniza posiciones, calcula zonas, detecta comportamiento
+        if detections:
+            enriched_dets = tracker.update(detections)
+            logger.debug(
+                f"🔄 Updated tracker {gallinero_id} with {len(enriched_dets)} detections from Jetson"
+            )
+        
+        # 4. Sync identities con registered birds
+        # El tracker ahora tiene tracks activos, algunos con breed (si fueron clasificados antes)
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(
+                    "http://localhost:8000/birds/",
+                    params={"gallinero_id": gallinero_id}
+                )
+                if resp.status_code == 200:
+                    birds_list = resp.json()
+                    registered_birds = [
+                        {
+                            "ai_vision_id": b.get("ai_vision_id"),
+                            "breed": b.get("raza", ""),
+                            "color": b.get("color", ""),
+                            "sex": b.get("sexo", "")
+                        }
+                        for b in birds_list
+                        if b.get("ai_vision_id")
+                    ]
+                    
+                    if registered_birds:
+                        synced = tracker.sync_registered_ids(registered_birds)
+                        if synced > 0:
+                            logger.info(f"🔗 Synced {synced} identities en {gallinero_id}")
+        except Exception as e:
+            logger.debug(f"Error en sync_registered_ids: {e}")
+        
+        # 5. Detectar mating
+        try:
+            active_tracks = [t for t in tracker.tracks.values() if t.active]
+            if len(active_tracks) >= 2:
+                mating_events = mating_detector.check_tracks(gallinero_id, active_tracks)
+                if mating_events:
+                    logger.info(f"💑 Detectadas {len(mating_events)} montas en {gallinero_id}")
+        except Exception as e:
+            logger.debug(f"Error en mating detection: {e}")
+            
+    except Exception as e:
+        logger.error(f"Error en _process_edge_tracks_async: {e}", exc_info=True)
 
 
 # ─── Endpoints ────────────────────────────────────────
@@ -318,6 +411,7 @@ async def receive_edge_event(event_data: dict):
         tracks: [ {track_id, bbox[4], confidence, class_name, class_id} ]
     
     Almacena en buffer y publica a MQTT (seedy/vision/edge_events).
+    v4.2: Procesa tracks con análisis completo (breed, identity, mating).
     """
     event_id = str(uuid.uuid4())[:8]
     event_data["event_id"] = event_id
@@ -352,6 +446,14 @@ async def receive_edge_event(event_data: dict):
             )
         except Exception as e:
             logger.error(f"Error guardando edge snapshot: {e}")
+        
+        # 🆕 v4.2: Procesar tracks con análisis completo (en background)
+        asyncio.create_task(_process_edge_tracks_async(
+            gallinero_id=event_data["gallinero_id"],
+            camera_id=event_data.get("camera_id", "unknown"),
+            tracks=event_data.get("tracks", []),
+            timestamp=event_data.get("timestamp")
+        ))
     
     return {
         "status": "ok",
