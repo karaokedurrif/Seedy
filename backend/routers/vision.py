@@ -131,7 +131,8 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
                     params={"gallinero_id": gallinero_id}
                 )
                 if resp.status_code == 200:
-                    birds_list = resp.json()
+                    data = resp.json()
+                    birds_list = data.get("birds", []) if isinstance(data, dict) else []
                     registered_birds = [
                         {
                             "ai_vision_id": b.get("ai_vision_id"),
@@ -152,12 +153,10 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
         
         # 5. Detectar mating
         try:
-            active_tracks = [t for t in tracker.tracks.values() if t.active]
-            if len(active_tracks) >= 2:
-                mating_det = get_mating_detector(gallinero_id)
-                mating_events = mating_det.check_tracks(gallinero_id, active_tracks)
-                if mating_events:
-                    logger.info(f"💑 Detectadas {len(mating_events)} montas en {gallinero_id}")
+            mating_det = get_mating_detector(gallinero_id)
+            mating_events = mating_det.process_frame(tracker)
+            if mating_events:
+                logger.info(f"💑 Detectadas {len(mating_events)} montas en {gallinero_id}")
         except Exception as e:
             logger.info(f"Error en mating detection: {e}")
             
