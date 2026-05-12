@@ -85,6 +85,7 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
     
     Se ejecuta en background (fire & forget) para no bloquear edge_event.
     """
+    logger.info(f"🚀 Processing {len(tracks)} tracks from {camera_id} → {gallinero_id}")
     try:
         from services.bird_tracker import get_tracker, get_zones
         from services.mating_detector import get_mating_detector
