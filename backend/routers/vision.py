@@ -116,7 +116,7 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
         # Esto sincroniza posiciones, calcula zonas, detecta comportamiento
         if detections:
             enriched_dets = tracker.update(detections)
-            logger.debug(
+            logger.info(
                 f"🔄 Updated tracker {gallinero_id} with {len(enriched_dets)} detections from Jetson"
             )
         
@@ -147,7 +147,7 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
                         if synced > 0:
                             logger.info(f"🔗 Synced {synced} identities en {gallinero_id}")
         except Exception as e:
-            logger.debug(f"Error en sync_registered_ids: {e}")
+            logger.info(f"Error en sync_registered_ids: {e}")
         
         # 5. Detectar mating
         try:
@@ -158,7 +158,7 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
                 if mating_events:
                     logger.info(f"💑 Detectadas {len(mating_events)} montas en {gallinero_id}")
         except Exception as e:
-            logger.debug(f"Error en mating detection: {e}")
+            logger.info(f"Error en mating detection: {e}")
             
     except Exception as e:
         logger.error(f"Error en _process_edge_tracks_async: {e}", exc_info=True)
