@@ -87,7 +87,7 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
     """
     try:
         from services.bird_tracker import get_tracker, get_zones
-        from services.mating_detector import mating_detector
+        from services.mating_detector import get_mating_detector
         
         # 1. Obtener tracker y zones
         tracker = get_tracker(gallinero_id)
@@ -153,7 +153,8 @@ async def _process_edge_tracks_async(gallinero_id: str, camera_id: str, tracks: 
         try:
             active_tracks = [t for t in tracker.tracks.values() if t.active]
             if len(active_tracks) >= 2:
-                mating_events = mating_detector.check_tracks(gallinero_id, active_tracks)
+                mating_det = get_mating_detector(gallinero_id)
+                mating_events = mating_det.check_tracks(gallinero_id, active_tracks)
                 if mating_events:
                     logger.info(f"💑 Detectadas {len(mating_events)} montas en {gallinero_id}")
         except Exception as e:
