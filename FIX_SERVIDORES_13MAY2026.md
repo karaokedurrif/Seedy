@@ -18,30 +18,40 @@
 | **porcdata.com** | ✅ OK | 200 | Cloudflare (externo) |
 | **vacasdata.com** | ✅ OK | 200 | Cloudflare (externo) |
 
-## ❌ SITIOS CON PROBLEMAS
+## ❌ SITIOS CON PROBLEMAS (RESUELTOS ✅)
 
-### hub.vacasdata.com — HTTP 500 (Internal Server Error)
+### hub.vacasdata.com — HTTP 500 → ✅ RESUELTO
 
-**Diagnóstico:**
-- Resuelve a IPs Cloudflare: 172.67.216.57, 104.21.35.87
-- Error 500 viene del origin server (no de Cloudflare)
-- **NO está en el DGX Spark** (no hay contenedor)
-- Usa un Cloudflare Tunnel diferente o apunta a otro servidor
+**Ubicación:** Servidor 192.168.30.101 (docker-edge-apps)
+
+**Causa raíz:** **ENOSPC: no space left on device**
+- Disco al 92% (196GB/223GB)
+- Docker images: 129.8 GB (98% reciclable)
+- Build cache: 73.43 GB
+- Contenedor `vacasdata-v2-web` (puerto 3001) crasheando por falta de espacio
 
 **Logs del error:**
 ```
-< HTTP/2 500 
-< date: Wed, 13 May 2026 10:32:39 GMT
-< cache-control: private, no-cache, no-store
-< server: cloudflare
-< cf-ray: 9fb1001d9aa99836-MAD
+[Error: ENOSPC: no space left on device, write] {
+  errno: -28,
+  code: 'ENOSPC',
+  syscall: 'write'
+}
 ```
 
-**Acciones requeridas:**
-1. Identificar dónde está alojado hub.vacasdata.com
-2. Verificar logs del backend de vacasdata
-3. Verificar configuración del Cloudflare Tunnel de vacasdata
-4. Reiniciar servicio/contenedor de vacasdata (si existe)
+**Solución aplicada:**
+1. ✅ Limpieza Docker: `docker system prune -a -f --volumes` → **73.69 GB liberados**
+2. ✅ Espacio tras limpieza: 61% (130GB/223GB), 84GB disponibles
+3. ✅ Reinicio contenedor: `docker restart vacasdata-v2-web`
+4. ✅ Verificación: `curl http://localhost:3001` → **HTTP 200 OK**
+5. ✅ Sitio público: `https://hub.vacasdata.com` → **HTTP 200 OK**
+
+**Stack completo en 192.168.30.101:**
+- vacasdata-v2-web (puerto 3001) — Frontend Next.js ✅
+- vacasdata-v2-api (puerto 8002) — Backend FastAPI ✅
+- ovosfera-web, ovosfera-api — Sistema OvoSfera ✅
+- frontend (puerto 3000) — NeoFarm Mercados ✅
+- nginx-proxy-manager (puertos 80/443) — Proxy inverso ✅
 
 ### bodegasdata.com — Sin respuesta
 
