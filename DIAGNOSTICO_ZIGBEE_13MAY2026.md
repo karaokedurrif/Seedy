@@ -9,12 +9,20 @@ Endpoint `/ovosfera/devices/status` muestra:
 - Todos los sensores: `online: false`, `last_seen: null`
 - Weather Ecowitt: ✅ funcionando (temp 9.9°C)
 
+## ⚡ ACTUALIZACIÓN 13 mayo 2026 11:17 UTC
+
+**Mini PC reiniciado**, nueva IP objetivo: **192.168.40.54** (configurar IP fija)  
+**IP anterior:** 192.168.40.128 (DHCP, ya no accesible)  
+**Estado actual:** IP 192.168.40.54 no responde todavía (Mini PC arrancando o configuración pendiente)
+
+Ver instrucciones completas: `MINIPC_IP_FIX_INSTRUCTIONS.md`
+
 ## 🔍 DIAGNÓSTICO
 
 ### Cadena de datos Zigbee
 
 ```
-Mini PC (192.168.40.128)
+Mini PC (192.168.40.54) ← NUEVA IP
   └─ Zigbee2MQTT (Docker :8080)
      └─ Dongle CH340/CC2652
         └─ MQTT Publish → zigbee2mqtt/{device}
@@ -27,11 +35,14 @@ Mini PC (192.168.40.128)
 
 ### Punto de fallo identificado
 
-**Mini PC Zigbee (192.168.40.128) NO RESPONDE al ping** ❌
+**Mini PC Zigbee NO RESPONDE** ❌
+
+- **IP antigua (DHCP):** 192.168.40.128 - ya no accesible
+- **IP nueva (objetivo):** 192.168.40.54 - aún no responde (configuración pendiente)
 
 ```bash
-$ ping -c 1 192.168.40.128
-# Timeout - sin respuesta
+$ ping -c 1 192.168.40.54
+# Timeout - sin respuesta (Mini PC arrancando o IP sin configurar)
 ```
 
 ### Verificaciones realizadas
@@ -74,10 +85,13 @@ $ ping -c 1 192.168.40.128
 ### 1. Verificar físicamente el Mini PC
 
 ```bash
-# Ubicación: 192.168.40.128
+# IP objetivo: 192.168.40.54 (FIJA - configurar en el Mini PC)
+# IP antigua: 192.168.40.128 (DHCP - ya no válida)
 # Hardware: Mini PC Linux Mint 22.2
-# Usuario: karaoke (sin contraseña guardada en memoria)
+# Usuario: karaoke
 ```
+
+**VER INSTRUCCIONES COMPLETAS:** `MINIPC_IP_FIX_INSTRUCTIONS.md`
 
 **Checklist físico:**
 - [ ] Mini PC encendido?
@@ -92,20 +106,36 @@ $ ping -c 1 192.168.40.128
 # O bien Wake-on-LAN si está configurado (no confirmado)
 ```
 
-### 3. Verificar conectividad cuando esté UP
+### 3. Configurar IP fija en el Mini PC
+
+```bash
+# Desde el propio Mini PC (físicamente o SSH si responde):
+nmcli connection modify "WiFi-Name" \
+  ipv4.addresses "192.168.40.54/24" \
+  ipv4.gateway "192.168.40.1" \
+  ipv4.dns "8.8.8.8" \
+  ipv4.method manual
+
+nmcli connection down "WiFi-Name" && nmcli connection up "WiFi-Name"
+
+# Verificar
+ip addr show | grep 192.168.40.54
+```
+
+### 4. Verificar conectividad cuando esté configurada
 
 ```bash
 # Desde DGX o tu laptop
-ping -c 5 192.168.40.128
+ping -c 5 192.168.40.54
 
 # Si responde, conectar por SSH
-ssh karaoke@192.168.40.128
+ssh karaoke@192.168.40.54
 ```
 
-### 4. Verificar Zigbee2MQTT en el Mini PC
+### 5. Verificar Zigbee2MQTT en el Mini PC
 
 ```bash
-# Dentro del Mini PC
+# Dentro del Mini PC (ssh karaoke@192.168.40.54)
 docker ps | grep zigbee
 
 # Debería mostrar:
