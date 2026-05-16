@@ -1691,8 +1691,11 @@ async def snapshot_yolo_only(gallinero_id: str):
         return Response(content=frame, media_type="image/jpeg",
                         headers={"X-Birds-Detected": "0", "X-Engine": "yolo"})
 
+    # OBJ A: Pasar tracker para labels enriquecidos (read-only, no update)
+    from services.bird_tracker import get_tracker
     from services.yolo_detector import draw_detections
-    annotated = draw_detections(frame, yolo_result["detections"], cam["name"])
+    tracker = get_tracker(gallinero_id)
+    annotated = draw_detections(frame, yolo_result["detections"], cam["name"], tracker=tracker)
     return Response(
         content=annotated,
         media_type="image/jpeg",
@@ -2232,8 +2235,11 @@ async def yolo_annotated(gallinero_id: str):
     if not result:
         raise HTTPException(503, "YOLO no disponible")
 
+    # OBJ A: Pasar tracker para labels enriquecidos (read-only, no update)
+    from services.bird_tracker import get_tracker
     from services.yolo_detector import draw_detections
-    annotated = draw_detections(frame, result["detections"], cam["name"])
+    tracker = get_tracker(gallinero_id)
+    annotated = draw_detections(frame, result["detections"], cam["name"], tracker=tracker)
 
     return Response(
         content=annotated,
