@@ -17,6 +17,26 @@ from services.llm_router import llm_router, POLICIES
 
 logger = logging.getLogger(__name__)
 
+# Patrones de alucinación — especialmente cuando HAY datos reales disponibles
+HALLUCINATION_PATTERNS = [
+    (r"\b\d{2,3}\s*%\s+de\s+(estrés|estres|aislamiento|agresividad|dominancia)", 
+     "Porcentaje inventado de comportamiento sin datos"),
+    (r"no hay evidencia.*(pero|aunque|sin embargo)", 
+     "Especula tras admitir falta de evidencia"),
+    (r"se puede inferir que", 
+     "Inferencia especulativa"),
+    (r"por contexto.*(debe|debería|probablemente)", 
+     "Especulación contextual"),
+    (r"es probable que.*esté", 
+     "Probabilidad especulativa"),
+    (r"presumiblemente", 
+     "Especulación no fundamentada"),
+    (r"sin evidencia directa.*(pero|aunque|sin embargo|sin embargo)", 
+     "Especula tras admitir falta de evidencia directa"),
+    (r"\d+\.?\d*\s*%.*estres.*\d+\.?\d*\s*%.*aislamiento", 
+     "Múltiples porcentajes inventados en mismo párrafo"),
+]
+
 CRITIC_SYSTEM = (
     "Eres el revisor de coherencia de Seedy, un asistente de ganadería y agricultura. "
     "Tu trabajo es detectar SOLO errores ESTRUCTURALES obvios, NO evalúes si los datos son correctos "
@@ -82,6 +102,26 @@ async def evaluate_response(
     Returns:
         {"verdict": "PASS"} o {"verdict": "BLOCK", "reasons": [...], "tags": [...]}
     """
+    # OBJ2: Pre-verificación de alucinaciones cuando hay datos en tiempo real
+    has_live_data = any("[DATOS EN TIEMPO REAL]" in c.get("text", "") for c in context_chunks)
+    
+    if has_live_data:
+        import re
+        detected_patterns = []
+        for pattern, description in HALLUCINATION_PATTERNS:
+            if re.search(pattern, draft_answer, re.IGNORECASE):
+                detected_patterns.append(description)
+        
+        if detected_patterns:
+            logger.warning(
+                f"[Critic] BLOCK por alucinación con datos live disponibles: {detected_patterns}"
+            )
+            return {
+                "verdict": "BLOCK",
+                "reasons": detected_patterns,
+                "tags": ["hallucination_with_live_data"],
+            }
+    
     # Pre-filtro: si el modelo admite honestamente que no tiene contexto
     # Y el contexto realmente es vacío/pobre, PASS directo.
     answer_lower = draft_answer.lower()

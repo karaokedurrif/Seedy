@@ -578,11 +578,22 @@ def draw_detections(
     frame_bytes: bytes,
     detections: list[dict],
     gallinero_label: str = "",
+    tracker: Optional[object] = None,
 ) -> bytes:
-    """Dibuja bboxes anotados estilo Roboflow con colores por categoría."""
+    """Dibuja bboxes anotados estilo Roboflow con colores por categoría.
+    
+    Args:
+        frame_bytes: imagen en bytes
+        detections: lista de detecciones con bbox, confidence, class_name
+        gallinero_label: etiqueta del gallinero para watermark
+        tracker: GallineroTracker opcional para enriquecer labels con breed + ai_vision_id
+    """
     from PIL import Image, ImageDraw, ImageFont
 
-    # Colores por categoría
+    # Colores por categoría / identity status
+    COLOR_POULTRY_IDENTIFIED = (46, 213, 115)   # verde — identity_locked=True
+    COLOR_POULTRY_BREED = (255, 165, 2)         # naranja — breed conocido, no individuo
+    COLOR_POULTRY_GENERIC = (130, 130, 130)     # gris — solo "bird"
     COLOR_POULTRY = [
         (76, 255, 76), (76, 175, 255), (255, 200, 50),
         (200, 76, 255), (50, 255, 200), (150, 255, 50),
@@ -615,6 +626,7 @@ def draw_detections(
         cls = det.get("class_name", "?")
         cat = det.get("category", "poultry")
 
+        # Color base
         if cat == "pest":
             color = COLOR_PEST
         elif cat == "infra":
@@ -622,6 +634,29 @@ def draw_detections(
         else:
             color = COLOR_POULTRY[poultry_idx % len(COLOR_POULTRY)]
             poultry_idx += 1
+
+        # OBJ3: Enriquecer label con datos del tracker si disponible
+        track_id = det.get("track_id")
+        breed = ""
+        sex = ""
+        ai_vision_id = ""
+        identity_locked = False
+
+        if tracker and track_id is not None:
+            track = tracker.tracks.get(track_id)
+            if track:
+                breed = track.breed or ""
+                sex = track.sex or ""
+                ai_vision_id = track.ai_vision_id or ""
+                identity_locked = track.identity_locked
+
+                # Ajustar color según identidad
+                if identity_locked and ai_vision_id:
+                    color = COLOR_POULTRY_IDENTIFIED  # verde
+                elif breed:
+                    color = COLOR_POULTRY_BREED  # naranja
+                else:
+                    color = COLOR_POULTRY_GENERIC  # gris
 
         # Rectángulo (línea doble para plagas)
         draw.rectangle([x1, y1, x2, y2], outline=color, width=line_w)
@@ -631,9 +666,23 @@ def draw_detections(
                 outline=COLOR_PEST, width=line_w,
             )
 
-        # Etiqueta
+        # OBJ3: Construir etiqueta jerárquica
         icon = "🐦" if cat == "pest" else ("🔧" if cat == "infra" else "")
-        label = f"{icon}{cls} {conf:.0%}"
+        
+        if cat == "poultry":
+            # Prioridad: ai_vision_id + breed > breed + sex > breed > class_name
+            if identity_locked and ai_vision_id and breed:
+                label = f"{ai_vision_id} · {breed} {conf:.0%}"
+            elif breed and sex:
+                sex_glyph = {"male": "♂", "female": "♀"}.get(sex.lower(), "")
+                label = f"{breed} {sex_glyph} {conf:.0%}".strip()
+            elif breed:
+                label = f"{breed} {conf:.0%}"
+            else:
+                label = f"{icon}{cls} {conf:.0%}"
+        else:
+            label = f"{icon}{cls} {conf:.0%}"
+
         tb = draw.textbbox((0, 0), label, font=font)
         tw, th = tb[2] - tb[0] + 10, tb[3] - tb[1] + 6
         ly = max(0, y1 - th - 2)

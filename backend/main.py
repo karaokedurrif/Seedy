@@ -38,6 +38,7 @@ from routers import behavior as behavior_router
 from routers import curated as curated_router
 from routers import behavior_ml as behavior_ml_router
 from routers import merit_index as merit_index_router
+from routers import twin  # OBJ5: Digital Twin dimensions endpoint
 from coder.routes import router as coder_router
 from services import embeddings, rag
 from services import gemini_vision
@@ -325,6 +326,7 @@ app.include_router(behavior_router.router)
 app.include_router(curated_router.router)
 app.include_router(behavior_ml_router.router)
 app.include_router(merit_index_router.router)
+app.include_router(twin.router)  # OBJ5: Digital Twin dimensions
 app.include_router(coder_router)
 
 

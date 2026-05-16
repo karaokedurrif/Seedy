@@ -83,31 +83,6 @@ POLICIES = {
         requires_user=True,
     ),
     
-    # ── PASO 10: Modos Locales (NUEVO v4.6) ──
-    "generation_local": StepPolicy(
-        name="generation_local",
-        primary="ollama:seedy-v16",  # Modo /local — Fine-tuned 14B
-        fallback=["together:qwen2.5-7b-turbo"],
-        max_latency_s=20.0,
-        requires_user=True,
-    ),
-    
-    "generation_deep": StepPolicy(
-        name="generation_deep",
-        primary="ollama:qwen2.5-72b",  # Modo /deep — 72B local, LENTO
-        fallback=["ollama:seedy-v16"],  # NO cae a Together (usuario eligió local)
-        max_latency_s=300.0,  # 5 min de techo
-        requires_user=True,
-    ),
-    
-    "generation_eco": StepPolicy(
-        name="generation_eco",
-        primary="ollama:seedy-v16",  # Modo /eco — Sin web, sin coste
-        fallback=[],  # Sin fallback, falla limpio si DGX cae
-        max_latency_s=20.0,
-        requires_user=True,
-    ),
-    
     # ── PASO 11: Critic Gate — CAMBIO IMPORTANTE v4.6 ──
     "critic_gate": StepPolicy(
         name="critic_gate",

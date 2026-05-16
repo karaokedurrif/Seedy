@@ -39,11 +39,11 @@ def _parse_mode_prefix(query: str) -> tuple[str, str | None, dict]:
     """
     Detecta y procesa prefijos de modo en la query.
     
-    Prefijos soportados:
-    - /local  → generation_local (seedy:v16, rápido, gratis)
-    - /deep   → generation_deep (qwen2.5:72b, lento, warning al usuario)
-    - /eco    → generation_eco (seedy:v16 sin web search, offline mode)
-    - /think  → generation_think (qwen3-235b, razonamiento paso a paso)
+    Prefijos soportados (OBJ4 — simplificados):
+    - /think  → generation_think (DeepSeek R1, razonamiento profundo)
+    
+    Prefijos DEPRECADOS (redirigen a default):
+    - /local, /deep, /eco, /status  → generation_default
     
     Returns:
         (query_sin_prefijo, policy_name | None, metadata)
@@ -51,19 +51,21 @@ def _parse_mode_prefix(query: str) -> tuple[str, str | None, dict]:
     """
     query_stripped = query.strip()
     
+    # OBJ4: Solo /think activo
     mode_map = {
-        "/local": ("generation_local", {}),
-        "/deep": ("generation_deep", {
-            "warning": "⚠️ Modo /deep activado: análisis profundo con Qwen 72B local. "
-                      "Puede tardar 2-5 minutos debido a la complejidad del modelo."
-        }),
-        "/eco": ("generation_eco", {
-            "info": "🌱 Modo /eco activado: sin búsqueda web, solo conocimiento local."
-        }),
         "/think": ("generation_think", {
-            "info": "🧠 Modo /think activado: razonamiento paso a paso con Qwen3-235B."
+            "info": "🧠 Modo /think activado: razonamiento profundo paso a paso."
         }),
     }
+    
+    # Deprecados → log + redirigir a default
+    deprecated_prefixes = {"/local", "/deep", "/eco", "/status"}
+    query_lower = query_stripped.lower()
+    for dep in deprecated_prefixes:
+        if query_lower.startswith(dep):
+            clean_query = query_stripped[len(dep):].strip()
+            logger.info(f"[ChatMode] Prefijo DEPRECADO {dep} → usando generation_default")
+            return clean_query, None, {}
     
     for prefix, (policy, meta) in mode_map.items():
         if query_stripped.lower().startswith(prefix):
@@ -197,9 +199,7 @@ async def chat(req: ChatRequest):
         rewritten_query = await rewrite_query(req.query, history_dicts)
         use_dual = rewritten_query != req.query
 
-        # 3. Buscar en Qdrant (dual-query si se reescribió)
-        # SKIP búsqueda web para modo /eco
-        skip_web_search = (policy_name == "generation_eco")
+        # 3. Buscar en Qdrant
         rag_results = await rag_search(
             query=rewritten_query,
             collections=collections,
