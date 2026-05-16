@@ -140,8 +140,9 @@ services:
       - YOLO_BREED_MODEL=/app/yolo_models/seedy_breeds_best.pt
       - YOLO_DATA_DIR=/app/yolo_dataset
       - YOLO_MODELS_DIR=/app/yolo_models
-      - MQTT_HOST=mosquitto
+      - MQTT_HOST=192.168.40.128
       - MQTT_PORT=1883
+      - DRONE_BRIDGE_URL=http://192.168.40.128:9090
       - WEBUI_DB_PATH=/app/backend/open-webui-data/webui.db
       - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
@@ -389,7 +390,7 @@ services:
       dockerfile: Dockerfile
     container_name: celery-worker
     restart: unless-stopped
-    command: celery -A backend.workers worker --loglevel=info --concurrency=2 --max-tasks-per-child=10
+    command: celery -A workers worker --loglevel=info --concurrency=2 --max-tasks-per-child=10
     volumes:
       - ./backend:/app
       - ./genetics:/app/genetics
@@ -424,7 +425,7 @@ services:
       dockerfile: Dockerfile
     container_name: celery-beat
     restart: unless-stopped
-    command: celery -A backend.workers beat --loglevel=info
+    command: celery -A workers beat --loglevel=info
     volumes:
       - ./backend:/app
       - ./genetics:/app/genetics
