@@ -37,6 +37,10 @@ scikit-learn>=1.4
 weasyprint>=61.0
 markdown>=3.5
 
+# Celery (async tasks)
+celery[redis]==5.4.*
+redis>=5.0
+
 # Cereales ingester (v5.1)
 beautifulsoup4==4.12.3
 lxml==5.1.0
