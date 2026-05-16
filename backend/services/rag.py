@@ -36,7 +36,15 @@ FOLDER_TO_COLLECTION = {
 # Colección especial para contenido web fresco (no mapeada a carpeta)
 FRESH_WEB_COLLECTION = "fresh_web"
 
-ALL_COLLECTIONS = list(set(FOLDER_TO_COLLECTION.values())) + [FRESH_WEB_COLLECTION, "porcino", "bovino"]
+# Colección de precios de cereales (ingesta vía cereales_ingester.py)
+CEREALES_MERCADOS_COLLECTION = "cereales_mercados"
+
+ALL_COLLECTIONS = list(set(FOLDER_TO_COLLECTION.values())) + [
+    FRESH_WEB_COLLECTION,
+    CEREALES_MERCADOS_COLLECTION,
+    "porcino",
+    "bovino",
+]
 
 
 def _create_qdrant() -> QdrantClient:
@@ -90,6 +98,50 @@ async def ensure_collections(embed_dim: int = 1024):
             logger.info(f"Colección '{collection_name}' creada (dim={embed_dim}, hybrid)")
         else:
             logger.info(f"Colección '{collection_name}' ya existe")
+
+
+def classify_query_domain(query: str) -> str:
+    """Clasifica query por dominio (cereales/mercados o avicultura general).
+    
+    Returns:
+        "cereales" | "avicultura"
+    """
+    query_lower = query.lower()
+    
+    # Keywords de dominio cereales/mercados
+    cereales_keywords = [
+        "trigo", "maiz", "maíz", "cebada", "avena", "centeno", "sorgo",
+        "precio", "lonja", "mercolleida", "mapa", "mercado", "cotización",
+        "€/t", "eur/t", "segovia", "cereales", "grano", "pienso",
+    ]
+    
+    # Si 2+ keywords de cereales → dominio cereales
+    matches = sum(1 for kw in cereales_keywords if kw in query_lower)
+    if matches >= 2:
+        return "cereales"
+    
+    # Default: avicultura
+    return "avicultura"
+
+
+def get_collections_for_domain(domain: str, all_collections: list[str] | None = None) -> list[str]:
+    """Devuelve colecciones apropiadas para el dominio.
+    
+    Args:
+        domain: "cereales" | "avicultura"
+        all_collections: Lista de colecciones disponibles (opcional, para override manual)
+    
+    Returns:
+        Lista de nombres de colecciones a consultar.
+    """
+    if all_collections:
+        return all_collections
+    
+    if domain == "cereales":
+        return [CEREALES_MERCADOS_COLLECTION]
+    else:
+        # Avicultura general: todas excepto cereales
+        return [c for c in ALL_COLLECTIONS if c != CEREALES_MERCADOS_COLLECTION]
 
 
 async def search(

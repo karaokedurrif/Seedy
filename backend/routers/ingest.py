@@ -95,3 +95,32 @@ async def ingest_status():
         available_topics=list(WATCHLIST.keys()),
         last_runs=_last_runs[:10],
     )
+
+
+@router.post("/cereales")
+async def ingest_cereales(background_tasks: BackgroundTasks):
+    """Ingesta precios de cereales desde Mercolleida, Lonja Segovia, MAPA.
+    
+    Fuentes:
+    - Mercolleida (Lleida): https://www.mercolleida.cat/es/precios-cereales
+    - Lonja Segovia: https://www.lonjasegovia.es/precios
+    - MAPA: https://www.mapa.gob.es (PDFs semanales, no implementado aún)
+    
+    Returns:
+        {"status": "started", "message": "..."}
+    """
+    from ingestion.cereales_ingester import ingest_all_cereales
+    
+    async def _run_cereales():
+        results = await ingest_all_cereales()
+        _last_runs.insert(0, {
+            "topic": "cereales",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "results": results,
+        })
+    
+    background_tasks.add_task(_run_cereales)
+    return {
+        "status": "started",
+        "message": "Ingesta de precios de cereales iniciada (Mercolleida, Lonja Segovia, MAPA)",
+    }
