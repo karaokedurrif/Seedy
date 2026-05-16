@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from models.schemas import ChatRequest, ChatResponse, Source
 from models.prompts import CATEGORY_COLLECTIONS, get_system_prompt
 from services.classifier import classify_query_multi
-from services.rag import search as rag_search
+from services.rag import search as rag_search, classify_query_domain, get_collections_for_domain
 from services.reranker import rerank
 from services.llm import generate, generate_stream
 from services.query_rewriter import rewrite_query
@@ -191,8 +191,15 @@ async def chat(req: ChatRequest):
 
         categories = await classify_query_multi(req.query, prev_cat)
         collections, primary_cat = _merge_collections(categories)
+        
+        # v5.2-3: Routing por dominio (cereales vs avicultura)
+        domain = classify_query_domain(req.query)
+        domain_collections = get_collections_for_domain(domain)
+        # Filtrar collections para incluir solo las del dominio
+        collections = [c for c in collections if c in domain_collections] or domain_collections
+        
         logger.info(
-            f"Categorías: {categories} | Colecciones: {collections} | Query: {req.query[:80]}..."
+            f"Categorías: {categories} | Dominio: {domain} | Colecciones: {collections} | Query: {req.query[:80]}..."
         )
 
         # 2. Reescribir query (si hay historial conversacional)
@@ -330,10 +337,15 @@ async def chat_stream(req: ChatRequest):
             )
             categories = await classify_query_multi(req.query)
             collections, primary_cat = _merge_collections(categories)
+            
+            # v5.2-3: Routing por dominio (cereales vs avicultura)
+            domain = classify_query_domain(req.query)
+            domain_collections = get_collections_for_domain(domain)
+            collections = [c for c in collections if c in domain_collections] or domain_collections
 
             yield (
                 f"event: metadata\n"
-                f"data: {json.dumps({'step': 'classified', 'category': primary_cat, 'categories': [[c, w] for c, w in categories]})}\n\n"
+                f"data: {json.dumps({'step': 'classified', 'category': primary_cat, 'categories': [[c, w] for c, w in categories], 'domain': domain, 'collections': collections})}\n\n"
             )
 
             # 2. Reescribir query
