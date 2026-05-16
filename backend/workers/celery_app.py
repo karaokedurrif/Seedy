@@ -14,6 +14,8 @@ celery_app = Celery(
         "workers.behavior_analyzer",
         "workers.mating_confirmer",
         "workers.weekly_report",
+        "workers.twin_aggregator",
+        "workers.cereales_updater",
     ],
 )
 
@@ -33,6 +35,17 @@ celery_app.conf.update(
 
 # Periodic tasks (Celery Beat)
 celery_app.conf.beat_schedule = {
+    # v5.1-C: Agregación de twin metrics diaria 02:00
+    "aggregate-twin-metrics-daily": {
+        "task": "workers.twin_aggregator.aggregate_twin_metrics_all",
+        "schedule": crontab(hour=2, minute=0),
+        "args": ("gallinero_palacio",),
+    },
+    # v5.1-C: Ingesta de cereales diaria 06:00
+    "ingest-cereales-daily": {
+        "task": "workers.cereales_updater.ingest_cereales_daily",
+        "schedule": crontab(hour=6, minute=0),
+    },
     # Análisis de comportamiento 7D cada noche a las 3 AM
     "analyze-behavior-7d-nightly": {
         "task": "workers.behavior_analyzer.analyze_bird_behavior_7d",
@@ -45,10 +58,10 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour="*/6"),  # 00:00, 06:00, 12:00, 18:00
         "args": ("gallinero_palacio", 6),  # Últimas 6 horas
     },
-    # Reporte semanal cada domingo a las 20:00
-    "weekly-report-sunday": {
+    # v5.1-C: Reporte semanal cada domingo a las 03:00 (cambiado de 20:00)
+    "weekly-behavior-report-sunday": {
         "task": "workers.weekly_report.generate_weekly_report",
-        "schedule": crontab(day_of_week=0, hour=20, minute=0),  # Domingo 20:00
+        "schedule": crontab(day_of_week=0, hour=3, minute=0),  # Domingo 03:00
         "args": ("gallinero_palacio",),
     },
 }
