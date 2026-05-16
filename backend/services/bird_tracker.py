@@ -577,9 +577,11 @@ class GallineroTracker:
 
             # Asignación: SOLO si candidato único
             if len(cands) == 1:
+                # L1: breed+sex+color unique match
                 bird = cands[0]
                 vid = bird["ai_vision_id"]
-                conf = 0.80  # sync match base confidence
+                conf = 0.80
+                reason = "L1_breed_sex_color"
                 if registry.claim(t.track_id, vid, conf):
                     t.ai_vision_id = vid
                     if bird.get("sex"):
@@ -595,7 +597,7 @@ class GallineroTracker:
                         locked_at=now,
                         last_confirmed=now,
                         vote_count=1,
-                        reason="breed+sex+color unique sync",
+                        reason=reason,
                     )
                     taken_ids.add(vid)
                     if bird in available:
@@ -603,18 +605,98 @@ class GallineroTracker:
                     synced += 1
                     logger.info(
                         f"🔗 Sync Track #{t.track_id} → {vid} "
-                        f"(breed={t.breed} sex={t.sex} color={t.color or '?'}) "
+                        f"({reason}: breed={t.breed} sex={t.sex} color={t.color or '?'}) "
                         f"en {self.gallinero_id}"
                     )
-            elif len(cands) != 1:
-                # Duda: 0 o >1 candidatos
+            elif len(cands) == 0 or len(cands) > 1:
+                # L2 fallback: breed+sex (si habíamos filtrado por color)
+                l2_cands = None
+                if sex_lower and color_lower:
+                    l2_cands = [
+                        b for b in available
+                        if b.get("breed", "").lower().replace("_", " ") == breed_lower
+                        and sexes_match(sex_lower, b.get("sex", ""))
+                        and b.get("ai_vision_id") not in taken_ids
+                    ]
+                    if len(l2_cands) == 1:
+                        bird = l2_cands[0]
+                        vid = bird["ai_vision_id"]
+                        conf = 0.60
+                        reason = "L2_breed_sex"
+                        if registry.claim(t.track_id, vid, conf):
+                            t.ai_vision_id = vid
+                            if bird.get("sex"):
+                                t.sex = bird["sex"]
+                            now = time.time()
+                            t.identity_lock = IdentityLock(
+                                ai_vision_id=vid,
+                                breed=t.breed,
+                                color=t.color or bird.get("color"),
+                                sex=t.sex,
+                                confidence=conf,
+                                locked_at=now,
+                                last_confirmed=now,
+                                vote_count=1,
+                                reason=reason,
+                            )
+                            taken_ids.add(vid)
+                            if bird in available:
+                                available.remove(bird)
+                            synced += 1
+                            logger.info(
+                                f"🔗 Sync Track #{t.track_id} → {vid} "
+                                f"({reason}: breed={t.breed} sex={t.sex}) "
+                                f"en {self.gallinero_id}"
+                            )
+                            continue  # No escalar duda
+
+                # L3 fallback: breed-only (si no hubo L2 o L2 tampoco único)
+                if (l2_cands is None or len(l2_cands) != 1):
+                    l3_cands = [
+                        b for b in available
+                        if b.get("breed", "").lower().replace("_", " ") == breed_lower
+                        and b.get("ai_vision_id") not in taken_ids
+                    ]
+                    if len(l3_cands) == 1:
+                        bird = l3_cands[0]
+                        vid = bird["ai_vision_id"]
+                        conf = 0.40
+                        reason = "L3_breed"
+                        if registry.claim(t.track_id, vid, conf):
+                            t.ai_vision_id = vid
+                            if bird.get("sex"):
+                                t.sex = bird["sex"]
+                            now = time.time()
+                            t.identity_lock = IdentityLock(
+                                ai_vision_id=vid,
+                                breed=t.breed,
+                                color=t.color or bird.get("color"),
+                                sex=t.sex,
+                                confidence=conf,
+                                locked_at=now,
+                                last_confirmed=now,
+                                vote_count=1,
+                                reason=reason,
+                            )
+                            taken_ids.add(vid)
+                            if bird in available:
+                                available.remove(bird)
+                            synced += 1
+                            logger.info(
+                                f"🔗 Sync Track #{t.track_id} → {vid} "
+                                f"({reason}: breed={t.breed}) "
+                                f"en {self.gallinero_id}"
+                            )
+                            continue  # No escalar duda
+
+                # Si ningún fallback funcionó, escalar duda
                 escalator.mark(
                     track_id=t.track_id,
                     breed=t.breed,
                     sex=t.sex or "",
                     color=t.color,
                     candidates=[b["ai_vision_id"] for b in cands],
-                    reason=f"sync_ambiguous ({len(cands)} candidates)",
+                    reason=f"sync_ambiguous ({len(cands)} L1 candidates, L2/L3 failed)",
                 )
 
         if synced:

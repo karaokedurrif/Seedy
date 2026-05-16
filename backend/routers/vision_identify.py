@@ -3150,3 +3150,104 @@ async def confirm_bird_identity(ove_ave_id: int, body: dict):
         "ave_id": ove_ave_id,
         "updated_fields": list(update_data.keys()),
     }
+
+
+@router.post("/assign-track")
+async def assign_track_to_bird(body: dict):
+    """Asigna manualmente un track_id a un ai_vision_id registrado.
+
+    Body:
+        gallinero_id: str
+        track_id: int
+        ai_vision_id: str
+        breed: str (opcional, se infiere del ai_vision_id si no se provee)
+        sex: str (opcional)
+        color: str (opcional)
+
+    Returns:
+        {"status": "ok", "track_id": ..., "ai_vision_id": ..., "confidence": 1.0}
+    """
+    gallinero_id = body.get("gallinero_id")
+    track_id = body.get("track_id")
+    ai_vision_id = body.get("ai_vision_id")
+
+    if not gallinero_id or not track_id or not ai_vision_id:
+        raise HTTPException(400, "Faltan campos: gallinero_id, track_id, ai_vision_id")
+
+    try:
+        from services.bird_tracker import get_tracker
+        from services.identity.identity_lock import get_registry, IdentityLock
+        import time
+
+        tracker = get_tracker(gallinero_id)
+        registry = get_registry(gallinero_id)
+
+        # Verificar que el track existe y está activo
+        if track_id not in tracker.tracks:
+            raise HTTPException(404, f"Track {track_id} no existe en {gallinero_id}")
+
+        track = tracker.tracks[track_id]
+        if not track.active:
+            raise HTTPException(400, f"Track {track_id} no está activo")
+
+        # Verificar que el ai_vision_id no está ya asignado a otro track
+        taken_ids = registry.get_taken_ids()
+        if ai_vision_id in taken_ids:
+            # Buscar track que tiene este ID
+            other_track = next(
+                (t for t in tracker.tracks.values() if t.ai_vision_id == ai_vision_id and t.track_id != track_id),
+                None
+            )
+            if other_track:
+                raise HTTPException(409, f"ai_vision_id {ai_vision_id} ya está asignado al track {other_track.track_id}")
+
+        # Asignar con confidence=1.0 (manual)
+        breed = body.get("breed") or track.breed or "unknown"
+        sex = body.get("sex") or track.sex or ""
+        color = body.get("color") or track.color or ""
+
+        conf = 1.0
+        reason = "manual_assignment"
+
+        if registry.claim(track_id, ai_vision_id, conf):
+            track.ai_vision_id = ai_vision_id
+            track.breed = breed
+            track.sex = sex
+            track.color = color
+
+            now = time.time()
+            track.identity_lock = IdentityLock(
+                ai_vision_id=ai_vision_id,
+                breed=breed,
+                color=color,
+                sex=sex,
+                confidence=conf,
+                locked_at=now,
+                last_confirmed=now,
+                vote_count=1,
+                reason=reason,
+            )
+
+            logger.info(
+                f"👤 Manual assign: Track #{track_id} → {ai_vision_id} "
+                f"(breed={breed} sex={sex} color={color}) en {gallinero_id}"
+            )
+
+            return {
+                "status": "ok",
+                "track_id": track_id,
+                "ai_vision_id": ai_vision_id,
+                "breed": breed,
+                "sex": sex,
+                "color": color,
+                "confidence": conf,
+                "reason": reason,
+            }
+        else:
+            raise HTTPException(500, "registry.claim() falló (ID ya tomado o conflicto interno)")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en assign_track_to_bird: {e}", exc_info=True)
+        raise HTTPException(500, f"Error interno: {str(e)}")
