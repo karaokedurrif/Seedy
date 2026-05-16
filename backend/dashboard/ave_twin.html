@@ -794,8 +794,89 @@ function renderMatingSection(mating, isMale, flockTotal) {
   return html;
 }
 
+// OBJ E: Cargar dimensiones del twin desde /twin/{bird_id}/dimensions
+async function enhanceBehaviorWithTwinMetrics() {
+  const params = new URLSearchParams(window.location.search);
+  const birdId = params.get('id');
+  if (!birdId) return;
+
+  try {
+    const res = await fetch(`${SEEDY_API}/twin/${birdId}/dimensions`);
+    if (!res.ok) {
+      console.warn('[twin] No hay métricas agregadas todavía:', res.status);
+      return;
+    }
+    
+    const data = await res.json();
+    if (!data.dimensions) return;
+
+    // Mapeo español → inglés para compatibilidad con DIM_LABELS
+    const dimMap = {
+      agresividad: 'aggressiveness',
+      dominancia: 'dominance',
+      subordinacion: 'subordination',
+      alimentacion: 'feeding_level',
+      estres: 'stress',
+      sociabilidad: 'sociality',
+      patron_nido: 'nesting_pattern',
+    };
+
+    // Transformar al formato esperado por renderBehaviorSection
+    const inferences = {};
+    for (const [dimEs, dimEn] of Object.entries(dimMap)) {
+      const metric = data.dimensions[dimEs];
+      if (!metric) continue;
+
+      // Clasificar label según score
+      let label = 'inconclusive';
+      if (metric.completeness >= 0.6) {
+        if (dimEn === 'aggressiveness' && metric.score > 0.5) label = 'possible_aggressive';
+        else if (dimEn === 'dominance' && metric.score > 0.5) label = 'possible_dominant';
+        else if (dimEn === 'subordination' && metric.score > 0.5) label = 'possible_subordinate';
+        else if (dimEn === 'feeding_level' && metric.score < 0.3) label = 'low_feeding';
+        else if (dimEn === 'feeding_level' && metric.score > 0.7) label = 'high_feeding';
+        else if (dimEn === 'stress' && metric.score > 0.5) label = 'possible_stress';
+        else if (dimEn === 'sociality' && metric.score > 0.7) label = 'possible_highly_social';
+        else if (dimEn === 'sociality' && metric.score < 0.3) label = 'possible_asocial';
+        else if (dimEn === 'nesting_pattern' && metric.score > 0.4) label = 'possible_early_brooding';
+        else if (dimEn === 'nesting_pattern' && metric.score < 0.05) label = 'no_nesting';
+        else label = 'normal';
+      }
+
+      inferences[dimEn] = {
+        label,
+        score: metric.score,
+        evidence: [
+          `Completeness: ${Math.round(metric.completeness * 100)}%`,
+          `Sample: ${metric.sample_size} frames`
+        ]
+      };
+    }
+
+    // Re-renderizar sección de comportamiento
+    const behaviorSection = document.querySelector('.section:nth-of-type(4)');
+    if (behaviorSection) {
+      const avgCompleteness = Object.values(data.dimensions)
+        .reduce((sum, m) => sum + m.completeness, 0) / Object.keys(data.dimensions).length;
+      
+      const behData = {
+        data_completeness: avgCompleteness,
+        time_window: `${data.window_hours}h`,
+        anomalies: [],
+      };
+
+      behaviorSection.querySelector('h2').nextElementSibling.innerHTML = 
+        renderBehaviorSection(inferences, behData);
+      
+      console.log('[twin] Dimensiones cargadas:', inferences);
+    }
+  } catch (e) {
+    console.warn('[twin] Error cargando dimensiones:', e);
+  }
+}
+
 // Init
-loadBird();
+loadBird().then(() => enhanceBehaviorWithTwinMetrics());
 </script>
 </body>
 </html>
